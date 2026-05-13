@@ -506,10 +506,10 @@ function _enterTUI() {
         '</div>' +
         '<div class="phreak-tui-toolbar" id="phreak-tui-toolbar">' +
             '<div class="phreak-tui-btn-group">' +
-                '<button class="phreak-tui-action-btn" data-action="isolate-green" title="Show GREEN files">GREEN</button>' +
-                '<button class="phreak-tui-action-btn" data-action="isolate-yellow" title="Show YELLOW files">YELLOW</button>' +
-                '<button class="phreak-tui-action-btn" data-action="isolate-red" title="Show RED files">RED</button>' +
-                '<button class="phreak-tui-action-btn" data-action="show-all" title="Show all files">ALL</button>' +
+                '<button class="phreak-tui-action-btn" data-action="isolate-green" title="Show GREEN files">GREEN<span class="phreak-badge" data-badge="green"></span></button>' +
+                '<button class="phreak-tui-action-btn" data-action="isolate-yellow" title="Show YELLOW files">YELLOW<span class="phreak-badge" data-badge="yellow"></span></button>' +
+                '<button class="phreak-tui-action-btn" data-action="isolate-red" title="Show RED files">RED<span class="phreak-badge" data-badge="red"></span></button>' +
+                '<button class="phreak-tui-action-btn" data-action="show-all" title="Show all files">ALL<span class="phreak-badge" data-badge="all"></span></button>' +
                 '<button class="phreak-tui-action-btn" data-action="show-graph" title="Show connection graph">GRAPH</button>' +
             '</div>' +
             '<div class="phreak-tui-btn-group">' +
@@ -538,6 +538,9 @@ function _enterTUI() {
 
     // Update phone icon state
     _updatePhoneIconState();
+
+    // Update file count badges
+    _updateTUIBadges();
 
     // Wire TUI header buttons
     overlay.addEventListener('click', function(e) {
@@ -610,6 +613,9 @@ function _isolateFiles(status) {
     } else {
         filtered = manifest.files.filter(function(f) { return f.status === status; });
     }
+    
+    // Update badge counts
+    _updateTUIBadges();
     
     phreakState.lines.push(_mkLine('system', '── ' + status + ' FILES (' + filtered.length + ') ──'));
     _renderLines();
@@ -703,6 +709,32 @@ function _exitTUI() {
     }
 }
 
+// ─── TUI BADGE UPDATES ───────────────────────────────────────
+
+function _updateTUIBadges() {
+    var manifest = window.VoidFileExplorer && window.VoidFileExplorer.getIndexedFingerprints
+        ? window.VoidFileExplorer.getIndexedFingerprints()
+        : null;
+
+    if (!manifest || !manifest.files) return;
+
+    var counts = { green: 0, yellow: 0, red: 0 };
+    manifest.files.forEach(function(f) {
+        if (f.status === 'GREEN') counts.green++;
+        else if (f.status === 'YELLOW') counts.yellow++;
+        else if (f.status === 'RED') counts.red++;
+    });
+
+    var badges = document.querySelectorAll('#phreak-tui-toolbar .phreak-badge');
+    badges.forEach(function(badge) {
+        var type = badge.getAttribute('data-badge');
+        if (type === 'green') badge.textContent = counts.green || '';
+        else if (type === 'yellow') badge.textContent = counts.yellow || '';
+        else if (type === 'red') badge.textContent = counts.red || '';
+        else if (type === 'all') badge.textContent = manifest.files.length || '';
+    });
+}
+
 // Mount without re-seeding welcome message (state is preserved)
 function phreakMountStateless(panelBodyEl) {
     panelBodyEl.innerHTML = _buildContainerHTML();
@@ -765,7 +797,6 @@ function _buildPhoneIconHTML() {
 function togglePhoneOffHook() {
     phreakState.phoneOffHook = !phreakState.phoneOffHook;
     _updatePhoneIconState();
-    return;
 
     var status = phreakState.phoneOffHook
         ? 'Phone OFF-HOOK — incoming signals suppressed'

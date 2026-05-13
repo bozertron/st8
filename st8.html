@@ -437,6 +437,18 @@
     background: var(--cyan);
     color: var(--void);
   }
+  .graph-popup-filters {
+    display: flex;
+    gap: 6px;
+  }
+  .graph-filter-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .graph-filter-btn:hover {
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.05);
+    color: inherit !important;
+  }
 
   /* ─── SETTINGS POPUP ──────────────────────────────────────── */
   .settings-popup-overlay {
@@ -1326,6 +1338,26 @@
     background: var(--pink);
     border-color: var(--pink);
   }
+  .phreak-badge {
+    display: inline-block;
+    min-width: 14px;
+    height: 14px;
+    line-height: 14px;
+    padding: 0 3px;
+    margin-left: 4px;
+    font-size: 9px;
+    font-family: monospace;
+    letter-spacing: 0;
+    border-radius: 7px;
+    background: var(--text);
+    color: var(--void);
+    text-align: center;
+    vertical-align: middle;
+  }
+  .phreak-badge:empty { display: none; }
+  .phreak-tui-action-btn[data-action="isolate-green"] .phreak-badge { background: var(--gold); }
+  .phreak-tui-action-btn[data-action="isolate-yellow"] .phreak-badge { background: var(--cyan); }
+  .phreak-tui-action-btn[data-action="isolate-red"] .phreak-badge { background: var(--pink); }
   .phreak-tui-controls { display: flex; gap: 8px; }
   .phreak-tui-toggle-btn {
     background: transparent;
