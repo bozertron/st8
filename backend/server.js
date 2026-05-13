@@ -100,6 +100,9 @@ class St8Server {
             case '/api/settings':
                 this._handleSettings(req, res, url);
                 break;
+            case '/api/verify':
+                this._handleVerify(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -327,6 +330,181 @@ class St8Server {
         });
     }
     
+    _handleVerify(req, res) {
+        // Method validation — POST only
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                // Parse request body
+                let targetDir = this.targetDir;
+                if (body) {
+                    try {
+                        const parsed = JSON.parse(body);
+                        if (parsed.path) {
+                            targetDir = parsed.path;
+                        }
+                    } catch (parseErr) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                        return;
+                    }
+                }
+
+                if (!targetDir) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'No target directory configured' }));
+                    return;
+                }
+
+                // Resolve and validate path
+                const path = require('path');
+                const fs = require('fs');
+                const crypto = require('crypto');
+                const resolvedDir = path.resolve(targetDir);
+
+                if (!fs.existsSync(resolvedDir)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: `Directory not found: ${resolvedDir}` }));
+                    return;
+                }
+
+                // Initialize persistence
+                const { St8Persistence } = require('./persistence');
+                const persistence = new St8Persistence();
+                await persistence.initialize();
+
+                // Get all indexed files from database
+                const indexedFiles = persistence.getAllFiles();
+                const results = {
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    targetDir: resolvedDir,
+                    summary: {
+                        totalFiles: indexedFiles.length,
+                        verified: 0,
+                        modified: 0,
+                        missing: 0,
+                        orphans: 0
+                    },
+                    files: [],
+                    orphans: [],
+                    issues: []
+                };
+
+                // Verify each indexed file
+                for (const file of indexedFiles) {
+                    const fullPath = path.join(resolvedDir, file.filepath);
+                    const verification = {
+                        filepath: file.filepath,
+                        fingerprint: file.fingerprint,
+                        storedHash: file.sha256_hash,
+                        status: 'VERIFIED',
+                        hashMatch: true,
+                        sizeMatch: true
+                    };
+
+                    // Check existence
+                    if (!fs.existsSync(fullPath)) {
+                        verification.status = 'MISSING';
+                        verification.hashMatch = false;
+                        verification.sizeMatch = false;
+                        results.summary.missing++;
+                        results.issues.push({
+                            filepath: file.filepath,
+                            severity: 'CRITICAL',
+                            message: 'File missing from disk'
+                        });
+                    } else {
+                        // Compute current hash
+                        try {
+                            const content = fs.readFileSync(fullPath);
+                            const currentHash = crypto.createHash('sha256').update(content).digest('hex');
+                            verification.currentHash = currentHash;
+
+                            // Check hash match
+                            if (currentHash !== file.sha256_hash) {
+                                verification.status = 'MODIFIED';
+                                verification.hashMatch = false;
+                                results.summary.modified++;
+                                results.issues.push({
+                                    filepath: file.filepath,
+                                    severity: 'WARNING',
+                                    message: 'Hash mismatch: file modified since last index'
+                                });
+                            } else {
+                                results.summary.verified++;
+                            }
+
+                            // Check size match
+                            const stat = fs.statSync(fullPath);
+                            if (file.file_size_bytes && stat.size !== file.file_size_bytes) {
+                                verification.sizeMatch = false;
+                                if (verification.status === 'VERIFIED') {
+                                    verification.status = 'MODIFIED';
+                                    results.summary.modified++;
+                                    results.summary.verified--;
+                                }
+                            }
+                        } catch (hashErr) {
+                            verification.status = 'ERROR';
+                            verification.hashMatch = false;
+                            results.issues.push({
+                                filepath: file.filepath,
+                                severity: 'ERROR',
+                                message: `Failed to hash file: ${hashErr.message}`
+                            });
+                        }
+                    }
+
+                    results.files.push(verification);
+                }
+
+                // Detect orphan files (on disk but not in index)
+                const { discoverFiles } = require('./indexer');
+                const diskFiles = discoverFiles(resolvedDir);
+                const indexedPaths = new Set(indexedFiles.map(f => f.filepath));
+
+                for (const diskFile of diskFiles) {
+                    const relPath = path.relative(resolvedDir, diskFile);
+                    if (!indexedPaths.has(relPath)) {
+                        results.orphans.push({
+                            filepath: relPath,
+                            reason: 'not_in_index'
+                        });
+                        results.summary.orphans++;
+                    }
+                }
+
+                // Log verification activity
+                persistence.logActivity({
+                    source: 'API',
+                    action: 'VERIFY',
+                    details: {
+                        targetDir: resolvedDir,
+                        summary: results.summary
+                    }
+                });
+
+                persistence.close();
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(results, null, 2));
+
+            } catch (err) {
+                console.error('[st8:server] Verify error:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
     stop() {
         if (this.server) {
             this.server.close();
