@@ -1426,8 +1426,28 @@
     </div>
   </div>
 
-  <!-- void-engine: pretext-driven drift surface, mounts on #stage -->
-  <script type="module" src="vendor/void-engine.js"></script>
+  <!-- void-engine: pretext-driven drift surface, loads conditionally for pretext-dev workspace -->
+  <script>
+    // Conditional void-engine loader — only loads when pretext-dev workspace is active
+    window.loadVoidEngine = function() {
+      if (document.querySelector('script[data-void-engine]')) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = 'vendor/void-engine.js';
+        script.dataset.voidEngine = 'loaded';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    };
+    window.unloadVoidEngine = function() {
+      const script = document.querySelector('script[data-void-engine]');
+      if (script) script.remove();
+      const stage = document.getElementById('stage');
+      if (stage) stage.innerHTML = '';
+    };
+  </script>
 
   <!-- Panel modules -->
   <script>
@@ -1580,8 +1600,28 @@
         if (window.St8Coordination) {
           window.St8Coordination.startPolling('/api/connection-state.json');
         }
+        // Unload void-engine if it was loaded
+        if (window.unloadVoidEngine) window.unloadVoidEngine();
+      } else if (wsType === 'pretext-dev') {
+        // Activate pretext development mode — load void-engine
+        voidEl.classList.remove('split-mode');
+        // Remove right panel if exists
+        const rightPanel = voidEl.querySelector('.void-right-panel');
+        if (rightPanel) rightPanel.remove();
+        // Stop coordination polling
+        if (window.St8Coordination) {
+          window.St8Coordination.stopPolling();
+        }
+        // Load void-engine for pretext workspace
+        if (window.loadVoidEngine) {
+          window.loadVoidEngine().then(() => {
+            console.info('[st8] void-engine loaded for pretext-dev workspace');
+          }).catch(err => {
+            console.error('[st8] failed to load void-engine:', err);
+          });
+        }
       } else {
-        // Deactivate split mode
+        // Deactivate split mode (standard workspace)
         voidEl.classList.remove('split-mode');
         // Remove right panel
         const rightPanel = voidEl.querySelector('.void-right-panel');
@@ -1590,6 +1630,8 @@
         if (window.St8Coordination) {
           window.St8Coordination.stopPolling();
         }
+        // Unload void-engine if it was loaded
+        if (window.unloadVoidEngine) window.unloadVoidEngine();
       }
     };
 
