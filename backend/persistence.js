@@ -95,6 +95,9 @@ CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(source_fingerpr
 CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(target_fingerprint);
 CREATE INDEX IF NOT EXISTS idx_activity_log_timestamp ON activity_log(timestamp);
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_connections_unique 
+ON connections(source_fingerprint, target_fingerprint, connection_type);
+
 CREATE TABLE IF NOT EXISTS st8_settings (
   category TEXT NOT NULL,
   key TEXT NOT NULL,
@@ -174,11 +177,37 @@ class St8Persistence {
         return stmt.get(filepath);
     }
     
+    deleteFile(filepath) {
+        const file = this.getFileByPath(filepath);
+        if (!file) return { changes: 0 };
+        
+        // Cascade delete FK-dependent rows
+        this.deleteConnectionsForFile(file.fingerprint);
+        this.deleteIntentForFile(file.fingerprint);
+        
+        // Delete the file
+        const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
+        const result = stmt.run(filepath);
+        return { changes: result.changes, fingerprint: file.fingerprint };
+    }
+    
+    deleteConnectionsForFile(fingerprint) {
+        const stmt = this.db.prepare(
+            'DELETE FROM connections WHERE source_fingerprint = ? OR target_fingerprint = ?'
+        );
+        return stmt.run(fingerprint, fingerprint);
+    }
+    
+    deleteIntentForFile(fingerprint) {
+        const stmt = this.db.prepare('DELETE FROM file_intent WHERE fingerprint = ?');
+        return stmt.run(fingerprint);
+    }
+    
     // ─── CONNECTIONS ────────────────────────────────────────
     
     insertConnection(conn) {
         const stmt = this.db.prepare(`
-            INSERT INTO connections 
+            INSERT OR REPLACE INTO connections 
             (source_fingerprint, target_fingerprint, connection_type, import_specifier, is_resolved, confidence_score)
             VALUES (?, ?, ?, ?, ?, ?)
         `);
@@ -217,6 +246,20 @@ class St8Persistence {
     getIntent(fingerprint) {
         const stmt = this.db.prepare('SELECT * FROM file_intent WHERE fingerprint = ?');
         return stmt.get(fingerprint);
+    }
+
+    getAllIntents() {
+        const stmt = this.db.prepare('SELECT * FROM file_intent');
+        const rows = stmt.all();
+        const map = {};
+        for (const row of rows) {
+            map[row.fingerprint] = {
+                purpose: row.purpose || '',
+                dependsOnBehavior: row.depends_on_behavior || '',
+                valueStatement: row.value_statement || ''
+            };
+        }
+        return map;
     }
     
     // ─── ACTIVITY LOG ───────────────────────────────────────
