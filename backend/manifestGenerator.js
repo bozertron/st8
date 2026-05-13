@@ -76,6 +76,16 @@ function generateConnectionState(files, targetDir) {
 
 // ─── TOML MANIFEST ───────────────────────────────────────────
 
+function escapeTomlString(value) {
+    if (typeof value !== 'string') return String(value);
+    return value
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+}
+
 function generateAiSignalToml(files, targetDir) {
     const tomlSerializer = getTomlSerializer();
     
@@ -102,8 +112,8 @@ function generateAiSignalToml(files, targetDir) {
     // Manual TOML generation
     let toml = `# AI Signal Manifest
 version = "1.0"
-generated_at = "${new Date().toISOString()}"
-target_directory = "${targetDir}"
+generated_at = "${escapeTomlString(new Date().toISOString())}"
+target_directory = "${escapeTomlString(targetDir)}"
 
 [status_distribution]
 green = ${files.filter(f => f.status === 'GREEN').length}
@@ -114,13 +124,13 @@ red = ${files.filter(f => f.status === 'RED').length}
     
     for (const file of files) {
         toml += `[[files]]
-path = "${file.filepath}"
-status = "${file.status}"
+path = "${escapeTomlString(file.filepath)}"
+status = "${escapeTomlString(file.status)}"
 reachability_score = ${file.reachabilityScore || 0.0}
 impact_radius = ${file.impactRadius || 0}
 
 [files.ai_signal]
-core_responsibility = "${(file.intent && file.intent.purpose) || ''}"
+core_responsibility = "${escapeTomlString((file.intent && file.intent.purpose) || '')}"
 can_be_archived = ${file.status === 'RED' && (file.impactRadius || 0) === 0}
 
 `;

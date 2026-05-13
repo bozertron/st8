@@ -103,6 +103,9 @@ class St8Server {
             case '/api/files':
                 this._handleFileList(req, res, url);
                 break;
+            case '/api/mutations':
+                this._handleMutationsSSE(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -232,9 +235,8 @@ class St8Server {
                 await persistence.initialize();
                 const allIntents = persistence.getAllIntents();
                 for (const file of result.files) {
-                    const fp = file.fingerprint || file.sha256Hash;
-                    if (allIntents[fp]) {
-                        file.intent = allIntents[fp];
+                    if (allIntents[file.fingerprint]) {
+                        file.intent = allIntents[file.fingerprint];
                     }
                 }
                 
@@ -305,9 +307,8 @@ class St8Server {
                         // Update intent for the saved file
                         if (manifest.files) {
                             for (const file of manifest.files) {
-                                const fp = file.fingerprint || file.sha256Hash;
-                                if (allIntents[fp]) {
-                                    file.intent = allIntents[fp];
+                                if (allIntents[file.fingerprint]) {
+                                    file.intent = allIntents[file.fingerprint];
                                 }
                             }
                         }
@@ -509,7 +510,7 @@ class St8Server {
                     const verification = {
                         filepath: file.filepath,
                         fingerprint: file.fingerprint,
-                        storedHash: file.sha256_hash,
+                        storedHash: file.sha256Hash,
                         status: 'VERIFIED',
                         hashMatch: true,
                         sizeMatch: true
@@ -534,7 +535,7 @@ class St8Server {
                             verification.currentHash = currentHash;
 
                             // Check hash match
-                            if (currentHash !== file.sha256_hash) {
+                            if (currentHash !== file.sha256Hash) {
                                 verification.status = 'MODIFIED';
                                 verification.hashMatch = false;
                                 results.summary.modified++;
@@ -549,7 +550,7 @@ class St8Server {
 
                             // Check size match
                             const stat = fs.statSync(fullPath);
-                            if (file.file_size_bytes && stat.size !== file.file_size_bytes) {
+                            if (file.fileSizeBytes && stat.size !== file.fileSizeBytes) {
                                 verification.sizeMatch = false;
                                 if (verification.status === 'VERIFIED') {
                                     verification.status = 'MODIFIED';
@@ -612,6 +613,11 @@ class St8Server {
                 }
             }
         });
+    }
+
+    _handleMutationsSSE(req, res) {
+        const { notificationBus } = require('./notificationBus');
+        notificationBus.addSSEClient(res);
     }
 
     stop() {

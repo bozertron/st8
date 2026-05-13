@@ -13,6 +13,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { generateFingerprint } = require('./st8-types');
 
 // ─── LIB CODE REFERENCES ─────────────────────────────────────
 // These paths reference the local lib directory.
@@ -70,45 +71,60 @@ function getTomlSerializer() {
 
 // ─── ST8 SCHEMA ──────────────────────────────────────────────
 // The st8 schema is simpler than maestro's. We only need:
-// - file_registry (fingerprint, filepath, filename, sha256, status, etc.)
-// - connections (source, target, type, is_resolved)
-// - file_intent (purpose, depends_on_behavior, value_statement)
-// - activity_log (timestamp, source, action, target, details)
+// - file_registry (fingerprint, filepath, filename, sha256Hash, status, etc.)
+// - connections (sourceFingerprint, targetFingerprint, connectionType, isResolved)
+// - file_intent (purpose, dependsOnBehavior, valueStatement)
+// - activity_log (timestamp, source, action, targetFingerprint, details)
 
 const ST8_SCHEMA = `
 CREATE TABLE IF NOT EXISTS file_registry (
   fingerprint TEXT PRIMARY KEY,
   filepath TEXT NOT NULL,
   filename TEXT NOT NULL,
-  sha256_hash TEXT NOT NULL,
-  file_size_bytes INTEGER,
-  status TEXT DEFAULT 'GREEN',
-  reachability_score REAL DEFAULT 0.0,
-  impact_radius INTEGER DEFAULT 0,
-  last_modified TEXT,
-  last_indexed TEXT DEFAULT CURRENT_TIMESTAMP
+  sha256Hash TEXT NOT NULL,
+  fileSizeBytes INTEGER,
+  status TEXT DEFAULT 'RED',
+  reachabilityScore REAL DEFAULT 0.0,
+  impactRadius INTEGER DEFAULT 0,
+  lifecyclePhase TEXT DEFAULT 'DEVELOPMENT',
+  birthTimestamp TEXT,
+  lastModified TEXT,
+  lastIndexed TEXT DEFAULT CURRENT_TIMESTAMP,
+  isEntryPoint INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS connections (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  source_fingerprint TEXT NOT NULL,
-  target_fingerprint TEXT NOT NULL,
-  connection_type TEXT DEFAULT 'IMPORT',
-  import_specifier TEXT,
-  is_resolved INTEGER DEFAULT 1,
-  confidence_score REAL DEFAULT 1.0,
-  last_verified TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (source_fingerprint) REFERENCES file_registry(fingerprint),
-  FOREIGN KEY (target_fingerprint) REFERENCES file_registry(fingerprint)
+  sourceFingerprint TEXT NOT NULL,
+  targetFingerprint TEXT NOT NULL,
+  connectionType TEXT DEFAULT 'IMPORT',
+  importSpecifier TEXT,
+  isResolved INTEGER DEFAULT 1,
+  confidenceScore REAL DEFAULT 1.0,
+  lastVerified TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sourceFingerprint) REFERENCES file_registry(fingerprint),
+  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint)
 );
 
 CREATE TABLE IF NOT EXISTS file_intent (
   fingerprint TEXT PRIMARY KEY,
   purpose TEXT,
-  depends_on_behavior TEXT,
-  value_statement TEXT,
-  authored_by TEXT DEFAULT 'INFERRED',
-  last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+  dependsOnBehavior TEXT,
+  valueStatement TEXT,
+  authoredBy TEXT DEFAULT 'INFERRED',
+  lastUpdated TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
+);
+
+CREATE TABLE IF NOT EXISTS file_mutation_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fingerprint TEXT NOT NULL,
+  sha256Hash TEXT NOT NULL,
+  mutationType TEXT NOT NULL,
+  changedFields TEXT,
+  actor TEXT DEFAULT 'DEVELOPER',
+  timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+  metadata TEXT,
   FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
 );
 
@@ -117,15 +133,26 @@ CREATE TABLE IF NOT EXISTS activity_log (
   timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
   source TEXT DEFAULT 'INDEXER',
   action TEXT NOT NULL,
-  target_fingerprint TEXT,
+  targetFingerprint TEXT,
   details TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_file_registry_status ON file_registry(status);
-CREATE INDEX IF NOT EXISTS idx_file_registry_sha256 ON file_registry(sha256_hash);
-CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(source_fingerprint);
-CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(target_fingerprint);
+CREATE INDEX IF NOT EXISTS idx_file_registry_sha256Hash ON file_registry(sha256Hash);
+CREATE INDEX IF NOT EXISTS idx_file_registry_lifecycle ON file_registry(lifecyclePhase);
+CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(sourceFingerprint);
+CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(targetFingerprint);
+CREATE INDEX IF NOT EXISTS idx_mutation_log_fingerprint ON file_mutation_log(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_mutation_log_timestamp ON file_mutation_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_activity_log_timestamp ON activity_log(timestamp);
+
+CREATE TABLE IF NOT EXISTS st8_settings (
+  category TEXT NOT NULL,
+  key TEXT NOT NULL,
+  value TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (category, key)
+);
 `;
 
 // ─── FILE DISCOVERY ──────────────────────────────────────────
@@ -226,29 +253,36 @@ function buildGraph(files, targetDir) {
 }
 
 function classifyBasic(files, targetDir) {
+    // Normalize: accept either string paths or file objects (with .filepath)
+    const filePaths = files.map(f => {
+        if (typeof f === 'string') return f;
+        // File objects have relative filepath; join with targetDir for absolute path
+        return path.join(targetDir, f.filepath);
+    });
+
     // Basic classification: GREEN if imported by something, RED if not
     const importedBy = new Set();
-    const allFiles = new Set(files.map(f => path.relative(targetDir, f)));
-    
-    for (const file of files) {
-        const imports = parseImports(file);
+    const allFiles = new Set(filePaths.map(f => path.relative(targetDir, f)));
+
+    for (const filePath of filePaths) {
+        const imports = parseImports(filePath);
         for (const imp of imports) {
             if (imp.source && imp.source.startsWith('.')) {
                 // Resolve relative import
-                const dir = path.dirname(file);
+                const dir = path.dirname(filePath);
                 const resolved = path.resolve(dir, imp.source);
                 const relPath = path.relative(targetDir, resolved);
                 importedBy.add(relPath);
             }
         }
     }
-    
-    return files.map(file => {
-        const relPath = path.relative(targetDir, file);
+
+    return filePaths.map(filePath => {
+        const relPath = path.relative(targetDir, filePath);
         const status = importedBy.has(relPath) ? 'GREEN' : 'RED';
         return {
             filepath: relPath,
-            filename: path.basename(file),
+            filename: path.basename(filePath),
             status: status,
             reachabilityScore: status === 'GREEN' ? 0.95 : 0.0,
             impactRadius: 0
@@ -315,12 +349,18 @@ async function indexDirectory(targetDir, options = {}) {
     const hashedFiles = files.map(file => {
         const hash = hashFile(file);
         const stat = fs.statSync(file);
+        const filepath = path.relative(targetDir, file);
+        const birthTimestamp = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
         return {
-            filepath: path.relative(targetDir, file),
+            filepath: filepath,
             filename: path.basename(file),
             sha256Hash: hash,
             fileSizeBytes: stat.size,
-            lastModified: stat.mtime.toISOString()
+            lastModified: stat.mtime.toISOString(),
+            birthTimestamp: birthTimestamp,
+            fingerprint: generateFingerprint(filepath, birthTimestamp),
+            lifecyclePhase: 'DEVELOPMENT',
+            isEntryPoint: false
         };
     });
     

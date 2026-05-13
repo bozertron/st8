@@ -14,6 +14,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { St8FileEntry, LifecyclePhase, FileStatus } = require('./st8-types');
 
 // ─── LIB CODE REFERENCES ─────────────────────────────────────
 
@@ -48,35 +49,50 @@ CREATE TABLE IF NOT EXISTS file_registry (
   fingerprint TEXT PRIMARY KEY,
   filepath TEXT NOT NULL,
   filename TEXT NOT NULL,
-  sha256_hash TEXT NOT NULL,
-  file_size_bytes INTEGER,
-  status TEXT DEFAULT 'GREEN',
-  reachability_score REAL DEFAULT 0.0,
-  impact_radius INTEGER DEFAULT 0,
-  last_modified TEXT,
-  last_indexed TEXT DEFAULT CURRENT_TIMESTAMP
+  sha256Hash TEXT NOT NULL,
+  fileSizeBytes INTEGER,
+  status TEXT DEFAULT 'RED',
+  reachabilityScore REAL DEFAULT 0.0,
+  impactRadius INTEGER DEFAULT 0,
+  lifecyclePhase TEXT DEFAULT 'DEVELOPMENT',
+  birthTimestamp TEXT,
+  lastModified TEXT,
+  lastIndexed TEXT DEFAULT CURRENT_TIMESTAMP,
+  isEntryPoint INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS connections (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  source_fingerprint TEXT NOT NULL,
-  target_fingerprint TEXT NOT NULL,
-  connection_type TEXT DEFAULT 'IMPORT',
-  import_specifier TEXT,
-  is_resolved INTEGER DEFAULT 1,
-  confidence_score REAL DEFAULT 1.0,
-  last_verified TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (source_fingerprint) REFERENCES file_registry(fingerprint),
-  FOREIGN KEY (target_fingerprint) REFERENCES file_registry(fingerprint)
+  sourceFingerprint TEXT NOT NULL,
+  targetFingerprint TEXT NOT NULL,
+  connectionType TEXT DEFAULT 'IMPORT',
+  importSpecifier TEXT,
+  isResolved INTEGER DEFAULT 1,
+  confidenceScore REAL DEFAULT 1.0,
+  lastVerified TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sourceFingerprint) REFERENCES file_registry(fingerprint),
+  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint)
 );
 
 CREATE TABLE IF NOT EXISTS file_intent (
   fingerprint TEXT PRIMARY KEY,
   purpose TEXT,
-  depends_on_behavior TEXT,
-  value_statement TEXT,
-  authored_by TEXT DEFAULT 'INFERRED',
-  last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+  dependsOnBehavior TEXT,
+  valueStatement TEXT,
+  authoredBy TEXT DEFAULT 'INFERRED',
+  lastUpdated TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
+);
+
+CREATE TABLE IF NOT EXISTS file_mutation_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fingerprint TEXT NOT NULL,
+  sha256Hash TEXT NOT NULL,
+  mutationType TEXT NOT NULL,
+  changedFields TEXT,
+  actor TEXT DEFAULT 'DEVELOPER',
+  timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+  metadata TEXT,
   FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
 );
 
@@ -85,18 +101,18 @@ CREATE TABLE IF NOT EXISTS activity_log (
   timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
   source TEXT DEFAULT 'INDEXER',
   action TEXT NOT NULL,
-  target_fingerprint TEXT,
+  targetFingerprint TEXT,
   details TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_file_registry_status ON file_registry(status);
-CREATE INDEX IF NOT EXISTS idx_file_registry_sha256 ON file_registry(sha256_hash);
-CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(source_fingerprint);
-CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(target_fingerprint);
+CREATE INDEX IF NOT EXISTS idx_file_registry_sha256Hash ON file_registry(sha256Hash);
+CREATE INDEX IF NOT EXISTS idx_file_registry_lifecycle ON file_registry(lifecyclePhase);
+CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(sourceFingerprint);
+CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(targetFingerprint);
+CREATE INDEX IF NOT EXISTS idx_mutation_log_fingerprint ON file_mutation_log(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_mutation_log_timestamp ON file_mutation_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_activity_log_timestamp ON activity_log(timestamp);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_connections_unique 
-ON connections(source_fingerprint, target_fingerprint, connection_type);
 
 CREATE TABLE IF NOT EXISTS st8_settings (
   category TEXT NOT NULL,
@@ -145,12 +161,14 @@ class St8Persistence {
     
     upsertFile(file) {
         const stmt = this.db.prepare(`
-            INSERT OR REPLACE INTO file_registry 
-            (fingerprint, filepath, filename, sha256_hash, file_size_bytes, status, reachability_score, impact_radius, last_modified, last_indexed)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT OR REPLACE INTO file_registry
+            (fingerprint, filepath, filename, sha256Hash, fileSizeBytes, status,
+             reachabilityScore, impactRadius, lifecyclePhase, birthTimestamp,
+             lastModified, lastIndexed, isEntryPoint)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
         `);
         return stmt.run(
-            file.fingerprint || file.sha256Hash,
+            file.fingerprint,
             file.filepath,
             file.filename,
             file.sha256Hash,
@@ -158,7 +176,10 @@ class St8Persistence {
             file.status || 'RED',
             file.reachabilityScore || 0.0,
             file.impactRadius || 0,
-            file.lastModified || new Date().toISOString()
+            file.lifecyclePhase || 'DEVELOPMENT',
+            file.birthTimestamp || new Date().toISOString(),
+            file.lastModified || new Date().toISOString(),
+            file.isEntryPoint ? 1 : 0
         );
     }
     
@@ -169,7 +190,13 @@ class St8Persistence {
     
     getAllFiles() {
         const stmt = this.db.prepare('SELECT * FROM file_registry ORDER BY filepath');
-        return stmt.all();
+        const rows = stmt.all();
+        // SQLite returns columns as defined — camelCase columns come back camelCase
+        // Add isEntryPoint boolean conversion
+        return rows.map(row => ({
+            ...row,
+            isEntryPoint: Boolean(row.isEntryPoint)
+        }));
     }
     
     getFileByPath(filepath) {
@@ -180,12 +207,10 @@ class St8Persistence {
     deleteFile(filepath) {
         const file = this.getFileByPath(filepath);
         if (!file) return { changes: 0 };
-        
-        // Cascade delete FK-dependent rows
+
         this.deleteConnectionsForFile(file.fingerprint);
         this.deleteIntentForFile(file.fingerprint);
-        
-        // Delete the file
+
         const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
         const result = stmt.run(filepath);
         return { changes: result.changes, fingerprint: file.fingerprint };
@@ -193,7 +218,7 @@ class St8Persistence {
     
     deleteConnectionsForFile(fingerprint) {
         const stmt = this.db.prepare(
-            'DELETE FROM connections WHERE source_fingerprint = ? OR target_fingerprint = ?'
+            'DELETE FROM connections WHERE sourceFingerprint = ? OR targetFingerprint = ?'
         );
         return stmt.run(fingerprint, fingerprint);
     }
@@ -207,22 +232,23 @@ class St8Persistence {
     
     insertConnection(conn) {
         const stmt = this.db.prepare(`
-            INSERT OR REPLACE INTO connections 
-            (source_fingerprint, target_fingerprint, connection_type, import_specifier, is_resolved, confidence_score)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO connections
+            (sourceFingerprint, targetFingerprint, connectionType, importSpecifier,
+             isResolved, confidenceScore, lastVerified)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         `);
         return stmt.run(
             conn.sourceFingerprint,
             conn.targetFingerprint,
             conn.connectionType || 'IMPORT',
-            conn.importSpecifier || '',
-            conn.isResolved ? 1 : 0,
+            conn.importSpecifier || null,
+            conn.isResolved !== undefined ? (conn.isResolved ? 1 : 0) : 1,
             conn.confidenceScore || 1.0
         );
     }
     
     getConnectionsForFile(fingerprint) {
-        const stmt = this.db.prepare('SELECT * FROM connections WHERE source_fingerprint = ? OR target_fingerprint = ?');
+        const stmt = this.db.prepare('SELECT * FROM connections WHERE sourceFingerprint = ? OR targetFingerprint = ?');
         return stmt.all(fingerprint, fingerprint);
     }
     
@@ -231,7 +257,7 @@ class St8Persistence {
     upsertIntent(intent) {
         const stmt = this.db.prepare(`
             INSERT OR REPLACE INTO file_intent 
-            (fingerprint, purpose, depends_on_behavior, value_statement, authored_by, last_updated)
+            (fingerprint, purpose, dependsOnBehavior, valueStatement, authoredBy, lastUpdated)
             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         `);
         return stmt.run(
@@ -251,23 +277,140 @@ class St8Persistence {
     getAllIntents() {
         const stmt = this.db.prepare('SELECT * FROM file_intent');
         const rows = stmt.all();
-        const map = {};
+        const intents = {};
         for (const row of rows) {
-            map[row.fingerprint] = {
+            intents[row.fingerprint] = {
                 purpose: row.purpose || '',
-                dependsOnBehavior: row.depends_on_behavior || '',
-                valueStatement: row.value_statement || ''
+                dependsOnBehavior: row.dependsOnBehavior || '',
+                valueStatement: row.valueStatement || '',
+                authoredBy: row.authoredBy || 'INFERRED',
+                lastUpdated: row.lastUpdated
             };
         }
-        return map;
+        return intents;
     }
     
+    // ─── MUTATION LOG ──────────────────────────────────────
+
+    logMutation(mutation) {
+        const stmt = this.db.prepare(`
+            INSERT INTO file_mutation_log
+            (fingerprint, sha256Hash, mutationType, changedFields, actor, timestamp, metadata)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        `);
+        return stmt.run(
+            mutation.fingerprint,
+            mutation.sha256Hash,
+            mutation.mutationType,
+            mutation.changedFields || '{}',
+            mutation.actor || 'DEVELOPER',
+            mutation.metadata || '{}'
+        );
+    }
+
+    getMutationLog(fingerprint, limit = 50) {
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_mutation_log WHERE fingerprint = ? ORDER BY timestamp DESC LIMIT ?'
+        );
+        return stmt.all(fingerprint, limit);
+    }
+
+    getMutationCount(fingerprint) {
+        const stmt = this.db.prepare(
+            'SELECT COUNT(*) as count FROM file_mutation_log WHERE fingerprint = ?'
+        );
+        const result = stmt.get(fingerprint);
+        return result.count;
+    }
+
+    getLastMutation(fingerprint) {
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_mutation_log WHERE fingerprint = ? ORDER BY timestamp DESC LIMIT 1'
+        );
+        return stmt.get(fingerprint) || null;
+    }
+
+    // ─── CONCEPT FILES ─────────────────────────────────────
+
+    registerConceptFile(conceptEntry) {
+        // Register a file that doesn't exist on disk yet
+        // fingerprint is generated from filepath + current timestamp
+        const { generateFingerprint } = require('./st8-types');
+        const birthTimestamp = new Date().toISOString();
+        const fingerprint = generateFingerprint(conceptEntry.filepath, birthTimestamp);
+
+        const stmt = this.db.prepare(`
+            INSERT OR REPLACE INTO file_registry
+            (fingerprint, filepath, filename, sha256Hash, fileSizeBytes, status,
+             reachabilityScore, impactRadius, lifecyclePhase, birthTimestamp,
+             lastModified, lastIndexed, isEntryPoint)
+            VALUES (?, ?, ?, '', 0, 'CONCEPT', 0.0, 0, 'CONCEPT', ?, '', CURRENT_TIMESTAMP, 0)
+        `);
+        stmt.run(
+            fingerprint,
+            conceptEntry.filepath,
+            conceptEntry.filename || path.basename(conceptEntry.filepath),
+            birthTimestamp
+        );
+
+        // Log the concept creation mutation
+        this.logMutation({
+            fingerprint,
+            sha256Hash: '',
+            mutationType: 'CONCEPT',
+            changedFields: JSON.stringify({ lifecyclePhase: [null, 'CONCEPT'] }),
+            actor: conceptEntry.actor || 'DEVELOPER',
+            metadata: JSON.stringify(conceptEntry)
+        });
+
+        return fingerprint;
+    }
+
+    // ─── PURGE ─────────────────────────────────────────────
+
+    purgeDevelopmentData(fingerprint) {
+        // Archive and remove development-phase mutation data
+        // Keeps only PRODUCTION-type mutations and the latest schema card
+
+        // 1. Count what we're about to purge
+        const countStmt = this.db.prepare(
+            `SELECT COUNT(*) as count FROM file_mutation_log
+             WHERE fingerprint = ? AND mutationType NOT IN ('PRODUCTION', 'PURGE')`
+        );
+        const { count } = countStmt.get(fingerprint);
+
+        // 2. Delete development mutations
+        const deleteStmt = this.db.prepare(
+            `DELETE FROM file_mutation_log
+             WHERE fingerprint = ? AND mutationType NOT IN ('PRODUCTION', 'PURGE')`
+        );
+        deleteStmt.run(fingerprint);
+
+        // 3. Log the purge
+        this.logMutation({
+            fingerprint,
+            sha256Hash: '',
+            mutationType: 'PURGE',
+            changedFields: JSON.stringify({ purgedMutations: count }),
+            actor: 'INDEXER',
+            metadata: '{}'
+        });
+
+        // 4. Update lifecycle phase
+        const updateStmt = this.db.prepare(
+            `UPDATE file_registry SET lifecyclePhase = 'PRODUCTION' WHERE fingerprint = ?`
+        );
+        updateStmt.run(fingerprint);
+
+        return { purgedMutations: count };
+    }
+
     // ─── ACTIVITY LOG ───────────────────────────────────────
     
     logActivity(activity) {
         const stmt = this.db.prepare(`
             INSERT INTO activity_log 
-            (source, action, target_fingerprint, details)
+            (source, action, targetFingerprint, details)
             VALUES (?, ?, ?, ?)
         `);
         return stmt.run(
@@ -330,7 +473,15 @@ class St8Persistence {
 
     close() {
         if (this.db) {
-            this.db.close();
+            try {
+                this.db.close();
+            } catch (err) {
+                // Ignore "Database is closed" errors
+                if (!err.message.includes('Database is closed')) {
+                    throw err;
+                }
+            }
+            this.db = null;
         }
     }
 }
