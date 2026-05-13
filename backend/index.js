@@ -124,28 +124,76 @@ async function main() {
             onFileChange: async (changes) => {
                 console.log(`[st8] Files changed: ${changes.length}`);
                 
-                // F3: Implement incremental re-index
+                let anyChanged = false;
+                
                 for (const change of changes) {
-                    const changedFile = result.files.find(f => 
-                        f.filepath === path.relative(targetDir, change.path)
-                    );
-                    if (changedFile) {
-                        const newHash = require('crypto')
-                            .createHash('sha256')
-                            .update(require('fs').readFileSync(change.path))
-                            .digest('hex');
-                        if (newHash !== changedFile.sha256Hash) {
-                            changedFile.sha256Hash = newHash;
-                            persistence.upsertFile(changedFile);
-                            console.log(`[st8] Updated hash for: ${changedFile.filepath}`);
+                    const relativePath = path.relative(targetDir, change.path);
+                    
+                    if (change.type === 'unlink') {
+                        // DELETE PATH — remove from array and DB without reading file
+                        const idx = result.files.findIndex(f => f.filepath === relativePath);
+                        if (idx !== -1) {
+                            const removed = result.files[idx];
+                            result.files.splice(idx, 1);
+                            persistence.deleteFile(removed.filepath);
+                            anyChanged = true;
+                            console.log(`[st8] Removed deleted file: ${removed.filepath}`);
+                        }
+                    } else if (change.type === 'add') {
+                        // ADD PATH — index the new file
+                        try {
+                            const content = require('fs').readFileSync(change.path);
+                            const hash = require('crypto').createHash('sha256').update(content).digest('hex');
+                            const stat = require('fs').statSync(change.path);
+                            
+                            const newFile = {
+                                filepath: relativePath,
+                                filename: path.basename(change.path),
+                                sha256Hash: hash,
+                                fileSizeBytes: stat.size,
+                                lastModified: stat.mtime.toISOString(),
+                                imports: [],
+                                importedBy: [],
+                                status: 'RED',
+                                reachabilityScore: 0.0,
+                                impactRadius: 0
+                            };
+                            
+                            result.files.push(newFile);
+                            persistence.upsertFile(newFile);
+                            anyChanged = true;
+                            console.log(`[st8] Added new file: ${relativePath}`);
+                        } catch (err) {
+                            console.error(`[st8] Failed to index new file ${relativePath}:`, err.message);
+                        }
+                    } else {
+                        // CHANGE PATH — existing hash comparison
+                        const changedFile = result.files.find(f => f.filepath === relativePath);
+                        if (changedFile) {
+                            try {
+                                const newHash = require('crypto')
+                                    .createHash('sha256')
+                                    .update(require('fs').readFileSync(change.path))
+                                    .digest('hex');
+                                if (newHash !== changedFile.sha256Hash) {
+                                    changedFile.sha256Hash = newHash;
+                                    persistence.upsertFile(changedFile);
+                                    anyChanged = true;
+                                    console.log(`[st8] Updated hash for: ${changedFile.filepath}`);
+                                }
+                            } catch (err) {
+                                console.error(`[st8] Failed to hash ${relativePath}:`, err.message);
+                            }
                         }
                     }
                 }
                 
-                // Regenerate manifest
-                const { writeManifests } = require('./manifestGenerator');
-                writeManifests(result.files, targetDir);
-                console.log('[st8] Incremental re-index complete');
+                // Only regenerate manifest if something actually changed
+                if (anyChanged) {
+                    const { writeManifests } = require('./manifestGenerator');
+                    writeManifests(result.files, targetDir);
+                    console.log('[st8] Incremental re-index complete');
+                }
             }
         });
         watcher.start();
