@@ -144,17 +144,24 @@ async function explorerNavigate(path) {
 }
 
 async function _fetchViaWebSocket(path) {
-    // Ensure epoClient is available and connected
-    if (typeof window.epoClient === 'undefined') {
-        throw new Error('EPO client not loaded');
+    // Try EPO first (if available)
+    if (window.epoClient && window.epoClient.connected) {
+        try {
+            const res = await window.epoClient.request('file_list', { path });
+            if (!res.error) return res.entries || res;
+        } catch (err) {
+            console.warn('[st8] EPO failed, falling back to REST:', err.message);
+        }
     }
-    if (!window.epoClient.connected) {
-        await window.epoClient.connect();
+
+    // REST fallback
+    const response = await fetch('/api/files?path=' + encodeURIComponent(path));
+    if (!response.ok) {
+        throw new Error('Failed to fetch directory: ' + response.status);
     }
-    const res = await window.epoClient.request('file_list', { path });
-    if (res.error) throw new Error(res.error);
-    // Accept { entries: [...] } or bare array
-    return res.entries || res;
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.entries || [];
 }
 
 function _isNetworkError(err) {
@@ -575,23 +582,30 @@ async function _indexCodebase() {
     indexBtn.disabled = true;
     
     try {
-        // Send indexing request to phreak terminal
-        if (window.PhreakTerminal && window.PhreakTerminal.execute) {
-            await window.PhreakTerminal.execute('index ' + targetPath);
+        const response = await fetch('/api/index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: targetPath })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || result.error) {
+            throw new Error(result.error || 'Indexing failed');
         }
         
-        // Show Verify button after indexing
+        console.info('[st8] Indexed:', result.files, 'files');
+        
+        // Show Verify button only on success
         const verifyBtn = document.getElementById('explorer-verify-btn');
         if (verifyBtn) {
             verifyBtn.style.display = '';
         }
         
-        // Notify UI
+        // Notify UI only on success
         if (window.st8IndexingComplete) {
             window.st8IndexingComplete(targetPath);
         }
-        
-        console.info('[st8] Indexing triggered for:', targetPath);
     } catch (err) {
         console.error('[st8] Indexing failed:', err);
     } finally {
@@ -621,12 +635,28 @@ async function _verifyCodebase() {
     verifyBtn.disabled = true;
     
     try {
-        // Send verify request to phreak terminal
-        if (window.PhreakTerminal && window.PhreakTerminal.execute) {
-            await window.PhreakTerminal.execute('verify ' + targetPath);
+        const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: targetPath })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+            throw new Error(result.error || 'Verification failed');
         }
-        
-        console.info('[st8] Verification triggered for:', targetPath);
+
+        // Show verification results
+        const { summary, issues } = result;
+        const hasCriticalIssues = issues.some(i => i.severity === 'CRITICAL');
+
+        if (hasCriticalIssues || summary.missing > 0) {
+            console.warn('[st8] Verification issues:', summary);
+            console.table(issues);
+        } else {
+            console.info('[st8] Verification passed:', summary);
+        }
     } catch (err) {
         console.error('[st8] Verification failed:', err);
     } finally {

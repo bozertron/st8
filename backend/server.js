@@ -46,8 +46,8 @@ class St8Server {
             this._handleRequest(req, res);
         });
         
-        this.server.listen(this.port, () => {
-            console.log(`[st8:server] Server running on http://localhost:${this.port}`);
+        this.server.listen(this.port, '127.0.0.1', () => {
+            console.log(`[st8:server] Server running on http://localhost:${this.port} (bound to 127.0.0.1)`);
         });
         
         return true;
@@ -56,8 +56,8 @@ class St8Server {
     _handleRequest(req, res) {
         const url = new URL(req.url, `http://localhost:${this.port}`);
         
-        // CORS headers
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // CORS headers — restricted to localhost origins only (security fix: prevent RCE via CORS wildcard)
+        res.setHeader('Access-Control-Allow-Origin', 'http://localhost:' + this.port);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
         
@@ -88,9 +88,6 @@ class St8Server {
             case '/api/health':
                 this._serveHealth(req, res);
                 break;
-            case '/api/exec':
-                this._handleExec(req, res);
-                break;
             case '/api/index':
                 this._handleIndex(req, res);
                 break;
@@ -102,6 +99,9 @@ class St8Server {
                 break;
             case '/api/verify':
                 this._handleVerify(req, res);
+                break;
+            case '/api/files':
+                this._handleFileList(req, res, url);
                 break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -206,37 +206,50 @@ class St8Server {
         }));
     }
     
-    _handleExec(req, res) {
+    _handleIndex(req, res) {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', () => {
             try {
-                const { command } = JSON.parse(body);
-                const { execSync } = require('child_process');
-                const result = execSync(command, { encoding: 'utf-8', timeout: 30000 });
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ stdout: result, stderr: '' }));
+                const { indexDirectory } = require('./indexer');
+                const { writeManifests } = require('./manifestGenerator');
+
+                // Parse request body for path parameter
+                let targetDir = this.targetDir;
+                if (body) {
+                    try {
+                        const parsed = JSON.parse(body);
+                        if (parsed.path) {
+                            targetDir = parsed.path;
+                        }
+                    } catch (parseErr) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                        return;
+                    }
+                }
+
+                if (!targetDir) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'No target directory provided' }));
+                    return;
+                }
+
+                indexDirectory(targetDir, { write: true })
+                    .then(result => {
+                        writeManifests(result.files, targetDir);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ status: 'ok', files: result.files.length }));
+                    })
+                    .catch(err => {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: err.message }));
+                    });
             } catch (err) {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ stdout: '', stderr: err.message }));
-            }
-        });
-    }
-    
-    _handleIndex(req, res) {
-        const { indexDirectory } = require('./indexer');
-        const { writeManifests } = require('./manifestGenerator');
-        
-        indexDirectory(this.targetDir, { write: true })
-            .then(result => {
-                writeManifests(result.files, this.targetDir);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: 'ok', files: result.files.length }));
-            })
-            .catch(err => {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
-            });
+            }
+        });
     }
     
     _handleFileIntent(req, res) {
@@ -330,6 +343,33 @@ class St8Server {
         });
     }
     
+    _handleFileList(req, res, url) {
+        const dirPath = url.searchParams.get('path') || this.targetDir;
+        const resolvedPath = path.resolve(dirPath);
+
+        // Security: validate path exists
+        if (!fs.existsSync(resolvedPath)) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Directory not found' }));
+            return;
+        }
+
+        try {
+            const entries = fs.readdirSync(resolvedPath, { withFileTypes: true });
+            const result = entries.map(entry => ({
+                name: entry.name,
+                isDirectory: entry.isDirectory(),
+                path: path.join(resolvedPath, entry.name)
+            }));
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ entries: result }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
     _handleVerify(req, res) {
         // Method validation — POST only
         if (req.method !== 'POST') {
