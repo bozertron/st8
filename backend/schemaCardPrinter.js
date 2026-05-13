@@ -42,6 +42,26 @@ class SchemaCardPrinter {
      * @param {object} card - St8SchemaCard object
      */
     printCard(card) {
+        // Guard: skip non-code files that should never get .txt cards
+        const skipExtensions = ['.txt', '.json', '.sqlite-wal', '.sqlite-shm'];
+        const lowerPath = card.filepath.toLowerCase();
+        for (const ext of skipExtensions) {
+            if (lowerPath.endsWith(ext)) {
+                return null;
+            }
+        }
+        // Guard: skip files inside .st8/schema-cards (emitted JSON cards)
+        if (card.filepath.includes('.st8/schema-cards')) {
+            return null;
+        }
+        // Guard: skip files from directories that should be ignored
+        const ignoredPrefixes = ['.archive/', '.planning/', '.st8/', 'vendor/', 'snapshots/'];
+        for (const prefix of ignoredPrefixes) {
+            if (card.filepath.startsWith(prefix) || card.filepath.includes('/' + prefix)) {
+                return null;
+            }
+        }
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const safeName = card.filepath.replace(/\//g, '_').replace(/\\/g, '_');
         const filename = `${timestamp}_${safeName}.txt`;

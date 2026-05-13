@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS st8_settings (
 // ─── FILE DISCOVERY ──────────────────────────────────────────
 
 const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go']);
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.venv', 'venv', '__pycache__']);
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.venv', 'venv', '__pycache__', '.archive', '.planning', '.st8', 'vendor', 'snapshots']);
 
 function discoverFiles(targetDir) {
     const files = [];
@@ -232,7 +232,7 @@ function parseImports(filePath) {
 
 // ─── GRAPH BUILDING ──────────────────────────────────────────
 
-function buildGraph(files, targetDir) {
+async function buildGraph(files, targetDir) {
     const graphBuilder = getGraphBuilder();
     if (!graphBuilder) {
         console.warn('[st8:indexer] Graph builder not available, using basic classification');
@@ -240,10 +240,35 @@ function buildGraph(files, targetDir) {
     }
     
     try {
-        // The maestro graphBuilder exports buildDependencyGraph
+        // The maestro graphBuilder exports buildDependencyGraph (async)
         if (typeof graphBuilder.buildDependencyGraph === 'function') {
-            const result = graphBuilder.buildDependencyGraph(targetDir);
-            return result;
+            const report = await graphBuilder.buildDependencyGraph(targetDir);
+            
+            // CR-02 FIX: Transform from { nodes: [...], circularDeps: [...], ... }
+            // to array of { filepath, status, reachabilityScore, impactRadius }
+            // The merge logic in indexDirectory expects an array with .find()
+            if (report && Array.isArray(report.nodes)) {
+                const healthToStatus = {
+                    'healthy': 'GREEN',
+                    'broken': 'RED',
+                    'unused': 'YELLOW',
+                    'partial': 'YELLOW'
+                };
+                
+                return report.nodes
+                    .filter(node => node.path) // Only nodes with file paths
+                    .map(node => ({
+                        filepath: node.path,
+                        filename: node.name || path.basename(node.path),
+                        status: healthToStatus[node.health] || 'RED',
+                        reachabilityScore: node.health === 'healthy' ? 0.95 : (node.health === 'unused' ? 0.1 : 0.0),
+                        impactRadius: node.impactRadius || 0
+                    }));
+            }
+            
+            // Fallback if unexpected shape
+            console.warn('[st8:indexer] buildDependencyGraph returned unexpected shape, using basic classification');
+            return classifyBasic(files, targetDir);
         }
         return classifyBasic(files, targetDir);
     } catch (err) {
@@ -378,8 +403,8 @@ async function indexDirectory(targetDir, options = {}) {
         };
     });
     
-    // Build graph and classify
-    const classifiedFiles = buildGraph(parsedFiles, targetDir);
+    // Build graph and classify (await: buildGraph is now async due to async graphBuilder)
+    const classifiedFiles = await buildGraph(parsedFiles, targetDir);
     
     // Merge classification with parsed data
     const finalFiles = parsedFiles.map(file => {
