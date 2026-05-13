@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Database
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Build output
+dist/
+build/
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Snapshots (keep .planning/codebase)
+snapshots/
+
+# Archive
+.archive/
+
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>st8</title>
+
+<style>
+  /* ─── FONTS ─────────────────────────────────────────────── */
+  @font-face {
+    font-family: 'Monoton';
+    src: url('fonts/Monoton-Regular.ttf') format('truetype');
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Poiret One';
+    src: url('fonts/PoiretOne-Regular.ttf') format('truetype');
+    font-display: swap;
+  }
+
+  /* ─── TOKENS ────────────────────────────────────────────── */
+  :root {
+    --void:   #0A0A0B;
+    --text:   #E0E0E0;
+    --gold:   #D4AF37;
+    --cyan:   #1FBDEA;
+    --pink:   #C9748F;
+
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 32px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background: var(--void);
+    color: var(--text);
+    font-family: 'Poiret One', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  body { display: flex; flex-direction: column; }
+
+  /* ─── VOID (drift surface — host for void-engine #stage) ─ */
+  main.void {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  main.void.split-mode {
+    display: flex;
+    flex-direction: row;
+  }
+  main.void.split-mode #stage {
+    flex: 1 1 50%;
+    position: relative;
+  }
+  main.void.split-mode .void-right-panel {
+    flex: 1 1 50%;
+    border-left: 1px solid var(--pink);
+    overflow-y: auto;
+    padding: var(--space-4);
+    background: var(--void);
+  }
+  #stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  /* void-engine line element */
+  .line {
+    position: absolute;
+    white-space: pre;
+    color: var(--text);
+    -webkit-text-stroke: 0.5px #E0E0E0;
+    letter-spacing: 0.3px;
+    z-index: 1;
+    pointer-events: none;
+  }
+  /* void-engine sirkit rectangle */
+  .sirkit-rect {
+    position: absolute;
+    pointer-events: auto;
+    z-index: 5;
+    border: 1px solid var(--cyan);
+    background: rgba(8, 16, 24, 0.92);
+    color: var(--cyan);
+    font: 600 11px/1 'Poiret One', sans-serif;
+    letter-spacing: 1.4px;
+    padding: 12px;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    box-shadow: 0 0 24px rgba(31, 189, 234, 0.18);
+    text-transform: uppercase;
+    display: flex;
+    align-items: flex-start;
+  }
+  .sirkit-rect:active { cursor: grabbing; }
+
+  /* ─── CHAT AREA (left side of split void) ─────────────────── */
+  .chat-area {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: var(--space-4);
+    padding-bottom: 80px;
+  }
+  .chat-line {
+    margin-bottom: var(--space-2);
+    line-height: 1.6;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    -webkit-text-stroke: 0.5px #E0E0E0;
+  }
+  .chat-line.user {
+    padding-left: var(--space-4);
+  }
+  .chat-line.assistant {
+    padding-left: var(--space-4);
+    color: #9bd9ec;
+  }
+  .chat-line.system {
+    color: var(--gold);
+    font-style: italic;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  /* ─── FILE LIST (right side of split void) ────────────────── */
+  .file-list-header {
+    color: var(--cyan);
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--pink);
+  }
+  .file-list-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-1);
+    border-radius: 4px;
+    transition: background 160ms ease;
+    cursor: pointer;
+  }
+  .file-list-item:hover {
+    background: rgba(31, 189, 234, 0.07);
+  }
+  .file-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .file-status-dot.green { background: var(--gold); }
+  .file-status-dot.yellow { background: var(--cyan); }
+  .file-status-dot.red { background: var(--pink); }
+  .file-name {
+    flex: 1;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--text);
+    -webkit-text-stroke: 0.5px #E0E0E0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-actions {
+    display: flex;
+    gap: var(--space-2);
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+  .file-list-item:hover .file-actions {
+    opacity: 1;
+  }
+  .file-action-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--cyan);
+    padding: 2px 8px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 160ms ease;
+  }
+  .file-action-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+  }
+  .file-list-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+    background: rgba(31, 189, 234, 0.05);
+    border-radius: 4px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .file-summary-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .file-summary-total {
+    margin-left: auto;
+    color: var(--text);
+    opacity: 0.7;
+  }
+
+  /* ─── NOTES POPUP ─────────────────────────────────────────── */
+  .notes-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .notes-popup {
+    width: min(500px, 90vw);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .notes-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .notes-popup-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .notes-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .notes-popup-close:hover { text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .notes-popup-body {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .notes-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .notes-field label {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .notes-field textarea {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    padding: var(--space-2);
+    resize: vertical;
+    min-height: 60px;
+    outline: none;
+    transition: border-color 160ms ease;
+  }
+  .notes-field textarea:focus {
+    border-color: var(--cyan);
+  }
+  .notes-popup-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0a0a0b, #0d0d10);
+  }
+  .notes-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--text);
+    padding: 6px 16px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .notes-btn-cancel:hover {
+    color: var(--pink);
+  }
+  .notes-btn-save {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .notes-btn-save:hover {
+    background: var(--gold);
+    color: var(--void);
+  }
+
+  /* ─── GRAPH POPUP ─────────────────────────────────────────── */
+  .graph-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .graph-popup {
+    width: min(900px, 95vw);
+    height: min(700px, 90vh);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .graph-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .graph-popup-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .graph-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .graph-popup-close:hover { text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .graph-popup-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+    background: #0A0A0B;
+  }
+  .graph-popup-body svg {
+    display: block;
+  }
+  .graph-popup-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0a0a0b, #0d0d10);
+  }
+  .graph-popup-info {
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+  }
+  .graph-popup-btn {
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 4px 12px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .graph-popup-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+  }
+
+  /* ─── SETTINGS POPUP ──────────────────────────────────────── */
+  .settings-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .settings-popup {
+    width: min(900px, 95vw);
+    height: min(700px, 90vh);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .settings-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .settings-popup-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .settings-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .settings-popup-close:hover { text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .settings-popup-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .settings-layout {
+    display: flex;
+    height: 100%;
+  }
+  .settings-sidebar {
+    width: 200px;
+    border-right: 1px solid var(--pink);
+    padding: var(--space-3);
+    background: #0a0a0b;
+  }
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .settings-nav-item {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    text-align: left;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  .settings-nav-item:hover { background: rgba(31, 189, 234, 0.18); color: var(--cyan); }
+  .settings-nav-item.active { background: rgba(31, 189, 234, 0.22); color: var(--cyan); border-color: var(--cyan); }
+  .settings-nav-icon { color: var(--gold); }
+  .settings-main {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--space-4);
+  }
+  .settings-placeholder {
+    color: var(--text);
+    opacity: 0.5;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: var(--space-7);
+  }
+  .settings-category-header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--pink);
+  }
+  .settings-category-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    margin: 0 0 var(--space-1) 0;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .settings-category-desc {
+    color: var(--text);
+    font-size: 13px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    margin: 0;
+  }
+  .settings-entry-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .settings-entry-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: rgba(31, 189, 234, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(201, 116, 143, 0.2);
+  }
+  .settings-entry-name {
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .settings-entry-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .settings-action-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--cyan);
+    padding: 4px 10px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .settings-action-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+  }
+  .settings-add-btn {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 6px 16px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .settings-add-btn:hover {
+    background: var(--gold);
+    color: var(--void);
+  }
+  .settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .settings-label {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .settings-input {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    padding: var(--space-2);
+    outline: none;
+    transition: border-color 160ms ease;
+  }
+  .settings-input:focus {
+    border-color: var(--cyan);
+  }
+
+  /* ─── VOID CURSOR (wave-pulse, positioned by void-engine) ─ */
+  .void-cursor {
+    position: absolute;
+    pointer-events: none;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    width: 16px;
+    height: 30px;
+    transform: translate(2px, 0);
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    user-select: none;
+    z-index: 3;
+  }
+  .void-cursor.visible { display: flex; }
+  .void-cursor span {
+    display: block;
+    height: 5px;
+    line-height: 5px;
+    opacity: 0.18;
+    animation: void-wave 1.4s ease-in-out infinite;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .void-cursor span:nth-child(1) { animation-delay: 0.00s; }
+  .void-cursor span:nth-child(2) { animation-delay: 0.14s; }
+  .void-cursor span:nth-child(3) { animation-delay: 0.28s; }
+  .void-cursor span:nth-child(4) { animation-delay: 0.42s; }
+  .void-cursor span:nth-child(5) { animation-delay: 0.56s; }
+  @keyframes void-wave {
+    0%, 70%, 100% { opacity: 0.18; }
+    25%           { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .void-cursor span { animation: none; opacity: 0.65; }
+  }
+
+  /* ─── BOTTOM DOCK ───────────────────────────────────────── */
+  footer.dock {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    position: relative;
+    z-index: 10;
+  }
+  .dock-line {
+    height: 1px;
+    width: 100%;
+    background: var(--cyan);
+    box-shadow: 0 0 6px rgba(31, 189, 234, 0.45);
+  }
+  .dock-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-6) 0;
+    background: var(--void);
+  }
+  .st8-mark {
+    font-family: 'Monoton', cursive;
+    color: var(--gold);
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: 4px;
+    user-select: none;
+    text-shadow: 0 0 18px rgba(212, 175, 55, 0.18);
+    padding: var(--space-4) 64px;
+  }
+  .icon-btn,
+  .text-btn {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    width: 220px;
+    height: 96px;
+    padding: 0;
+    border-radius: 6px;
+    transition: color 180ms ease, box-shadow 220ms ease, transform 180ms ease;
+    font-family: inherit;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn .infinity {
+    width: 84px;
+    height: 42px;
+    display: block;
+    color: var(--text);
+    transform: translateY(5px);
+  }
+  .icon-btn .infinity path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+  }
+  .text-btn {
+    font-family: 'Poiret One', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--text);
+    -webkit-text-stroke: 0.5px #E0E0E0;
+  }
+  .icon-btn:hover,
+  .text-btn:hover {
+    color: var(--text);
+    box-shadow:
+      0 14px 28px -10px rgba(201, 116, 143, 0.55),
+      0 6px 14px  -4px rgba(201, 116, 143, 0.35),
+      0 2px  6px  -1px rgba(201, 116, 143, 0.25);
+  }
+  .icon-btn:focus-visible,
+  .text-btn:focus-visible {
+    outline: 1px solid var(--cyan);
+    outline-offset: 3px;
+  }
+  .icon-btn[aria-pressed="true"],
+  .text-btn[aria-pressed="true"] { color: var(--cyan); }
+
+  /* ─── PANEL OVERLAY (host for explorer / phreak) ────────── */
+  .panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .panel-overlay.open { display: flex; }
+  .panel-frame {
+    width: min(1100px, 92vw);
+    height: min(720px, 86vh);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18),
+      0 0 60px rgba(31, 189, 234, 0.10);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-titlebar {
+    height: 36px;
+    flex: 0 0 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .panel-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .panel-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    border-radius: 4px;
+    line-height: 1;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    order: -1;
+    text-shadow: 0 0 6px rgba(212, 175, 55, 0.0);
+    transition: text-shadow 160ms ease;
+  }
+  .panel-close:hover { color: var(--gold); text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .panel-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ─── FILE EXPLORER STYLES ──────────────────────────────── */
+  .explorer-root,
+  .explorer-layout {
+    height: 100%;
+    width: 100%;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    -webkit-text-stroke: 0.5px #E0E0E0;
+  }
+  .explorer-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+  .explorer-sidebar {
+    border-right: 1px solid var(--pink);
+    padding: var(--space-3);
+    background: #0a0a0b;
+  }
+  .explorer-nav { display: flex; flex-direction: column; gap: var(--space-1); }
+  .explorer-nav-item {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    text-align: left;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  .explorer-nav-item:hover { background: rgba(31, 189, 234, 0.18); color: var(--cyan); }
+  .explorer-nav-item.active { background: rgba(31, 189, 234, 0.22); color: var(--cyan); border-color: var(--cyan); }
+  .explorer-nav-item .explorer-nav-icon,
+  .explorer-nav-item.active .explorer-nav-icon,
+  .explorer-nav-item:hover .explorer-nav-icon,
+  .explorer-state-msg > span,
+  .explorer-state-msg .explorer-spin,
+  .explorer-spin { color: #D4AF37 !important; }
+  .explorer-state-msg p { color: var(--cyan); }
+
+  .explorer-main { display: flex; flex-direction: column; min-height: 0; }
+  .explorer-header {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    gap: var(--space-3);
+  }
+  .explorer-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
+  .crumb-btn {
+    background: transparent; border: none; color: var(--text);
+    cursor: pointer; padding: 2px 6px; border-radius: 3px;
+    font-family: inherit; font-size: 13px;
+  }
+  .crumb-btn:hover { color: var(--cyan); }
+  .crumb-btn--last { color: var(--cyan); }
+  .crumb-sep { color: var(--text); }
+
+  .panel-titlebar .explorer-error-banner {
+    margin-left: auto;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    height: 100%;
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    -webkit-text-stroke: 0.5px var(--text);
+  }
+  .panel-titlebar .explorer-error-icon { color: var(--pink); -webkit-text-stroke: 0 transparent; font-size: 14px; }
+  .panel-titlebar .explorer-retry-btn { border-color: var(--pink); }
+
+  .explorer-error-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px;
+    background: rgba(201, 116, 143, 0.12);
+    border-bottom: 1px solid rgba(201, 116, 143, 0.4);
+    color: var(--text);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    -webkit-text-stroke: 0.5px var(--text);
+  }
+  .explorer-error-icon { color: var(--pink); -webkit-text-stroke: 0 transparent; }
+  .explorer-retry-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--text);
+    padding: 3px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+
+  .explorer-content { flex: 1 1 auto; overflow: auto; padding: 0; }
+  .explorer-state-msg {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--cyan);
+    -webkit-text-stroke: 0.5px var(--cyan);
+    gap: 8px;
+    font-size: 13px;
+    letter-spacing: 3px;
+  }
+  .explorer-spin {
+    color: var(--cyan);
+    font-size: 22px;
+    animation: spin 1.4s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .explorer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .explorer-table th {
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--text);
+    font-weight: 400;
+    letter-spacing: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--pink);
+    position: sticky;
+    top: 0;
+    background: #0c0c0e;
+  }
+  .explorer-file-row { cursor: pointer; transition: background 100ms ease; }
+  .explorer-file-row td { padding: 8px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+  .explorer-file-row:hover { background: rgba(31, 189, 234, 0.07); }
+  .explorer-file-row.selected { background: rgba(31, 189, 234, 0.18); color: var(--cyan); }
+  .explorer-col-name { display: flex; gap: 10px; align-items: center; }
+  .explorer-file-icon { width: 18px; }
+  .explorer-col-meta { color: var(--cyan); white-space: nowrap; }
+
+  .explorer-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 10px 16px;
+    border-top: 1px solid var(--pink);
+    font-size: 11px;
+    color: var(--text);
+    letter-spacing: 2px;
+  }
+  .explorer-selection-info { color: var(--cyan); margin-left: auto; }
+  .explorer-add-btn {
+    background: transparent;
+    border: 1px solid var(--pink) !important;
+    color: var(--cyan);
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .explorer-add-btn:disabled {
+    border-color: var(--pink);
+    color: rgba(224, 224, 224, 0.4);
+    cursor: not-allowed;
+  }
+  .explorer-add-btn:not(:disabled):hover { background: var(--cyan); color: #000; }
+  .explorer-index-btn {
+    background: transparent;
+    border: 1px solid var(--gold) !important;
+    color: var(--gold);
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .explorer-index-btn:hover { background: var(--gold); color: var(--void); }
+  .explorer-index-btn.indexing {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .explorer-verify-btn {
+    background: transparent;
+    border: 1px solid var(--cyan) !important;
+    color: var(--cyan);
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .explorer-verify-btn:hover { background: var(--cyan); color: var(--void); }
+  .explorer-verify-btn.verifying {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .explorer-vscroll-container { height: 100%; overflow: auto; }
+
+  /* ─── WORKSPACE PICKER ────────────────────────────────────── */
+  .workspace-picker {
+    padding: var(--space-4);
+  }
+  .workspace-picker-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: var(--space-4);
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .workspace-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .workspace-option:hover {
+    background: rgba(31, 189, 234, 0.07);
+    border-color: var(--cyan);
+  }
+  .workspace-option.active {
+    background: rgba(31, 189, 234, 0.1);
+    border-color: var(--cyan);
+  }
+  .workspace-option-icon {
+    color: var(--gold);
+    font-size: 20px;
+  }
+  .workspace-option-info {
+    flex: 1;
+  }
+  .workspace-option-name {
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+  .workspace-option-desc {
+    color: var(--text);
+    font-size: 12px;
+    opacity: 0.7;
+    letter-spacing: 0.5px;
+  }
+  .workspace-option-badge {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 2px 8px;
+    border: 1px solid var(--cyan);
+    border-radius: 3px;
+  }
+
+  /* ─── PHREAK TERMINAL STYLES ────────────────────────────── */
+  .phreak-container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #07070a;
+    color: var(--text);
+    font-family: 'Courier New', ui-monospace, monospace;
+    font-size: 13px;
+    -webkit-text-stroke: 0.5px #E0E0E0;
+  }
+  .phreak-header {
+    flex: 0 0 auto;
+    display: none;
+  }
+  .phreak-header-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    letter-spacing: 4px;
+    font-size: 13px;
+  }
+  .phreak-header-controls { display: flex; gap: 6px; align-items: center; }
+  .phreak-tui-btn,
+  .phreak-phone-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: var(--text);
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .phreak-tui-btn:hover,
+  .phreak-phone-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+  .phreak-status-line {
+    margin-left: 14px;
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .phreak-status-line.phone-on  { color: var(--cyan); -webkit-text-stroke: 0.5px var(--cyan); }
+  .phreak-status-line.phone-off { color: var(--cyan); -webkit-text-stroke: 0.5px var(--cyan); }
+  .phreak-phone-svg { width: 16px; height: 16px; }
+  .panel-titlebar .phreak-header-controls { margin-left: auto; }
+  .phreak-phone--offhook { color: var(--pink); border-color: var(--pink); }
+
+  .phreak-output {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 12px 14px;
+    line-height: 1.55;
+  }
+  .phreak-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 1px 0;
+  }
+  .phreak-line-content { flex: 1 1 auto; white-space: pre-wrap; word-break: break-word; }
+  .phreak-line--input .phreak-text { color: var(--cyan); }
+  .phreak-line--stdout .phreak-text { color: var(--cyan); }
+  .phreak-line--stderr .phreak-text { color: var(--pink); }
+  .phreak-line--system .phreak-text { color: var(--gold); font-style: italic; }
+  .phreak-prompt {
+    color: var(--cyan);
+    white-space: pre;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .phreak-input-row,
+  .phreak-tui-overlay .phreak-input-row {
+    background: transparent !important;
+    border: none !important;
+    border-top: none !important;
+    padding: 4px 0 !important;
+  }
+  .phreak-copy-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 120ms ease, color 120ms ease;
+  }
+  .phreak-line:hover .phreak-copy-btn { opacity: 1; }
+  .phreak-copy-btn:hover { color: var(--cyan); }
+
+  .phreak-input-row {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-top: 1px solid rgba(31, 189, 234, 0.18);
+    background: #08080a;
+  }
+  .phreak-cmd-input {
+    flex: 1 1 auto;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    caret-color: var(--cyan);
+  }
+  .phreak-executing { color: var(--cyan); margin-left: 8px; animation: spin 1.4s linear infinite; display: inline-block; }
+
+  .phreak-signal-popup {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border-left: 2px solid var(--pink);
+    background: rgba(201, 116, 143, 0.08);
+    border-radius: 3px;
+    transition: opacity 0.4s;
+  }
+  .phreak-signal-fading { opacity: 0; }
+  .phreak-signal-header { display: flex; gap: 8px; align-items: center; }
+  .phreak-signal-icon { color: var(--pink); }
+  .phreak-signal-title { flex: 1; color: var(--pink); letter-spacing: 2px; }
+  .phreak-signal-dismiss {
+    background: transparent; border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+  }
+  .phreak-signal-dismiss:hover { color: var(--pink); }
+  .phreak-signal-body { padding: 6px 0 0 24px; font-size: 12px; color: rgba(224, 224, 224, 0.85); }
+  .phreak-signal-source { padding: 2px 0 0 24px; font-size: 10px; color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; }
+
+  .phreak-tui-overlay {
+    position: fixed;
+    inset: 0;
+    background: #0A0A0B;
+    color: var(--text);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+  }
+  .phreak-tui-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-5);
+    border-bottom: 1px solid var(--pink);
+  }
+  .phreak-tui-title {
+    color: var(--cyan);
+    letter-spacing: 5px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 16px;
+    text-transform: lowercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .phreak-tui-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .phreak-tui-btn-group {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .phreak-tui-action-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--text);
+    padding: 4px 10px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .phreak-tui-action-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+    border-color: var(--cyan);
+  }
+  .phreak-tui-action-btn[data-action="isolate-green"]:hover {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+  .phreak-tui-action-btn[data-action="isolate-red"]:hover {
+    background: var(--pink);
+    border-color: var(--pink);
+  }
+  .phreak-tui-controls { display: flex; gap: 8px; }
+  .phreak-tui-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--text);
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .phreak-tui-toggle-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+  .phreak-tui-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: var(--space-3) var(--space-5);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .explorer-spin, .phreak-executing { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="void" id="void">
+    <div id="stage"></div>
+  </main>
+
+  <footer class="dock">
+    <div class="dock-line" aria-hidden="true"></div>
+    <div class="dock-row">
+      <div class="dock-left">
+        <button id="btn-explorer" class="icon-btn" aria-label="Open file explorer" aria-pressed="false" title="File explorer">
+          <svg class="infinity" viewBox="0 0 56 28" aria-hidden="true">
+            <path d="M11 14 C 11 6, 22 6, 28 14 C 34 22, 45 22, 45 14 C 45 6, 34 6, 28 14 C 22 22, 11 22, 11 14 Z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="st8-mark" aria-label="st8">st8</div>
+      <div class="dock-right">
+        <button id="btn-phreak" class="text-btn" aria-label="Open phreak terminal" aria-pressed="false" title="Phreak terminal">phreak&gt;</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Explorer overlay -->
+  <div class="panel-overlay" id="overlay-explorer" data-panel="explorer" role="dialog" aria-modal="true" aria-label="File explorer">
+    <div class="panel-frame">
+      <div class="panel-titlebar">
+        <span class="panel-title"></span>
+        <button class="panel-close" data-close="explorer" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" id="explorer-host"></div>
+    </div>
+  </div>
+
+  <!-- Phreak overlay -->
+  <div class="panel-overlay" id="overlay-phreak" data-panel="phreak" role="dialog" aria-modal="true" aria-label="Phreak terminal">
+    <div class="panel-frame">
+      <div class="panel-titlebar">
+        <span class="panel-title"></span>
+        <button class="panel-close" data-close="phreak" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" id="phreak-host"></div>
+    </div>
+  </div>
+
+  <!-- void-engine: pretext-driven drift surface, mounts on #stage -->
+  <script type="module" src="vendor/void-engine.js"></script>
+
+  <!-- Panel modules -->
+  <script>
+    window.escapeHtml = function(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+  </script>
+  <script src="file-explorer.js"></script>
+  <script src="phreak-terminal.js"></script>
+  <script src="graph-visualizer.js"></script>
+  <script src="settings-ui.js"></script>
+  <script src="coordination.js"></script>
+
+  <script>
+    // ─── PANEL CONTROLLER ─────────────────────────────────
+    const panels = {
+      explorer: {
+        overlay: document.getElementById('overlay-explorer'),
+        host:    document.getElementById('explorer-host'),
+        button:  document.getElementById('btn-explorer'),
+        mounted: false,
+        mount() {
+          if (this.mounted) return;
+          if (window.VoidFileExplorer && typeof window.VoidFileExplorer.mount === 'function') {
+            window.VoidFileExplorer.mount(this.host, function(paths) {
+              console.info('[st8] selected:', paths);
+            });
+            const self = this;
+            const hoist = function() {
+              const titlebar = self.overlay.querySelector('.panel-titlebar');
+              if (!titlebar) return;
+              const fresh = self.host.querySelector('.explorer-error-banner');
+              titlebar.querySelectorAll('.explorer-error-banner').forEach(function(n) {
+                if (n !== fresh) n.parentNode.removeChild(n);
+              });
+              if (fresh) titlebar.appendChild(fresh);
+            };
+            hoist();
+            new MutationObserver(hoist).observe(this.host, { childList: true, subtree: true });
+          } else {
+            this.host.innerHTML = '<div style="padding:24px;color:#C9748F">file-explorer.js failed to load</div>';
+          }
+          this.mounted = true;
+        },
+      },
+      phreak: {
+        overlay: document.getElementById('overlay-phreak'),
+        host:    document.getElementById('phreak-host'),
+        button:  document.getElementById('btn-phreak'),
+        mounted: false,
+        mount() {
+          if (this.mounted) return;
+          if (window.PhreakTerminal && typeof window.PhreakTerminal.mount === 'function') {
+            window.PhreakTerminal.mount(this.host, function(content) {
+              console.info('[st8] phreak copy:', content);
+            });
+            const controls = this.host.querySelector('.phreak-header-controls');
+            const titlebar = this.overlay.querySelector('.panel-titlebar');
+            if (controls && titlebar) titlebar.appendChild(controls);
+            const status = document.createElement('span');
+            status.className = 'phreak-status-line';
+            status.textContent = 'TYPE "HELP" FOR AVAILABLE COMMANDS';
+            const diamond = titlebar.querySelector('.panel-close');
+            if (diamond && diamond.nextSibling) titlebar.insertBefore(status, diamond.nextSibling);
+            else titlebar.appendChild(status);
+            this.statusEl = status;
+            const self = this;
+            controls && controls.addEventListener('click', function(e) {
+              if (e.target.closest('[data-action="tui-toggle"]')) {
+                if (window.PhreakTerminal.toggleTUI) window.PhreakTerminal.toggleTUI();
+              } else if (e.target.closest('[data-action="phone-toggle"]')) {
+                if (window.PhreakTerminal.togglePhoneOffHook) window.PhreakTerminal.togglePhoneOffHook();
+                const st = window.PhreakTerminal.getPhoneState && window.PhreakTerminal.getPhoneState();
+                if (st && self.statusEl) {
+                  self.statusEl.classList.remove('phone-on', 'phone-off');
+                  if (st.offHook) {
+                    self.statusEl.textContent = 'PHONE OFF-HOOK — SIGNALS SUPPRESSED';
+                    self.statusEl.classList.add('phone-off');
+                  } else {
+                    self.statusEl.textContent = 'PHONE ON-HOOK — SIGNALS ACTIVE';
+                    self.statusEl.classList.add('phone-on');
+                  }
+                }
+              }
+            });
+          } else {
+            this.host.innerHTML = '<div style="padding:24px;color:#C9748F">phreak-terminal.js failed to load</div>';
+          }
+          this.mounted = true;
+        },
+      },
+    };
+
+    function openPanel(name) {
+      const p = panels[name]; if (!p) return;
+      Object.keys(panels).forEach(k => { if (k !== name) closePanel(k); });
+      p.mount();
+      p.overlay.classList.add('open');
+      p.button.setAttribute('aria-pressed', 'true');
+      setTimeout(() => {
+        const input = p.host.querySelector('input, button');
+        if (input) input.focus();
+      }, 50);
+    }
+    function closePanel(name) {
+      const p = panels[name]; if (!p) return;
+      p.overlay.classList.remove('open');
+      p.button.setAttribute('aria-pressed', 'false');
+    }
+    function togglePanel(name) {
+      const p = panels[name]; if (!p) return;
+      if (p.overlay.classList.contains('open')) closePanel(name); else openPanel(name);
+    }
+
+    document.getElementById('btn-explorer').addEventListener('click', () => togglePanel('explorer'));
+    document.getElementById('btn-phreak').addEventListener('click',  () => togglePanel('phreak'));
+    document.querySelectorAll('[data-close]').forEach(btn => {
+      btn.addEventListener('click', () => closePanel(btn.dataset.close));
+    });
+    document.querySelectorAll('.panel-overlay').forEach(ov => {
+      ov.addEventListener('mousedown', e => { if (e.target === ov) closePanel(ov.dataset.panel); });
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (window.PhreakTerminal && window.PhreakTerminal.getState && window.PhreakTerminal.getState().isTUI) return;
+      Object.keys(panels).forEach(k => {
+        if (panels[k].overlay.classList.contains('open')) closePanel(k);
+      });
+    });
+
+    // ─── WORKSPACE CHANGE HANDLER ─────────────────────────────
+    window.st8WorkspaceChanged = function(wsType) {
+      console.info('[st8] workspace changed to:', wsType);
+      const voidEl = document.getElementById('void');
+      if (!voidEl) return;
+
+      if (wsType === 'logic-analyzer') {
+        // Activate split mode
+        voidEl.classList.add('split-mode');
+        // Create right panel if it doesn't exist
+        if (!voidEl.querySelector('.void-right-panel')) {
+          const rightPanel = document.createElement('div');
+          rightPanel.className = 'void-right-panel';
+          rightPanel.innerHTML = '<div class="file-list-header">FILES</div><div id="void-file-list"></div>';
+          voidEl.appendChild(rightPanel);
+        }
+        // Start coordination polling
+        if (window.St8Coordination) {
+          window.St8Coordination.startPolling('/api/connection-state.json');
+        }
+      } else {
+        // Deactivate split mode
+        voidEl.classList.remove('split-mode');
+        // Remove right panel
+        const rightPanel = voidEl.querySelector('.void-right-panel');
+        if (rightPanel) rightPanel.remove();
+        // Stop coordination polling
+        if (window.St8Coordination) {
+          window.St8Coordination.stopPolling();
+        }
+      }
+    };
+
+    // ─── FILE LIST RENDERING ──────────────────────────────────
+    window.renderFileList = function(files) {
+      const container = document.getElementById('void-file-list');
+      if (!container) return;
+
+      if (!files || files.length === 0) {
+        container.innerHTML = '<div style="color:var(--text);opacity:0.5;font-size:13px;letter-spacing:1px;">No files indexed</div>';
+        return;
+      }
+
+      // Count statuses
+      var greenCount = files.filter(function(f) { return f.status === 'GREEN'; }).length;
+      var yellowCount = files.filter(function(f) { return f.status === 'YELLOW'; }).length;
+      var redCount = files.filter(function(f) { return f.status === 'RED'; }).length;
+
+      // Build HTML
+      var html = '<div class="file-list-summary">' +
+        '<span class="file-summary-item"><span class="file-status-dot green"></span> ' + greenCount + '</span>' +
+        '<span class="file-summary-item"><span class="file-status-dot yellow"></span> ' + yellowCount + '</span>' +
+        '<span class="file-summary-item"><span class="file-status-dot red"></span> ' + redCount + '</span>' +
+        '<span class="file-summary-total">' + files.length + ' files</span>' +
+      '</div>';
+
+      html += files.map(function(file) {
+        var statusClass = file.status === 'GREEN' ? 'green' : file.status === 'YELLOW' ? 'yellow' : 'red';
+        return '<div class="file-list-item" data-path="' + escapeHtml(file.filepath) + '">' +
+          '<div class="file-status-dot ' + statusClass + '"></div>' +
+          '<div class="file-name">' + escapeHtml(file.filename) + '</div>' +
+          '<div class="file-actions">' +
+            '<button class="file-action-btn" onclick="window.handleFileNotes(\'' + escapeHtml(file.filepath) + '\')">Notes</button>' +
+            '<button class="file-action-btn" onclick="window.handleFileClipboard(\'' + escapeHtml(file.filepath) + '\')">Copy</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      container.innerHTML = html;
+    };
+
+    // ─── FILE ACTION HANDLERS ─────────────────────────────────
+    window.handleFileNotes = function(filepath) {
+      console.info('[st8] notes for:', filepath);
+      showNotesPopup(filepath);
+    };
+    window.handleFileClipboard = function(filepath) {
+      console.info('[st8] clipboard:', filepath);
+      copyFileContext(filepath);
+    };
+
+    // ─── COPY FILE CONTEXT ───────────────────────────────────
+    function copyFileContext(filepath) {
+      var manifest = window.VoidFileExplorer && window.VoidFileExplorer.getIndexedFingerprints
+        ? window.VoidFileExplorer.getIndexedFingerprints()
+        : null;
+      var fileData = manifest && manifest.files
+        ? manifest.files.find(function(f) { return f.filepath === filepath; })
+        : null;
+
+      if (!fileData) {
+        console.warn('[st8] File not found in manifest:', filepath);
+        return;
+      }
+
+      // Build context string
+      var context = 'FILE: ' + filepath + '\n';
+      context += 'STATUS: ' + fileData.status + '\n';
+      context += 'HASH: ' + (fileData.sha256Hash || 'N/A') + '\n';
+      context += '\n';
+
+      // Connections
+      if (fileData.imports && fileData.imports.length > 0) {
+        context += 'IMPORTS:\n';
+        fileData.imports.forEach(function(imp) {
+          context += '  - ' + imp.source + '\n';
+        });
+        context += '\n';
+      }
+      if (fileData.importedBy && fileData.importedBy.length > 0) {
+        context += 'IMPORTED BY:\n';
+        fileData.importedBy.forEach(function(imp) {
+          context += '  - ' + imp + '\n';
+        });
+        context += '\n';
+      }
+
+      // Intent
+      if (fileData.intent) {
+        if (fileData.intent.purpose) {
+          context += 'PURPOSE: ' + fileData.intent.purpose + '\n';
+        }
+        if (fileData.intent.dependsOnBehavior) {
+          context += 'DEPENDS ON: ' + fileData.intent.dependsOnBehavior + '\n';
+        }
+        if (fileData.intent.valueStatement) {
+          context += 'VALUE: ' + fileData.intent.valueStatement + '\n';
+        }
+      }
+
+      // Copy to clipboard
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(context).then(function() {
+          console.info('[st8] Context copied to clipboard');
+          // Show feedback
+          showCopyFeedback(filepath);
+        }).catch(function(err) {
+          console.error('[st8] Failed to copy:', err);
+        });
+      } else {
+        // Fallback for older browsers
+        var textarea = document.createElement('textarea');
+        textarea.value = context;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        console.info('[st8] Context copied to clipboard (fallback)');
+        showCopyFeedback(filepath);
+      }
+    }
+
+    // ─── COPY FEEDBACK ───────────────────────────────────────
+    function showCopyFeedback(filepath) {
+      var items = document.querySelectorAll('.file-list-item[data-path="' + CSS.escape(filepath) + '"]');
+      items.forEach(function(item) {
+        var btn = item.querySelector('.file-action-btn:last-child');
+        if (btn) {
+          var originalText = btn.textContent;
+          btn.textContent = 'COPIED!';
+          btn.style.background = 'var(--gold)';
+          btn.style.color = 'var(--void)';
+          setTimeout(function() {
+            btn.textContent = originalText;
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 1500);
+        }
+      });
+    }
+
+    // ─── NOTES POPUP ─────────────────────────────────────────
+    function showNotesPopup(filepath) {
+      // Get existing intent data
+      var manifest = window.VoidFileExplorer && window.VoidFileExplorer.getIndexedFingerprints
+        ? window.VoidFileExplorer.getIndexedFingerprints()
+        : null;
+      var fileData = manifest && manifest.files
+        ? manifest.files.find(function(f) { return f.filepath === filepath; })
+        : null;
+      var intent = fileData && fileData.intent ? fileData.intent : {};
+
+      // Create overlay
+      var overlay = document.createElement('div');
+      overlay.className = 'notes-popup-overlay';
+      overlay.innerHTML = '<div class="notes-popup">' +
+        '<div class="notes-popup-header">' +
+          '<span class="notes-popup-title">FILE NOTES</span>' +
+          '<button class="notes-popup-close" onclick="this.closest(\'.notes-popup-overlay\').remove()">◇</button>' +
+        '</div>' +
+        '<div class="notes-popup-body">' +
+          '<div class="notes-field">' +
+            '<label>PURPOSE</label>' +
+            '<textarea id="notes-purpose" rows="3">' + escapeHtml(intent.purpose || '') + '</textarea>' +
+          '</div>' +
+          '<div class="notes-field">' +
+            '<label>DEPENDS ON BEHAVIOR</label>' +
+            '<textarea id="notes-depends" rows="3">' + escapeHtml(intent.dependsOnBehavior || '') + '</textarea>' +
+          '</div>' +
+          '<div class="notes-field">' +
+            '<label>VALUE STATEMENT</label>' +
+            '<textarea id="notes-value" rows="3">' + escapeHtml(intent.valueStatement || '') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+        '<div class="notes-popup-footer">' +
+          '<button class="notes-btn notes-btn-cancel" onclick="this.closest(\'.notes-popup-overlay\').remove()">CANCEL</button>' +
+          '<button class="notes-btn notes-btn-save" onclick="window.saveFileNotes(\'' + escapeHtml(filepath) + '\')">SAVE</button>' +
+        '</div>' +
+      '</div>';
+
+      document.body.appendChild(overlay);
+    }
+
+    // ─── SAVE FILE NOTES ─────────────────────────────────────
+    window.saveFileNotes = function(filepath) {
+      var purpose = document.getElementById('notes-purpose').value;
+      var depends = document.getElementById('notes-depends').value;
+      var value = document.getElementById('notes-value').value;
+
+      console.info('[st8] saving notes for:', filepath);
+
+      // Update manifest
+      var manifest = window.VoidFileExplorer && window.VoidFileExplorer.getIndexedFingerprints
+        ? window.VoidFileExplorer.getIndexedFingerprints()
+        : null;
+      if (manifest && manifest.files) {
+        var fileData = manifest.files.find(function(f) { return f.filepath === filepath; });
+        if (fileData) {
+          fileData.intent = {
+            purpose: purpose,
+            dependsOnBehavior: depends,
+            valueStatement: value
+          };
+          
+          // F7: Call backend API to persist notes
+          fetch('/api/file-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fingerprint: fileData.sha256Hash,
+              purpose: purpose,
+              dependsOnBehavior: depends,
+              valueStatement: value
+            })
+          }).then(function(response) {
+            return response.json();
+          }).then(function(data) {
+            console.info('[st8] Notes saved to backend:', data);
+          }).catch(function(err) {
+            console.error('[st8] Failed to save notes:', err);
+          });
+        }
+      }
+
+      // Close popup
+      var overlay = document.querySelector('.notes-popup-overlay');
+      if (overlay) overlay.remove();
+    };
+
+    // ─── INDEXING COMPLETE HANDLER ────────────────────────────
+    window.st8IndexingComplete = function(targetPath) {
+      console.info('[st8] indexing complete for:', targetPath);
+      
+      // Fetch the manifest and populate the file list
+      fetchManifest(targetPath).then(function(manifest) {
+        if (manifest && manifest.files) {
+          renderFileList(manifest.files);
+          // Store in explorer state
+          if (window.VoidFileExplorer && window.VoidFileExplorer.setIndexedFingerprints) {
+            window.VoidFileExplorer.setIndexedFingerprints(manifest);
+          }
+        }
+      });
+    };
+    
+    // ─── FETCH MANIFEST ──────────────────────────────────────
+    async function fetchManifest(targetPath) {
+      try {
+        // Try to fetch from the backend server (relative path)
+        const response = await fetch('/api/connection-state.json');
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (err) {
+        console.warn('[st8] Backend server not available, trying local file');
+      }
+      
+      // Fallback: try to read from local file
+      try {
+        const response = await fetch(targetPath + '/connection-state.json');
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (err) {
+        console.warn('[st8] Local manifest not found');
+      }
+      
+      return null;
+    }
+  </script>
+</body>
+</html>
