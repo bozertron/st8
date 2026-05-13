@@ -165,8 +165,45 @@ function updateValue(categoryId, key, value) {
     }
     settingsState.entries[categoryId][key] = value;
     
-    // TODO: Persist to backend
+    // Persist to backend
+    _persistSetting(categoryId, key, value);
     console.info('[st8] Settings updated:', categoryId, key, value);
+}
+
+function _persistSetting(categoryId, key, value) {
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: categoryId, key: key, value: value })
+    }).then(function(res) {
+        if (!res.ok) {
+            console.warn('[st8] Failed to persist setting:', categoryId, key, res.status);
+        }
+    }).catch(function(err) {
+        console.warn('[st8] Settings persistence error:', err.message);
+    });
+}
+
+function loadSettings() {
+    return fetch('/api/settings')
+        .then(function(res) {
+            if (!res.ok) throw new Error('Failed to load settings: ' + res.status);
+            return res.json();
+        })
+        .then(function(result) {
+            if (result && result.data) {
+                // Merge loaded settings into state
+                Object.keys(result.data).forEach(function(category) {
+                    settingsState.entries[category] = result.data[category];
+                });
+                console.info('[st8] Settings loaded from backend:', Object.keys(result.data).length, 'categories');
+            }
+            return result;
+        })
+        .catch(function(err) {
+            console.warn('[st8] Could not load settings from backend, using defaults:', err.message);
+            return null;
+        });
 }
 
 function addEntry(categoryId) {
@@ -209,8 +246,10 @@ function showSettingsPopup() {
     
     document.body.appendChild(overlay);
     
-    // Initialize settings
-    renderSettingsPanel();
+    // Load persisted settings then render
+    loadSettings().then(function() {
+        renderSettingsPanel();
+    });
 }
 
 // ─── SETTINGS IN EXPLORER ────────────────────────────────────
@@ -279,6 +318,9 @@ function showSettingsInExplorer() {
             }).join('');
         }
     }
+
+    // Load persisted settings
+    loadSettings();
 }
 
 // ─── PUBLIC API ───────────────────────────────────────────────
@@ -291,6 +333,7 @@ window.St8Settings = {
     addEntry: addEntry,
     editEntry: editEntry,
     duplicateEntry: duplicateEntry,
+    loadSettings: loadSettings,
     getCategories: function() { return SETTINGS_CATEGORIES; },
     getDefaults: function() { return DEFAULT_SETTINGS; }
 };

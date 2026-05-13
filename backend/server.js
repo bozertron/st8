@@ -97,6 +97,9 @@ class St8Server {
             case '/api/file-intent':
                 this._handleFileIntent(req, res);
                 break;
+            case '/api/settings':
+                this._handleSettings(req, res, url);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -241,7 +244,7 @@ class St8Server {
                 const { fingerprint, purpose, dependsOnBehavior, valueStatement } = JSON.parse(body);
                 const { St8Persistence } = require('./persistence');
                 const persistence = new St8Persistence();
-                
+
                 persistence.initialize().then(() => {
                     persistence.upsertIntent({
                         fingerprint,
@@ -250,16 +253,16 @@ class St8Server {
                         valueStatement,
                         authoredBy: 'USER'
                     });
-                    
+
                     persistence.logActivity({
                         source: 'USER_UI',
                         action: 'NOTE_ADDED',
                         targetFingerprint: fingerprint,
                         details: { purpose, dependsOnBehavior, valueStatement }
                     });
-                    
+
                     persistence.close();
-                    
+
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ status: 'ok', fingerprint }));
                 });
@@ -267,6 +270,60 @@ class St8Server {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
             }
+        });
+    }
+
+    _handleSettings(req, res, url) {
+        const { St8Persistence } = require('./persistence');
+        const persistence = new St8Persistence();
+
+        persistence.initialize().then(() => {
+            if (req.method === 'GET') {
+                // GET /api/settings — return all settings
+                // GET /api/settings?category=voidflow — return settings for a category
+                const category = url.searchParams.get('category');
+                let data;
+                if (category) {
+                    data = persistence.getSettingsByCategory(category);
+                } else {
+                    data = persistence.getAllSettings();
+                }
+                persistence.close();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', data }));
+
+            } else if (req.method === 'POST') {
+                // POST /api/settings — upsert a setting
+                let body = '';
+                req.on('data', chunk => body += chunk);
+                req.on('end', () => {
+                    try {
+                        const { category, key, value } = JSON.parse(body);
+                        if (!category || !key) {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: 'category and key are required' }));
+                            persistence.close();
+                            return;
+                        }
+                        persistence.upsertSetting(category, key, value);
+                        persistence.close();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ status: 'ok', category, key }));
+                    } catch (err) {
+                        persistence.close();
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: err.message }));
+                    }
+                });
+
+            } else {
+                persistence.close();
+                res.writeHead(405, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+            }
+        }).catch(err => {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
         });
     }
     

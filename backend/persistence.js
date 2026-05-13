@@ -94,6 +94,14 @@ CREATE INDEX IF NOT EXISTS idx_file_registry_sha256 ON file_registry(sha256_hash
 CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(source_fingerprint);
 CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(target_fingerprint);
 CREATE INDEX IF NOT EXISTS idx_activity_log_timestamp ON activity_log(timestamp);
+
+CREATE TABLE IF NOT EXISTS st8_settings (
+  category TEXT NOT NULL,
+  key TEXT NOT NULL,
+  value TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (category, key)
+);
 `;
 
 // ─── PERSISTENCE CLASS ───────────────────────────────────────
@@ -232,8 +240,51 @@ class St8Persistence {
         return stmt.all(limit);
     }
     
+    // ─── SETTINGS ────────────────────────────────────────────
+
+    upsertSetting(category, key, value) {
+        const stmt = this.db.prepare(`
+            INSERT OR REPLACE INTO st8_settings (category, key, value, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `);
+        return stmt.run(category, key, typeof value === 'string' ? value : JSON.stringify(value));
+    }
+
+    getSetting(category, key) {
+        const stmt = this.db.prepare('SELECT value FROM st8_settings WHERE category = ? AND key = ?');
+        const row = stmt.get(category, key);
+        if (!row) return null;
+        try { return JSON.parse(row.value); } catch { return row.value; }
+    }
+
+    getSettingsByCategory(category) {
+        const stmt = this.db.prepare('SELECT key, value FROM st8_settings WHERE category = ?');
+        const rows = stmt.all(category);
+        const result = {};
+        for (const row of rows) {
+            try { result[row.key] = JSON.parse(row.value); } catch { result[row.key] = row.value; }
+        }
+        return result;
+    }
+
+    getAllSettings() {
+        const stmt = this.db.prepare('SELECT category, key, value FROM st8_settings ORDER BY category, key');
+        const rows = stmt.all();
+        const result = {};
+        for (const row of rows) {
+            if (!result[row.category]) result[row.category] = {};
+            try { result[row.category][row.key] = JSON.parse(row.value); } catch { result[row.category][row.key] = row.value; }
+        }
+        return result;
+    }
+
+    deleteSetting(category, key) {
+        const stmt = this.db.prepare('DELETE FROM st8_settings WHERE category = ? AND key = ?');
+        return stmt.run(category, key);
+    }
+
     // ─── UTILITY ────────────────────────────────────────────
-    
+
     close() {
         if (this.db) {
             this.db.close();
