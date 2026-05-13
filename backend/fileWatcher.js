@@ -92,11 +92,13 @@ class FileWatcher {
         }
         
         this.debounceTimer = setTimeout(() => {
-            this._flush();
+            this._flush().catch(err => {
+                console.error('[st8:watcher] Flush failed:', err.message);
+            });
         }, this.debounceMs);
     }
     
-    _flush() {
+    async _flush() {
         const changes = Array.from(this.pendingChanges);
         this.pendingChanges.clear();
         
@@ -104,7 +106,7 @@ class FileWatcher {
         
         if (this.onFileChange) {
             try {
-                this.onFileChange(changes);
+                await this.onFileChange(changes);
             } catch (err) {
                 console.error('[st8:watcher] Error in onFileChange callback:', err.message);
             }
