@@ -103,7 +103,8 @@ CREATE TABLE IF NOT EXISTS connections (
   confidenceScore REAL DEFAULT 1.0,
   lastVerified TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (sourceFingerprint) REFERENCES file_registry(fingerprint),
-  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint)
+  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint),
+  UNIQUE(sourceFingerprint, targetFingerprint, connectionType)
 );
 
 CREATE TABLE IF NOT EXISTS file_intent (
@@ -150,7 +151,7 @@ CREATE TABLE IF NOT EXISTS st8_settings (
   category TEXT NOT NULL,
   key TEXT NOT NULL,
   value TEXT,
-  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (category, key)
 );
 `;
