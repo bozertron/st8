@@ -1852,15 +1852,29 @@
             return response.json();
           }).then(function(data) {
             console.info('[st8] Notes saved to backend:', data);
+            
+            // Close popup
+            var overlay = document.querySelector('.notes-popup-overlay');
+            if (overlay) overlay.remove();
+            
+            // Re-fetch manifest to get updated intent
+            return fetch('/api/connection-state.json');
+          }).then(function(response) {
+            return response.json();
+          }).then(function(freshManifest) {
+            if (freshManifest && freshManifest.files) {
+              // Update VoidFileExplorer state
+              if (window.VoidFileExplorer && window.VoidFileExplorer.setIndexedFingerprints) {
+                window.VoidFileExplorer.setIndexedFingerprints(freshManifest);
+              }
+              // Re-render file list with fresh data
+              renderFileList(freshManifest.files);
+            }
           }).catch(function(err) {
             console.error('[st8] Failed to save notes:', err);
           });
         }
       }
-
-      // Close popup
-      var overlay = document.querySelector('.notes-popup-overlay');
-      if (overlay) overlay.remove();
     };
 
     // ─── INDEXING COMPLETE HANDLER ────────────────────────────
