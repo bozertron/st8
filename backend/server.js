@@ -209,45 +209,48 @@ class St8Server {
     _handleIndex(req, res) {
         let body = '';
         req.on('data', chunk => body += chunk);
-        req.on('end', () => {
+        req.on('end', async () => {
+            let persistence;
             try {
-                const { indexDirectory } = require('./indexer');
-                const { writeManifests } = require('./manifestGenerator');
-
-                // Parse request body for path parameter
-                let targetDir = this.targetDir;
-                if (body) {
-                    try {
-                        const parsed = JSON.parse(body);
-                        if (parsed.path) {
-                            targetDir = parsed.path;
-                        }
-                    } catch (parseErr) {
-                        res.writeHead(400, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-                        return;
-                    }
-                }
-
+                const { path: requestedPath } = JSON.parse(body || '{}');
+                const targetDir = requestedPath || this.targetDir;
+                
                 if (!targetDir) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'No target directory provided' }));
+                    res.end(JSON.stringify({ error: 'No target directory specified' }));
                     return;
                 }
-
-                indexDirectory(targetDir, { write: true })
-                    .then(result => {
-                        writeManifests(result.files, targetDir);
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ status: 'ok', files: result.files.length }));
-                    })
-                    .catch(err => {
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: err.message }));
-                    });
+                
+                const { indexDirectory } = require('./indexer');
+                const { writeManifests } = require('./manifestGenerator');
+                const { St8Persistence } = require('./persistence');
+                
+                const result = await indexDirectory(targetDir, { write: false });
+                
+                // Enrich with intents
+                persistence = new St8Persistence();
+                await persistence.initialize();
+                const allIntents = persistence.getAllIntents();
+                for (const file of result.files) {
+                    const fp = file.fingerprint || file.sha256Hash;
+                    if (allIntents[fp]) {
+                        file.intent = allIntents[fp];
+                    }
+                }
+                
+                writeManifests(result.files, targetDir);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ 
+                    status: 'ok', 
+                    files: result.files.length,
+                    path: targetDir
+                }));
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
+            } finally {
+                if (persistence) persistence.close();
             }
         });
     }
@@ -262,25 +265,64 @@ class St8Server {
                 const persistence = new St8Persistence();
 
                 persistence.initialize().then(() => {
-                    persistence.upsertIntent({
-                        fingerprint,
-                        purpose,
-                        dependsOnBehavior,
-                        valueStatement,
-                        authoredBy: 'USER'
-                    });
+                    try {
+                        persistence.upsertIntent({
+                            fingerprint,
+                            purpose,
+                            dependsOnBehavior,
+                            valueStatement,
+                            authoredBy: 'USER'
+                        });
 
-                    persistence.logActivity({
-                        source: 'USER_UI',
-                        action: 'NOTE_ADDED',
-                        targetFingerprint: fingerprint,
-                        details: { purpose, dependsOnBehavior, valueStatement }
-                    });
+                        persistence.logActivity({
+                            source: 'USER_UI',
+                            action: 'NOTE_ADDED',
+                            targetFingerprint: fingerprint,
+                            details: { purpose, dependsOnBehavior, valueStatement }
+                        });
 
-                    persistence.close();
+                        // Regenerate manifest with updated intent
+                        const allIntents = persistence.getAllIntents();
 
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ status: 'ok', fingerprint }));
+                        // Load current manifest
+                        const manifestPath = path.join(this.targetDir, 'connection-state.json');
+                        let manifest;
+                        if (fs.existsSync(manifestPath)) {
+                            manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+                        } else {
+                            // Create minimal manifest if it doesn't exist
+                            manifest = {
+                                metadata: {
+                                    timestamp: new Date().toISOString(),
+                                    targetDirectory: this.targetDir,
+                                    totalFiles: 0,
+                                    statusCounts: { GREEN: 0, YELLOW: 0, RED: 0 }
+                                },
+                                files: []
+                            };
+                        }
+
+                        // Update intent for the saved file
+                        if (manifest.files) {
+                            for (const file of manifest.files) {
+                                const fp = file.fingerprint || file.sha256Hash;
+                                if (allIntents[fp]) {
+                                    file.intent = allIntents[fp];
+                                }
+                            }
+                        }
+
+                        // Write updated manifest
+                        fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ status: 'ok', fingerprint }));
+                    } finally {
+                        persistence.close();
+                    }
+                }).catch(err => {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
                 });
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -297,16 +339,19 @@ class St8Server {
             if (req.method === 'GET') {
                 // GET /api/settings — return all settings
                 // GET /api/settings?category=voidflow — return settings for a category
-                const category = url.searchParams.get('category');
-                let data;
-                if (category) {
-                    data = persistence.getSettingsByCategory(category);
-                } else {
-                    data = persistence.getAllSettings();
+                try {
+                    const category = url.searchParams.get('category');
+                    let data;
+                    if (category) {
+                        data = persistence.getSettingsByCategory(category);
+                    } else {
+                        data = persistence.getAllSettings();
+                    }
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', data }));
+                } finally {
+                    persistence.close();
                 }
-                persistence.close();
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: 'ok', data }));
 
             } else if (req.method === 'POST') {
                 // POST /api/settings — upsert a setting
@@ -318,18 +363,21 @@ class St8Server {
                         if (!category || !key) {
                             res.writeHead(400, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: 'category and key are required' }));
-                            persistence.close();
                             return;
                         }
                         persistence.upsertSetting(category, key, value);
-                        persistence.close();
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ status: 'ok', category, key }));
                     } catch (err) {
-                        persistence.close();
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: err.message }));
+                    } finally {
+                        persistence.close();
                     }
+                });
+                // Handle client abort — req.on('end') never fires → connection leak
+                req.on('close', () => {
+                    if (persistence) persistence.close();
                 });
 
             } else {
@@ -344,8 +392,24 @@ class St8Server {
     }
     
     _handleFileList(req, res, url) {
-        const dirPath = url.searchParams.get('path') || this.targetDir;
+        const os = require('os');
+        const requestedPath = url.searchParams.get('path') || this.targetDir;
+
+        // Tilde expansion — resolve ~ and ~/... to user home directory
+        let dirPath = requestedPath;
+        if (dirPath === '~' || dirPath.startsWith('~/')) {
+            dirPath = path.join(os.homedir(), dirPath.slice(1));
+        }
+
         const resolvedPath = path.resolve(dirPath);
+
+        // Directory traversal protection — restrict to home dir or targetDir
+        const homeDir = os.homedir();
+        if (!resolvedPath.startsWith(homeDir) && !resolvedPath.startsWith(this.targetDir)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Access denied: path outside allowed scope' }));
+            return;
+        }
 
         // Security: validate path exists
         if (!fs.existsSync(resolvedPath)) {
@@ -418,6 +482,7 @@ class St8Server {
                 // Initialize persistence
                 const { St8Persistence } = require('./persistence');
                 const persistence = new St8Persistence();
+                try {
                 await persistence.initialize();
 
                 // Get all indexed files from database
@@ -532,15 +597,19 @@ class St8Server {
                     }
                 });
 
-                persistence.close();
-
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(results, null, 2));
 
+                } finally {
+                    persistence.close();
+                }
+
             } catch (err) {
                 console.error('[st8:server] Verify error:', err.message);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
             }
         });
     }

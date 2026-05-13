@@ -1849,6 +1849,9 @@
               valueStatement: value
             })
           }).then(function(response) {
+            if (!response.ok) {
+              throw new Error('Save failed: ' + response.status);
+            }
             return response.json();
           }).then(function(data) {
             console.info('[st8] Notes saved to backend:', data);
@@ -1872,6 +1875,7 @@
             }
           }).catch(function(err) {
             console.error('[st8] Failed to save notes:', err);
+            alert('Failed to save notes: ' + err.message);
           });
         }
       }
