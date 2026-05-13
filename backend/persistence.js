@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS connections (
   confidenceScore REAL DEFAULT 1.0,
   lastVerified TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (sourceFingerprint) REFERENCES file_registry(fingerprint),
-  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint)
+  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint),
+  UNIQUE(sourceFingerprint, targetFingerprint, connectionType)
 );
 
 CREATE TABLE IF NOT EXISTS file_intent (
@@ -118,7 +119,7 @@ CREATE TABLE IF NOT EXISTS st8_settings (
   category TEXT NOT NULL,
   key TEXT NOT NULL,
   value TEXT,
-  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (category, key)
 );
 `;
@@ -210,6 +211,7 @@ class St8Persistence {
 
         this.deleteConnectionsForFile(file.fingerprint);
         this.deleteIntentForFile(file.fingerprint);
+        this.deleteMutationLogForFile(file.fingerprint);
 
         const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
         const result = stmt.run(filepath);
@@ -228,6 +230,11 @@ class St8Persistence {
         return stmt.run(fingerprint);
     }
     
+    deleteMutationLogForFile(fingerprint) {
+        const stmt = this.db.prepare('DELETE FROM file_mutation_log WHERE fingerprint = ?');
+        return stmt.run(fingerprint);
+    }
+    
     // ─── CONNECTIONS ────────────────────────────────────────
     
     insertConnection(conn) {
@@ -240,10 +247,10 @@ class St8Persistence {
         return stmt.run(
             conn.sourceFingerprint,
             conn.targetFingerprint,
-            conn.connectionType || 'IMPORT',
-            conn.importSpecifier || null,
+            conn.connectionType ?? 'IMPORT',
+            conn.importSpecifier ?? null,
             conn.isResolved !== undefined ? (conn.isResolved ? 1 : 0) : 1,
-            conn.confidenceScore || 1.0
+            conn.confidenceScore ?? 1.0
         );
     }
     
@@ -265,7 +272,7 @@ class St8Persistence {
             intent.purpose || '',
             intent.dependsOnBehavior || '',
             intent.valueStatement || '',
-            intent.authoredBy || 'USER'
+            intent.authoredBy || 'INFERRED'
         );
     }
     
@@ -430,7 +437,7 @@ class St8Persistence {
 
     upsertSetting(category, key, value) {
         const stmt = this.db.prepare(`
-            INSERT OR REPLACE INTO st8_settings (category, key, value, updated_at)
+            INSERT OR REPLACE INTO st8_settings (category, key, value, updatedAt)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         `);
         return stmt.run(category, key, typeof value === 'string' ? value : JSON.stringify(value));
