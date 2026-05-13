@@ -106,6 +106,18 @@ class St8Server {
             case '/api/mutations':
                 this._handleMutationsSSE(req, res);
                 break;
+            case '/api/concept-file':
+                this._handleConceptFile(req, res);
+                break;
+            case '/api/mvp-lock':
+                this._handleMvpLock(req, res);
+                break;
+            case '/api/prd':
+                this._handlePrd(req, res);
+                break;
+            case '/api/production-promote':
+                this._handleProductionPromote(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -405,8 +417,17 @@ class St8Server {
         const resolvedPath = path.resolve(dirPath);
 
         // Directory traversal protection — restrict to home dir or targetDir
+        // CR-02 fix: use path.relative() to enforce path-boundary semantics.
+        // String startsWith('/home/bozertron') would incorrectly allow
+        // '/home/bozertron2/evil' — path.relative catches this because the
+        // relative path starts with '..' when outside the base directory.
         const homeDir = os.homedir();
-        if (!resolvedPath.startsWith(homeDir) && !resolvedPath.startsWith(this.targetDir)) {
+        const relToHome = path.relative(homeDir, resolvedPath);
+        const relToTarget = this.targetDir ? path.relative(this.targetDir, resolvedPath) : null;
+        const insideHome = !relToHome.startsWith('..') && !path.isAbsolute(relToHome);
+        const insideTarget = relToTarget ? (!relToTarget.startsWith('..') && !path.isAbsolute(relToTarget)) : false;
+
+        if (!insideHome && !insideTarget) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Access denied: path outside allowed scope' }));
             return;
@@ -617,7 +638,275 @@ class St8Server {
 
     _handleMutationsSSE(req, res) {
         const { notificationBus } = require('./notificationBus');
-        notificationBus.addSSEClient(res);
+        // Pass the server's allowed origin so the SSE endpoint respects
+        // the same CORS restriction as all other routes (CR-01 fix).
+        notificationBus.addSSEClient(res, {
+            allowedOrigin: 'http://localhost:' + this.port
+        });
+    }
+
+    // ─── PHASE 6 ENDPOINTS ──────────────────────────────────────
+
+    _handleConceptFile(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        // Body size limit: 1KB
+        const MAX_BODY_SIZE = 1024;
+        let body = '';
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+            }
+        });
+
+        req.on('end', async () => {
+            if (bodyTooLarge) return;
+
+            let persistence;
+            try {
+                let parsed;
+                try {
+                    parsed = JSON.parse(body);
+                } catch (parseErr) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid JSON: ' + parseErr.message }));
+                    return;
+                }
+
+                const { filepath, purpose, dependsOnBehavior, valueStatement } = parsed;
+
+                if (!filepath) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'filepath is required' }));
+                    return;
+                }
+
+                const { St8Persistence } = require('./persistence');
+                const { notificationBus } = require('./notificationBus');
+
+                persistence = new St8Persistence();
+                await persistence.initialize();
+
+                const fingerprint = persistence.registerConceptFile({
+                    filepath,
+                    filename: path.basename(filepath),
+                    actor: 'DEVELOPER'
+                });
+
+                // Set intent if provided
+                if (purpose || dependsOnBehavior || valueStatement) {
+                    persistence.upsertIntent({
+                        fingerprint,
+                        purpose: purpose || '',
+                        dependsOnBehavior: dependsOnBehavior || '',
+                        valueStatement: valueStatement || '',
+                        authoredBy: 'DEVELOPER'
+                    });
+                }
+
+                notificationBus.publish({
+                    fingerprint,
+                    filepath,
+                    mutationType: 'CONCEPT',
+                    actor: 'DEVELOPER'
+                });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', fingerprint, lifecyclePhase: 'CONCEPT' }));
+            } catch (err) {
+                console.error('[st8:server] Concept file error:', err.message);
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            } finally {
+                if (persistence) persistence.close();
+            }
+        });
+    }
+
+    _handleMvpLock(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        // Consume the request body to drain the socket (prevents connection leak)
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            let persistence;
+            try {
+                const { St8Persistence } = require('./persistence');
+                const { SchemaCardEmitter } = require('./schemaCardEmitter');
+                const { notificationBus } = require('./notificationBus');
+
+                persistence = new St8Persistence();
+                await persistence.initialize();
+
+                const files = persistence.getAllFiles();
+                const results = [];
+
+                for (const file of files) {
+                    if (file.lifecyclePhase === 'CONCEPT' || file.lifecyclePhase === 'DEVELOPMENT') {
+                        persistence.db.prepare(
+                            `UPDATE file_registry SET lifecyclePhase = 'LOCKED' WHERE fingerprint = ?`
+                        ).run(file.fingerprint);
+
+                        persistence.logMutation({
+                            fingerprint: file.fingerprint,
+                            sha256Hash: file.sha256Hash,
+                            mutationType: 'LOCK',
+                            changedFields: JSON.stringify({ lifecyclePhase: [file.lifecyclePhase, 'LOCKED'] }),
+                            actor: 'DEVELOPER',
+                            metadata: '{}'
+                        });
+
+                        notificationBus.publish({
+                            fingerprint: file.fingerprint,
+                            filepath: file.filepath,
+                            mutationType: 'LOCK',
+                            actor: 'DEVELOPER'
+                        });
+
+                        results.push({
+                            fingerprint: file.fingerprint,
+                            filepath: file.filepath,
+                            previousPhase: file.lifecyclePhase
+                        });
+                    }
+                }
+
+                // Re-emit all schema cards with LOCKED phase
+                if (this.targetDir) {
+                    const emitter = new SchemaCardEmitter(this.targetDir);
+                    emitter.emitAllCards(persistence);
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', lockedFiles: results.length, files: results }));
+            } catch (err) {
+                console.error('[st8:server] MVP lock error:', err.message);
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            } finally {
+                if (persistence) persistence.close();
+            }
+        });
+    }
+
+    _handlePrd(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+
+        try {
+            if (!this.targetDir) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'No target directory configured' }));
+                return;
+            }
+
+            const { loadSchemaCards, generatePRD } = require('./prdGenerator');
+            const cardsDir = path.join(this.targetDir, '.st8', 'schema-cards');
+
+            const cards = loadSchemaCards(cardsDir);
+            const prd = generatePRD(cards);
+
+            res.writeHead(200, { 'Content-Type': 'text/markdown' });
+            res.end(prd);
+        } catch (err) {
+            console.error('[st8:server] PRD generation error:', err.message);
+            if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        }
+    }
+
+    _handleProductionPromote(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        const MAX_BODY_SIZE = 1024; // 1KB
+        let body = '';
+        let bodyTooLarge = false;
+        req.on('data', chunk => {
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+            }
+        });
+        req.on('end', async () => {
+            if (bodyTooLarge) {
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large (max 1KB)' }));
+                return;
+            }
+
+            let persistence;
+            try {
+                let fingerprint;
+                try {
+                    ({ fingerprint } = JSON.parse(body));
+                } catch (parseErr) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                    return;
+                }
+
+                if (!fingerprint) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'fingerprint is required' }));
+                    return;
+                }
+
+                const { St8Persistence } = require('./persistence');
+                const { notificationBus } = require('./notificationBus');
+
+                persistence = new St8Persistence();
+                await persistence.initialize();
+
+                const result = persistence.purgeDevelopmentData(fingerprint);
+
+                notificationBus.publish({
+                    fingerprint,
+                    mutationType: 'PRODUCTION',
+                    actor: 'DEVELOPER'
+                });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', purgedMutations: result.purgedMutations }));
+            } catch (err) {
+                console.error('[st8:server] Production promote error:', err.message);
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            } finally {
+                if (persistence) persistence.close();
+            }
+        });
     }
 
     stop() {
