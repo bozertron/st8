@@ -22,6 +22,8 @@ const { SchemaCardPrinter } = require('../../features/schema-cards/printer');
 const { notificationBus } = require('../notification-bus');
 const { GapAnalyzer } = require('../../features/analysis/gap-analyzer');
 const { IntentSeeder } = require('../../features/analysis/intent-seeder');
+const { hookRegistry, HOOKS } = require('../hook-registry');
+const { registerDefaultSubscribers } = require('../hooks/default-subscribers');
 
 // ─── GLOBAL ERROR HANDLERS ───────────────────────────────────
 // Prevent process crash from unhandled rejections
@@ -87,12 +89,25 @@ async function main() {
     const emitter = new SchemaCardEmitter(targetDir);
     const printer = new SchemaCardPrinter(targetDir);
     notificationBus.setPrinter(printer);
-    
+
+    // Wire st8's built-in modules as default subscribers to the hook
+    // registry. After this call, INDEX_COMPLETE will drive manifest
+    // generation, schema-card emission, gap analysis, and intent seeding
+    // as discrete subscribers instead of inline procedural code.
+    registerDefaultSubscribers(hookRegistry);
+
+    // Fire INDEX_START so any future module that wants pre-pass setup
+    // (e.g. clear stale .st8/ artifacts) has a hook point.
+    await hookRegistry.execute(HOOKS.INDEX_START, { targetDir, persistence });
+
     // Store in SQLite
     if (result.files && result.files.length > 0) {
         console.log('[st8] Storing results in SQLite...');
 
-        // Pass 1: Upsert all files first (so foreign keys exist for connections)
+        // Pass 1: Upsert all files first (so foreign keys exist for connections).
+        // Per file, fire FILE_INDEXED so subscribers can react as each file's
+        // identity lands in the registry — this is the "identification built
+        // into the indexer" hook point (HOOK-ARCHITECTURE-RESEARCH §6).
         for (const file of result.files) {
             persistence.upsertFile({
                 fingerprint: file.fingerprint,     // NOW uses stable identity
@@ -118,6 +133,11 @@ async function main() {
                 actor: ActorType.INDEXER,
                 metadata: '{}'
             });
+
+            // Hook: file's identity has landed. No default subscribers yet, but
+            // this is the extension point for Louis lock checks, real-time UI
+            // updates, etc.
+            await hookRegistry.execute(HOOKS.FILE_INDEXED, { file, targetDir, persistence });
         }
 
         // Pass 2: Wire connections (all files now exist in DB)
@@ -150,37 +170,18 @@ async function main() {
                 statusCounts: result.manifest.metadata.statusCounts
             }
         });
-        
-        // F2: Call manifestGenerator after indexing
-        const { writeManifests } = require('../../features/schema-cards/manifest-generator');
-        writeManifests(result.files, targetDir);
-        console.log('[st8] Manifests generated');
 
-        // Emit schema cards
-        emitter.emitAllCards(persistence);
-        printer.printAllFromCards(path.join(targetDir, '.st8', 'schema-cards'));
-        console.log('[st8] Schema cards emitted');
-
-        // Run gap analysis
-        try {
-            const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
-            const analyzer = new GapAnalyzer(schemaCardsDir, persistence);
-            const gapReport = analyzer.analyze();
-            analyzer.writeReport(path.join(targetDir, '.st8', 'gap-analysis.md'));
-            console.log('[st8] Gap analysis written to .st8/gap-analysis.md');
-        } catch (err) {
-            console.error('[st8] Gap analysis failed:', err.message);
-        }
-
-        // Seed intent for files that don't have it yet
-        try {
-            const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
-            const seeder = new IntentSeeder(persistence, schemaCardsDir, targetDir);
-            const seedResult = seeder.seedAll();
-            console.log(`[st8] Intent seeding: ${seedResult.seeded} seeded, ${seedResult.errors} errors`);
-        } catch (err) {
-            console.error('[st8] Intent seeding failed:', err.message);
-        }
+        // Fire the INDEX_COMPLETE hook — built-in subscribers (registered
+        // above via registerDefaultSubscribers) handle manifest generation,
+        // schema-card emission, gap analysis, and intent seeding. Any future
+        // module can register additional handlers without touching main.js.
+        await hookRegistry.execute(HOOKS.INDEX_COMPLETE, {
+            result,
+            targetDir,
+            persistence,
+            emitter,
+            printer,
+        });
     }
     
     // Start file watcher if requested
