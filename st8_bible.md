@@ -2845,4 +2845,99 @@ GET  /api/background-index/status                                            -> 
 3. **`insight-store` + relationship-analyzer feeding it** — populates the "why is this file RED" data. ~half-day (skip background-indexer; trigger from INDEX_COMPLETE instead).
 4. **`background-indexer` sonic-fix** — replace sonicClient with direct InsightStore writes. The biggest fish; saves for last. ~half-day to a day.
 
+**Commit:** `38f92c7`
+
+---
+
+### Batch 026 — `little-stuff-fixes`
+
+Three small fixes addressing the two force-check signals from batch 025 plus a follow-on issue that surfaced once they cleared.
+
+**1. Indexer hygiene (`src/features/indexing/indexer.js`)** — Added `SELF_WRITTEN_BASENAMES = Set(['connection-state.json', 'ai-signal.toml'])` to `discoverFiles()` so st8's own output files don't get indexed on the next pass. Fixes Tier 2 invariant I6.
+
+**2. Registry prune (`src/core/database/persistence.js` + `src/core/server/main.js`)** — New `persistence.pruneFilesNotIn(currentFilepaths)` drops accumulated rows from prior runs. Operates **per-fingerprint, not per-filepath** — file_registry can have multiple rows per filepath (different birthTimestamps = different fingerprints), so the existing `deleteFile(filepath)` would FK-violate. Per-fingerprint cleanup with full cascade through connections + intent + mutation_log in one transaction. Called as Pass-0 before the existing upsert loop.
+
+**3. Emitter card sweep (`src/features/schema-cards/emitter.js`)** — `emitAllCards()` now removes stale `.json` files from `.st8/schema-cards/` that no longer correspond to a current `file_registry` row. Without this, cards from prior runs gave gap-analyzer false data (it reads the dir directly).
+
+**Verified:** force-check `6/6 pass` (was `4/6` on previous build). Emitter logs include `"pruned N stale"`.
+
+**Commit:** `c073bde`
+
+---
+
+### Batch 027 — `sonic-foundation` (Layer 1 of PM-1)
+
+The first concrete step of the PM-1 vision (per `docs/Sonic/pm1-background-indexer-vision.md`). Gets Sonic — a sub-millisecond TCP search backend — running as a managed child process of st8, with the missing JS trio that was making `background-indexer.js` dormant.
+
+**Files pulled from `origin/master` into the branch** (founder pushed these via Louis-style drops):
+
+- `docs/Sonic/sonic` (19 MB ELF binary)
+- `docs/Sonic/sonic.cfg`, `.install`, `.service` (full deployment config)
+- `docs/Sonic/sonicClient.js`, `.ts` (567 lines — the missing Sonic Channel protocol TCP client)
+- `docs/Sonic/sonicIndexer.js`, `.ts` (446 lines — graph→Sonic push)
+- `docs/Sonic/sonicQueries.js`, `.ts` (659 lines — query layer with SQLite fallback)
+- `docs/Sonic/sonic_daemon.rs` (398 lines — Tauri-specific Rust lifecycle manager; we use the design but port to Node)
+- `docs/Sonic/sonic-integration-architecture.md` (814 lines — architecture deep-dive)
+- `docs/Sonic/pm1-background-indexer-vision.md` (308 lines — the 5-layer master plan)
+- `docs/Insight Store/insightStore.{js,ts}` (the TS source for what's already in src/features/analysis/)
+
+**New module: `src/features/search/`** (4 files):
+
+```
+src/features/search/
+├── sonic-client.js     # was docs/Sonic/sonicClient.js — kebab-cased,
+│                       # default host changed from [::1] to 127.0.0.1
+├── sonic-indexer.js    # was sonicIndexer.js — internal requires rewritten
+│                       # for the new layout (graph-persister, integr8-types)
+├── sonic-queries.js    # was sonicQueries.js — same rewrites
+└── sonic-daemon.js     # NEW — Node-side process lifecycle manager
+```
+
+**`sonic-daemon.js`** (~210 lines) is the Node-port of the Rust lifecycle manager. Key design decisions:
+
+- **Optional.** st8 boots in SQLite-only mode if the Sonic binary is missing, fails to start, or the port doesn't bind. Every `sonic-queries` call has a SQLite fallback per the architecture doc, so degraded mode is graceful.
+- **Adopt-if-already-running.** Pings port 1491 before spawning. If Sonic is already up (external systemd unit, prior process, etc.), st8 "adopts" it without re-spawning.
+- **Runtime config materialization.** `docs/Sonic/sonic.cfg` is canonical (MAESTRO version) and uses `[::1]`. Some hosts (sandboxed Linux, IPv6-disabled VMs) reject IPv6 binds, so the daemon writes a runtime override to `.st8/sonic-store/sonic.runtime.cfg` with `inet = "127.0.0.1:1491"` and feeds THAT to the binary. **Canonical config never touched.**
+- **Health-check on spawn.** Polls TCP every 100 ms up to 5 s; if port never opens, terminates the child and reports failure.
+- **Clean shutdown.** Installs SIGINT/SIGTERM/exit handlers that SIGTERM the child with a 1.5 s grace window before SIGKILL.
+- **Per-project store paths.** Sets `SONIC_STORE_PATH=<targetDir>/.st8/sonic-store/` so different projects don't share an index.
+
+**Hook wiring** — `src/core/hooks/default-subscribers.js` gets a new `INDEX_START` subscriber at priority 10:
+
+```js
+registry.register(HOOKS.INDEX_START, async (ctx) => {
+  const daemon = require('../../features/search/sonic-daemon');
+  await daemon.start({ targetDir: ctx.targetDir });
+}, { priority: 10, source: 'sonic-daemon' });
+```
+
+This wires Sonic startup into the existing hook chain. Future modules (`background-indexer`, `relationship-analyzer`, anyone who wants warm search) can rely on Sonic being up by the time `INDEX_COMPLETE` fires.
+
+**Verified end-to-end:**
+
+```
+$ node start.js /tmp/st8-smoke-target
+...
+[sonic-daemon] Sonic running on 127.0.0.1:1491 (pid <X>, store /tmp/st8-smoke-target/.st8/sonic-store)
+[st8] Manifests generated
+[st8] Schema cards emitted
+[st8:force-check] 6/6 checks pass
+[st8] Ready!
+
+$ curl http://127.0.0.1:1491   (raw TCP probe)
+CONNECTED <sonic-server v1.4.9>
+```
+
+**Graceful-degrade verified separately:** when daemon was first tested with the canonical `[::1]` config, Sonic itself logged `error binding channel listener: Address family not supported by protocol`, the daemon's health-check timed out at 5s, st8 logged `[sonic-daemon] Sonic spawned but port 1491 never opened — SQLite-only mode`, and continued booting to a healthy `force-check 6/6 pass`. The fallback path is real.
+
+**What this unblocks (next batches):**
+
+| Module | Blocked by | Status after this batch |
+|---|---|---|
+| `background-indexer.js` | Missing `./sonicClient.js` require | Sonic client now available at `../search/sonic-client` — still needs the require rewritten + the *other* missing deps (`multiPassAnalyzer.js`, `precisionCapture.js`) to fully revive |
+| `sonic-queries.js` consumers | Daemon not running | Daemon now warm at boot when binary is present |
+| `sonic-indexer.js` consumers | Same | Same |
+
+**Layers 2-5 of PM-1 remain unbuilt** — captured in batch 025's roadmap. Layer 1 (this batch) is the foundation; subsequent layers wire the dead modules onto it.
+
 **Commit:** (filled in below)

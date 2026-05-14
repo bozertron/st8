@@ -38,6 +38,20 @@ function registerDefaultSubscribers(registry) {
     throw new TypeError('registerDefaultSubscribers: needs a HookRegistry');
   }
 
+  // ─── INDEX_START chain ──────────────────────────────────────
+  // P=10 — Sonic daemon spin-up. Optional; if Sonic isn't installed or
+  // can't start, this subscriber logs a warning and st8 boots in
+  // SQLite-only mode. The sonic-queries layer falls through to SQLite
+  // automatically when sonic isn't available, so this is non-fatal.
+  registry.register(HOOKS.INDEX_START, async (ctx) => {
+    try {
+      const daemon = require('../../features/search/sonic-daemon');
+      await daemon.start({ targetDir: ctx.targetDir });
+    } catch (err) {
+      console.warn('[st8] Sonic daemon start failed:', err.message);
+    }
+  }, { priority: 10, source: 'sonic-daemon' });
+
   // ─── INDEX_COMPLETE chain ───────────────────────────────────
   // Runs after the bootstrap Pass-1 upsert + Pass-2 connection wiring.
   // Each subscriber sees the full graph in persistence.
