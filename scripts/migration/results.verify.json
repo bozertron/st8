@@ -1,29 +1,22 @@
 {
-  "batch": "schema-cards",
-  "generatedAt": "2026-05-14T12:54:05.406Z",
-  "ok": 3,
+  "batch": "prd",
+  "generatedAt": "2026-05-14T12:55:40.646Z",
+  "ok": 2,
   "fail": 0,
   "summary": [
     {
-      "from": "backend/schemaCardEmitter.js",
-      "to": "src/features/schema-cards/emitter.js",
+      "from": "backend/prdGenerator.js",
+      "to": "src/features/prd/generator.js",
+      "status": "ok",
+      "shape": "object{6 keys}",
+      "exportCount": 6
+    },
+    {
+      "from": "backend/templateEngine.js",
+      "to": "src/features/prd/template-engine.js",
       "status": "ok",
       "shape": "object{1 keys}",
       "exportCount": 1
-    },
-    {
-      "from": "backend/schemaCardPrinter.js",
-      "to": "src/features/schema-cards/printer.js",
-      "status": "ok",
-      "shape": "object{1 keys}",
-      "exportCount": 1
-    },
-    {
-      "from": "backend/manifestGenerator.js",
-      "to": "src/features/schema-cards/manifest-generator.js",
-      "status": "ok",
-      "shape": "object{3 keys}",
-      "exportCount": 3
     }
   ]
 }

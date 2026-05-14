@@ -1,37 +1,17 @@
 {
-  "batch": "schema-cards",
-  "generatedAt": "2026-05-14T12:53:41.352Z",
-  "totalEdits": 2,
+  "batch": "prd",
+  "generatedAt": "2026-05-14T12:55:40.601Z",
+  "totalEdits": 0,
   "failures": 0,
   "summary": [
     {
-      "status": "edit",
-      "file": "src/features/schema-cards/emitter.js",
-      "edits": [
-        {
-          "start": 386,
-          "end": 397,
-          "oldSpec": "./st8-types",
-          "newSpec": "../../shared/types/st8-types",
-          "line": 15
-        },
-        {
-          "start": 7902,
-          "end": 7915,
-          "oldSpec": "./persistence",
-          "newSpec": "../../core/database/persistence",
-          "line": 197
-        }
-      ]
-    },
-    {
       "status": "ok",
-      "file": "src/features/schema-cards/printer.js",
+      "file": "src/features/prd/generator.js",
       "edits": []
     },
     {
       "status": "ok",
-      "file": "src/features/schema-cards/manifest-generator.js",
+      "file": "src/features/prd/template-engine.js",
       "edits": []
     }
   ]

@@ -1,10 +1,9 @@
 {
-  "batch": "schema-cards",
+  "batch": "prd",
   "generatedAt": "2026-05-14",
-  "description": "Schema card generation suite: emitter, printer (TXT fallback), manifest generator (connection-state.json + ai-signal.toml). emitter and manifestGenerator both contain dynamic path-joined loads that the AST rewriter can't see — they'll be hand-patched.",
+  "description": "PRD generation + template engine. Both files only require external modules (fs/path/os) — should be a clean batch with zero rewrites.",
   "moves": [
-    { "from": "backend/schemaCardEmitter.js",  "to": "src/features/schema-cards/emitter.js" },
-    { "from": "backend/schemaCardPrinter.js",  "to": "src/features/schema-cards/printer.js" },
-    { "from": "backend/manifestGenerator.js",  "to": "src/features/schema-cards/manifest-generator.js" }
+    { "from": "backend/prdGenerator.js",  "to": "src/features/prd/generator.js" },
+    { "from": "backend/templateEngine.js", "to": "src/features/prd/template-engine.js" }
   ]
 }

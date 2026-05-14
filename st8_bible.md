@@ -1857,4 +1857,27 @@ ripples into ~20 require sites in `server.js`.
 
 **Pattern observation (worth recording):** The `loadLibModule()` dynamic loader idiom appears in at least two original files (`persistence.js`, `manifestGenerator.js`). Each instance needs a hand-patch on move because the AST rewriter only sees `require()` *literals*, not `path.join()` expressions evaluated at runtime. There may be more — grep for `loadLibModule` or `LIB_DIR` after each batch.
 
+**Commit:** `a1573d6`
+
+---
+
+### Batch 005 — `prd`
+
+**Goal:** Move PRD generation + template engine into `src/features/prd/`.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/prdGenerator.js` | `src/features/prd/generator.js` | 201 | ✅ |
+| `backend/templateEngine.js` | `src/features/prd/template-engine.js` | 121 | ✅ |
+
+**Total:** 322 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 0 — both files only require external modules (`fs`, `path`, `os`).
+
+**Manual patches:** None. No `loadLibModule` / `LIB_DIR` instances in this batch.
+
+**Verification:** Both files load. `generator.js` exposes 6 exports (PRD generation functions); `template-engine.js` exposes the `TemplateEngine` class.
+
 **Commit:** (filled in below)

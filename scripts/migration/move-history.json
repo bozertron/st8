@@ -75,6 +75,20 @@
           "to": "src/features/schema-cards/manifest-generator.js"
         }
       ]
+    },
+    {
+      "batch": "prd",
+      "completedAt": "2026-05-14T12:55:40.646Z",
+      "moves": [
+        {
+          "from": "backend/prdGenerator.js",
+          "to": "src/features/prd/generator.js"
+        },
+        {
+          "from": "backend/templateEngine.js",
+          "to": "src/features/prd/template-engine.js"
+        }
+      ]
     }
   ]
 }
