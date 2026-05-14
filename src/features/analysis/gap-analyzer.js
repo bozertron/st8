@@ -11,7 +11,7 @@
  * - D5: Connection Integrity
  * - D6: Architectural Completeness
  *
- * @module backend/gapAnalyzer
+ * @module features/analysis/gap-analyzer
  */
 
 'use strict';

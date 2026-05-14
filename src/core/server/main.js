@@ -175,7 +175,7 @@ async function main() {
         // Seed intent for files that don't have it yet
         try {
             const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
-            const seeder = new IntentSeeder(persistence, schemaCardsDir);
+            const seeder = new IntentSeeder(persistence, schemaCardsDir, targetDir);
             const seedResult = seeder.seedAll();
             console.log(`[st8] Intent seeding: ${seedResult.seeded} seeded, ${seedResult.errors} errors`);
         } catch (err) {
@@ -381,7 +381,7 @@ async function main() {
                     // Re-run intent seeding for new/changed files
                     try {
                         const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
-                        const seeder = new IntentSeeder(persistence, schemaCardsDir);
+                        const seeder = new IntentSeeder(persistence, schemaCardsDir, targetDir);
                         seeder.seedAll();
                     } catch (err) {
                         console.error('[st8] Incremental intent seeding failed:', err.message);

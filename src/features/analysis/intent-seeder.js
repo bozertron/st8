@@ -130,10 +130,14 @@ class IntentSeeder {
     /**
      * @param {object} persistence - St8Persistence instance (must be initialized)
      * @param {string} schemaCardsDir - Path to schema cards directory
+     * @param {string} [targetDir] - Project root the file_registry's relative filepaths
+     *                               are relative to. If omitted, falls back to process.cwd()
+     *                               (legacy behavior; reliable only when cwd === targetDir).
      */
-    constructor(persistence, schemaCardsDir) {
+    constructor(persistence, schemaCardsDir, targetDir) {
         this.persistence = persistence;
         this.schemaCardsDir = schemaCardsDir;
+        this.targetDir = targetDir || process.cwd();
     }
 
     /**
@@ -184,9 +188,11 @@ class IntentSeeder {
             // Parse file content for imports/exports heuristics
             const { imports, exports, comments } = this._parseFileContent(file.filepath);
 
-            // Detect @@@ symbols in file content
+            // Detect @@@ symbols in file content. Resolve relative to targetDir
+            // (file_registry.filepath is project-relative, not cwd-relative).
             const TRIPLE_AT_PATTERN = /(?:^|\s)@@@(?:\s|$)|<!--\s*@@@\s*-->|@@@AI_REVIEW/gm;
-            const contentForDetection = fs.readFileSync(file.filepath, 'utf-8');
+            const detectionPath = path.isAbsolute(file.filepath) ? file.filepath : path.resolve(this.targetDir, file.filepath);
+            const contentForDetection = fs.existsSync(detectionPath) ? fs.readFileSync(detectionPath, 'utf-8') : '';
             const tripleAtMatches = contentForDetection.match(TRIPLE_AT_PATTERN) || [];
             const tripleAtCount = tripleAtMatches.length;
 
@@ -373,8 +379,11 @@ class IntentSeeder {
                 }
             }
 
-            // Fallback: read the actual file and parse with regex
-            const fullPath = path.resolve(filepath);
+            // Fallback: read the actual file and parse with regex. Resolve
+            // relative to this.targetDir, NOT cwd — file_registry.filepath is
+            // stored relative to the indexed project root and is unreliable
+            // against cwd when the server's cwd differs.
+            const fullPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
             if (!fs.existsSync(fullPath)) {
                 return { imports, exports, comments };
             }
