@@ -261,6 +261,45 @@ class St8Persistence {
         const result = _deleteFileTx(filepath, file.fingerprint);
         return { changes: result.changes, fingerprint: file.fingerprint };
     }
+
+    /**
+     * Prune file_registry rows whose filepath is NOT in the provided set.
+     * Used at the start of each indexer pass to drop stale rows accumulated
+     * from prior runs (different target dirs, removed files, self-written
+     * artifacts that slipped past discoverFiles).
+     *
+     * Operates per-fingerprint inside a single transaction. file_registry
+     * can have MULTIPLE rows per filepath (different birthTimestamps =
+     * different fingerprints from different runs), so cleaning by filepath
+     * is FK-unsafe — it would leave connections/intent/mutation_log rows
+     * referencing the other fingerprints. Per-fingerprint cleanup avoids
+     * the violation.
+     *
+     * @param {Set<string>} currentFilepaths - Filepaths that survive
+     * @returns {{ prunedCount: number, prunedFingerprints: string[] }}
+     */
+    pruneFilesNotIn(currentFilepaths) {
+        const all = this.getAllFiles();
+        const stale = all.filter((f) => !currentFilepaths.has(f.filepath));
+        if (stale.length === 0) return { prunedCount: 0, prunedFingerprints: [] };
+
+        const deleteRowStmt = this.db.prepare('DELETE FROM file_registry WHERE fingerprint = ?');
+
+        const _pruneTx = this.db.transaction(() => {
+            const pruned = [];
+            for (const f of stale) {
+                this.deleteConnectionsForFile(f.fingerprint);
+                this.deleteIntentForFile(f.fingerprint);
+                this.deleteMutationLogForFile(f.fingerprint);
+                const result = deleteRowStmt.run(f.fingerprint);
+                if (result.changes > 0) pruned.push(f.fingerprint);
+            }
+            return pruned;
+        });
+
+        const prunedFingerprints = _pruneTx();
+        return { prunedCount: prunedFingerprints.length, prunedFingerprints };
+    }
     
     deleteConnectionsForFile(fingerprint) {
         const stmt = this.db.prepare(

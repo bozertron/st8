@@ -110,6 +110,17 @@ async function main() {
     if (result.files && result.files.length > 0) {
         console.log('[st8] Storing results in SQLite...');
 
+        // Pass 0: Prune stale rows. file_registry accumulates across runs
+        // (especially when the target dir changes), causing FC3 force-check
+        // failures because the manifest is per-run while the registry isn't.
+        // Drop any row whose filepath isn't in the current pass's results.
+        // Cascades through connections + intent + mutation_log via deleteFile.
+        const currentFilepaths = new Set(result.files.map((f) => f.filepath));
+        const pruneResult = persistence.pruneFilesNotIn(currentFilepaths);
+        if (pruneResult.prunedCount > 0) {
+            console.log(`[st8] Pruned ${pruneResult.prunedCount} stale file_registry row(s) from prior runs`);
+        }
+
         // Pass 1: Upsert all files first (so foreign keys exist for connections).
         // Per file, fire FILE_INDEXED so subscribers can react as each file's
         // identity lands in the registry — this is the "identification built

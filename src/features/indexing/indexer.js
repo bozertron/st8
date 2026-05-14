@@ -156,10 +156,14 @@ CREATE TABLE IF NOT EXISTS st8_settings (
 
 const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go', '.md', '.txt', '.json']);
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.venv', 'venv', '__pycache__', '.archive', '.planning', '.st8', 'vendor', 'snapshots']);
+// Files st8 itself writes into the target during a run. Re-indexing must
+// skip these or they end up as accumulating registry rows (caught by Tier 2
+// I6 invariant + force-check FC3).
+const SELF_WRITTEN_BASENAMES = new Set(['connection-state.json', 'ai-signal.toml']);
 
 function discoverFiles(targetDir) {
     const files = [];
-    
+
     function walk(dir) {
         try {
             const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -170,6 +174,7 @@ function discoverFiles(targetDir) {
                         walk(fullPath);
                     }
                 } else if (entry.isFile()) {
+                    if (SELF_WRITTEN_BASENAMES.has(entry.name)) continue;
                     const ext = path.extname(entry.name).toLowerCase();
                     if (CODE_EXTENSIONS.has(ext)) {
                         files.push(fullPath);
@@ -180,7 +185,7 @@ function discoverFiles(targetDir) {
             console.error(`[st8:indexer] Error reading directory: ${dir}`, err.message);
         }
     }
-    
+
     walk(targetDir);
     return files;
 }

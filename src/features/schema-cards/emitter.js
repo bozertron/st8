@@ -145,8 +145,27 @@ class SchemaCardEmitter {
             }
         }
 
-        console.log(`[st8:emitter] Emitted ${emitted} schema cards, ${errors} errors`);
-        return { emitted, errors };
+        // Prune stale cards — any .json file in outputDir that doesn't
+        // correspond to a current file_registry row is leftover from a
+        // previous run with a different target / different file set.
+        // Without this sweep, cards-on-disk drift causes FC2 (force-check)
+        // and gives gap-analyzer false data (it reads the dir directly).
+        let pruned = 0;
+        try {
+            const validFilenames = new Set(files.map((f) => this._cardFilename(f.filepath)));
+            for (const name of fs.readdirSync(this.outputDir)) {
+                if (!name.endsWith('.json')) continue;
+                if (validFilenames.has(name)) continue;
+                fs.unlinkSync(path.join(this.outputDir, name));
+                pruned++;
+            }
+        } catch (err) {
+            console.error('[st8:emitter] Card-prune sweep failed:', err.message);
+        }
+
+        const pruneNote = pruned > 0 ? `, pruned ${pruned} stale` : '';
+        console.log(`[st8:emitter] Emitted ${emitted} schema cards, ${errors} errors${pruneNote}`);
+        return { emitted, errors, pruned };
     }
 
     /**
