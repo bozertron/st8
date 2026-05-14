@@ -1987,6 +1987,40 @@ ripples into ~20 require sites in `server.js`.
 
 **Lib state after this batch:** `lib/commands/integr8/` is now fully migrated (originals still in place for safety). `lib/commands/` still has only `backgroundIndexer.js` un-migrated — held back for a decision pass (broken sonicClient/multiPassAnalyzer requires).
 
+**Commit:** `f0603ed`
+
+---
+
+### Batch 009 — `indexing-engine`
+
+**Goal:** Move `indexer.js` (the file indexing engine) and `notificationBus.js` (event bus / SSE source).
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/indexer.js` | `src/features/indexing/indexer.js` | 483 | ✅ |
+| `backend/notificationBus.js` | `src/core/notification-bus.js` | 127 | ✅ |
+
+**Total:** 610 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 1 — `indexer.js` L16 `'./st8-types'` → `'../../shared/types/st8-types'`.
+
+**Manual hand-patch (third instance of the `loadLibModule` pattern, biggest cleanup yet):** `indexer.js` had a single `LIB_DIR = path.join(__dirname, '..', 'lib')` driving **four** dynamic lazy-loaders. With every target already moved (across 4 different subtrees), the single-LIB_DIR pattern no longer fits. Replaced with per-getter static requires, preserving the lazy + graceful-fallback shape:
+
+| Getter | Old loadLibModule arg | New static specifier |
+|--------|----------------------|----------------------|
+| `getAstParser()` | `'utils/astParser.js'` | `'../../shared/utils/ast-parser'` |
+| `getGraphBuilder()` | `'commands/graphBuilder.js'` | `'../graph/builder'` |
+| `getDatabasePersister()` | `'commands/integr8/databasePersister.js'` | `'../../core/database/graph-persister'` |
+| `getTomlSerializer()` | `'commands/integr8/tomlSerializer.js'` | `'../integr8/toml-serializer'` |
+
+The `_backgroundIndexer` slot is also still present — it's the lazy slot for the file that's still broken and un-migrated. Left as-is, no getter to call it.
+
+**Verification:** Both new files load with matching surfaces (7 indexer exports, 2 notification-bus exports). Strong smoke test confirmed all 4 retargeted lazy-loaders resolve to real modules with their expected exports (`extractImportsAndExports`, `buildDependencyGraph`, `DatabasePersister`, `serializeMigrationPlanToToml`, etc.).
+
+**Pattern resolution note:** With this patch, all three instances of `loadLibModule()` discovered during the refactor (`persistence.js` b002, `manifest-generator.js` b004/b007, `indexer.js` b009) have been retargeted. The pattern is officially retired from the new layout — it was a layout-coupling hack for the old `backend/../lib/` split, no longer needed once both trees collapse into `src/`.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)

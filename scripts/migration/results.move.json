@@ -1,96 +1,24 @@
 {
-  "batch": "indexing-parsers",
-  "generatedAt": "2026-05-14T13:08:35.416Z",
-  "ok": 11,
+  "batch": "indexing-engine",
+  "generatedAt": "2026-05-14T13:10:36.348Z",
+  "ok": 2,
   "fail": 0,
   "results": [
     {
-      "from": "lib/commands/overview.js",
-      "to": "src/features/indexing/overview.js",
+      "from": "backend/indexer.js",
+      "to": "src/features/indexing/indexer.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "c5eef5501a0c99e1aef9056f29d3855e9fd4beb7c9be84c8c1f0f7012ca08c9f",
-      "lines": 350
+      "sha256": "852f45ecc5fdd54672718f79119d35b106109f01e57f6fe76e39d73ca72e7164",
+      "lines": 483
     },
     {
-      "from": "lib/commands/storeParser.js",
-      "to": "src/features/indexing/store-parser.js",
+      "from": "backend/notificationBus.js",
+      "to": "src/core/notification-bus.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "bd54f61e9697262c317639a6813249a667709b7c262ca94102468415557e20b9",
-      "lines": 341
-    },
-    {
-      "from": "lib/commands/routeParser.js",
-      "to": "src/features/indexing/route-parser.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "d58a36e0ee179d19bd8d5aadec874dbf49a1c24aa53717211e78ae5887e28d38",
-      "lines": 313
-    },
-    {
-      "from": "lib/commands/commandParser.js",
-      "to": "src/features/indexing/command-parser.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "288770aa4f74617612d9575b08d862937dc441d20b4f9471bf9366e6f426aa65",
-      "lines": 271
-    },
-    {
-      "from": "lib/commands/typeParser.js",
-      "to": "src/features/indexing/type-parser.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "4925ed8b9d5704d5b76758decfab6332d651745f3e0d52787541d11c1e95bccb",
-      "lines": 256
-    },
-    {
-      "from": "lib/commands/uiParser.js",
-      "to": "src/features/indexing/ui-parser.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "c36bb78f715bdb6f9bf8d1cf32caef35a9205e8e53f8922eb8ff636d6ae21569",
-      "lines": 251
-    },
-    {
-      "from": "lib/commands/parserPersistence.js",
-      "to": "src/features/indexing/parser-persistence.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "adbee951b8a3e72d7a917c1743b1095d55446382a24fae72dc8d7a2fbf07c01a",
-      "lines": 295
-    },
-    {
-      "from": "lib/commands/integr8/dataIngestion.js",
-      "to": "src/features/indexing/data-ingestion.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "26252475dfff09c6fbff0bee93a23382ae53b9d856a1dddae8b535c567181e59",
-      "lines": 1102
-    },
-    {
-      "from": "lib/commands/integr8/index.js",
-      "to": "src/features/integr8/index.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "21dccb0f1c54ae899ef036c66312e4aa39fd6fa2da891d74f2606da92b5b7cfe",
-      "lines": 140
-    },
-    {
-      "from": "lib/commands/graphBuilder.js",
-      "to": "src/features/graph/builder.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "9a25a350e3cfaf036b132cfa9f41526f33aef274ac1536de58d746cb2daa4015",
-      "lines": 214
-    },
-    {
-      "from": "lib/commands/graphTraversal.js",
-      "to": "src/features/graph/traversal.js",
-      "status": "ok",
-      "action": "copied",
-      "sha256": "46a9a836ca47c9384704ab3a329b4ae475fb8edda4f6c6d4d6ec3e694e1b52af",
-      "lines": 828
+      "sha256": "ea46c4c78a4757a9541e8a03b0e5852311931f5846bada69f98e5b4d8b945184",
+      "lines": 127
     }
   ]
 }
