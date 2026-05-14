@@ -133,6 +133,56 @@
           "to": "src/features/integr8/migration-executor.js"
         }
       ]
+    },
+    {
+      "batch": "indexing-parsers",
+      "completedAt": "2026-05-14T13:08:35.752Z",
+      "moves": [
+        {
+          "from": "lib/commands/overview.js",
+          "to": "src/features/indexing/overview.js"
+        },
+        {
+          "from": "lib/commands/storeParser.js",
+          "to": "src/features/indexing/store-parser.js"
+        },
+        {
+          "from": "lib/commands/routeParser.js",
+          "to": "src/features/indexing/route-parser.js"
+        },
+        {
+          "from": "lib/commands/commandParser.js",
+          "to": "src/features/indexing/command-parser.js"
+        },
+        {
+          "from": "lib/commands/typeParser.js",
+          "to": "src/features/indexing/type-parser.js"
+        },
+        {
+          "from": "lib/commands/uiParser.js",
+          "to": "src/features/indexing/ui-parser.js"
+        },
+        {
+          "from": "lib/commands/parserPersistence.js",
+          "to": "src/features/indexing/parser-persistence.js"
+        },
+        {
+          "from": "lib/commands/integr8/dataIngestion.js",
+          "to": "src/features/indexing/data-ingestion.js"
+        },
+        {
+          "from": "lib/commands/integr8/index.js",
+          "to": "src/features/integr8/index.js"
+        },
+        {
+          "from": "lib/commands/graphBuilder.js",
+          "to": "src/features/graph/builder.js"
+        },
+        {
+          "from": "lib/commands/graphTraversal.js",
+          "to": "src/features/graph/traversal.js"
+        }
+      ]
     }
   ]
 }

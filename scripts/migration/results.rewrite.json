@@ -1,78 +1,213 @@
 {
-  "batch": "integr8-core",
-  "generatedAt": "2026-05-14T13:04:00.755Z",
-  "totalEdits": 6,
+  "batch": "indexing-parsers",
+  "generatedAt": "2026-05-14T13:08:35.579Z",
+  "totalEdits": 21,
   "failures": 0,
   "summary": [
     {
+      "status": "ok",
+      "file": "src/features/indexing/overview.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/features/indexing/store-parser.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/features/indexing/route-parser.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/features/indexing/command-parser.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/features/indexing/type-parser.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/features/indexing/ui-parser.js",
+      "edits": []
+    },
+    {
       "status": "edit",
-      "file": "src/features/analysis/relationship-analyzer.js",
+      "file": "src/features/indexing/parser-persistence.js",
       "edits": [
         {
-          "start": 469,
-          "end": 479,
+          "start": 1906,
+          "end": 1936,
+          "oldSpec": "./integr8/databasePersister.js",
+          "newSpec": "../../core/database/graph-persister.js",
+          "line": 45
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/indexing/data-ingestion.js",
+      "edits": [
+        {
+          "start": 2483,
+          "end": 2493,
           "oldSpec": "./types.js",
           "newSpec": "../../shared/types/integr8-types.js",
-          "line": 10
-        }
-      ]
-    },
-    {
-      "status": "edit",
-      "file": "src/features/analysis/path-generator.js",
-      "edits": [
+          "line": 51
+        },
         {
-          "start": 1818,
-          "end": 1825,
-          "oldSpec": "./types",
-          "newSpec": "../../shared/types/integr8-types",
-          "line": 42
-        }
-      ]
-    },
-    {
-      "status": "edit",
-      "file": "src/features/analysis/report-generator.js",
-      "edits": [
+          "start": 2528,
+          "end": 2542,
+          "oldSpec": "../overview.js",
+          "newSpec": "./overview.js",
+          "line": 52
+        },
         {
-          "start": 292,
-          "end": 302,
-          "oldSpec": "./types.js",
-          "newSpec": "../../shared/types/integr8-types.js",
-          "line": 6
-        }
-      ]
-    },
-    {
-      "status": "edit",
-      "file": "src/features/integr8/toml-serializer.js",
-      "edits": [
+          "start": 2580,
+          "end": 2597,
+          "oldSpec": "../storeParser.js",
+          "newSpec": "./store-parser.js",
+          "line": 53
+        },
         {
-          "start": 347,
-          "end": 354,
-          "oldSpec": "./types",
-          "newSpec": "../../shared/types/integr8-types",
-          "line": 7
-        }
-      ]
-    },
-    {
-      "status": "edit",
-      "file": "src/features/integr8/migration-executor.js",
-      "edits": [
+          "start": 2635,
+          "end": 2652,
+          "oldSpec": "../routeParser.js",
+          "newSpec": "./route-parser.js",
+          "line": 54
+        },
         {
-          "start": 2876,
-          "end": 2883,
-          "oldSpec": "./types",
-          "newSpec": "../../shared/types/integr8-types",
+          "start": 2692,
+          "end": 2711,
+          "oldSpec": "../commandParser.js",
+          "newSpec": "./command-parser.js",
+          "line": 55
+        },
+        {
+          "start": 2748,
+          "end": 2764,
+          "oldSpec": "../typeParser.js",
+          "newSpec": "./type-parser.js",
+          "line": 56
+        },
+        {
+          "start": 2799,
+          "end": 2813,
+          "oldSpec": "../uiParser.js",
+          "newSpec": "./ui-parser.js",
+          "line": 57
+        },
+        {
+          "start": 2857,
+          "end": 2880,
+          "oldSpec": "../parserPersistence.js",
+          "newSpec": "./parser-persistence.js",
+          "line": 58
+        },
+        {
+          "start": 2916,
+          "end": 2940,
+          "oldSpec": "../../utils/astParser.js",
+          "newSpec": "../../shared/utils/ast-parser.js",
           "line": 59
         },
         {
-          "start": 2921,
-          "end": 2937,
-          "oldSpec": "./tomlSerializer",
-          "newSpec": "./toml-serializer",
-          "line": 60
+          "start": 3017,
+          "end": 3038,
+          "oldSpec": "../../utils/safeFs.js",
+          "newSpec": "../../shared/utils/safe-fs.js",
+          "line": 61
+        },
+        {
+          "start": 3071,
+          "end": 3092,
+          "oldSpec": "../../utils/ioChan.js",
+          "newSpec": "../../shared/utils/io-chan.js",
+          "line": 62
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/integr8/index.js",
+      "edits": [
+        {
+          "start": 2404,
+          "end": 2422,
+          "oldSpec": "./dataIngestion.js",
+          "newSpec": "../indexing/data-ingestion.js",
+          "line": 50
+        },
+        {
+          "start": 2469,
+          "end": 2494,
+          "oldSpec": "./relationshipAnalyzer.js",
+          "newSpec": "../analysis/relationship-analyzer.js",
+          "line": 51
+        },
+        {
+          "start": 2534,
+          "end": 2552,
+          "oldSpec": "./pathGenerator.js",
+          "newSpec": "../analysis/path-generator.js",
+          "line": 52
+        },
+        {
+          "start": 2593,
+          "end": 2612,
+          "oldSpec": "./tomlSerializer.js",
+          "newSpec": "./toml-serializer.js",
+          "line": 53
+        },
+        {
+          "start": 2654,
+          "end": 2674,
+          "oldSpec": "./reportGenerator.js",
+          "newSpec": "../analysis/report-generator.js",
+          "line": 54
+        },
+        {
+          "start": 2718,
+          "end": 2740,
+          "oldSpec": "./databasePersister.js",
+          "newSpec": "../../core/database/graph-persister.js",
+          "line": 55
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/graph/builder.js",
+      "edits": [
+        {
+          "start": 1030,
+          "end": 1048,
+          "oldSpec": "./integr8/types.js",
+          "newSpec": "../../shared/types/integr8-types.js",
+          "line": 16
+        },
+        {
+          "start": 1088,
+          "end": 1114,
+          "oldSpec": "./integr8/dataIngestion.js",
+          "newSpec": "../indexing/data-ingestion.js",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/graph/traversal.js",
+      "edits": [
+        {
+          "start": 2816,
+          "end": 2846,
+          "oldSpec": "./integr8/databasePersister.js",
+          "newSpec": "../../core/database/graph-persister.js",
+          "line": 65
         }
       ]
     }

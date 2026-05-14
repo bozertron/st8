@@ -1943,6 +1943,50 @@ ripples into ~20 require sites in `server.js`.
 
 **Verification:** All 5 new files load with matching export surfaces. Notable: `migration-executor.js` exposes 11 exports — matching exactly the identity card recorded for this file in `st8_json/`. Sophisticated migration infrastructure preserved verbatim.
 
-**Discovery — pre-existing broken require (worth recording):** While inspecting `lib/commands/backgroundIndexer.js` (queued for a later batch) we confirmed it currently throws at module load — `Cannot find module './sonicClient.js'`. The file also references `./multiPassAnalyzer.js`, neither of which exist in `lib/commands/`. This is not a refactor casualty — the file was already broken before this refactor began. Probably from the "stubs and simulators" cleanup the user mentioned earlier (fake-stream removal era). Will be flagged in its batch.
+**Discovery — pre-existing broken require (worth recording):** While inspecting `lib/commands/backgroundIndexer.js` (queued for a later batch) we confirmed it currently throws at module load — `Cannot find module './sonicClient.js'`. The file also references `./multiPassAnalyzer.js`, neither of which exist in `lib/commands/`. This is not a refactor casualty — the file was already broken before this refactor began.
+
+**Founder context (added post-discovery):** `sonicClient` referred to a "sonic" library the project was using and later removed. `backgroundIndexer.js` retains the stale require — orphaned integration code from the pre-cleanup era. The file itself is not dead; the lib it talked to is gone. Decision deferred — could be (a) wired against a replacement client, (b) commented out at the require site, or (c) left as-is and moved with a note. Tabled until the file's own batch.
+
+**Commit:** `86de1d6`
+
+---
+
+### Batch 008 — `indexing-parsers`
+
+**Goal:** Move the parser ecosystem from `lib/commands/`, the remaining 2 `integr8` modules (`dataIngestion`, `integr8/index`), and the 2 graph commands. Empties `lib/commands/integr8/` and most of `lib/commands/` in one pass.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `lib/commands/overview.js` | `src/features/indexing/overview.js` | 350 | ✅ |
+| `lib/commands/storeParser.js` | `src/features/indexing/store-parser.js` | 341 | ✅ |
+| `lib/commands/routeParser.js` | `src/features/indexing/route-parser.js` | 313 | ✅ |
+| `lib/commands/commandParser.js` | `src/features/indexing/command-parser.js` | 271 | ✅ |
+| `lib/commands/typeParser.js` | `src/features/indexing/type-parser.js` | 256 | ✅ |
+| `lib/commands/uiParser.js` | `src/features/indexing/ui-parser.js` | 251 | ✅ |
+| `lib/commands/parserPersistence.js` | `src/features/indexing/parser-persistence.js` | 295 | ✅ |
+| `lib/commands/integr8/dataIngestion.js` | `src/features/indexing/data-ingestion.js` | 1,102 | ✅ |
+| `lib/commands/integr8/index.js` | `src/features/integr8/index.js` | 140 | ✅ |
+| `lib/commands/graphBuilder.js` | `src/features/graph/builder.js` | 214 | ✅ |
+| `lib/commands/graphTraversal.js` | `src/features/graph/traversal.js` | 828 | ✅ |
+
+**Total:** 4,361 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 21 — all auto-caught via history-aware lookup:
+
+- `parser-persistence.js` (1): databasePersister → graph-persister (batch 002)
+- `data-ingestion.js` (11): 7 sibling parser refs in this batch + types (batch 001) + 3 utils (batch 001)
+- `integr8/index.js` (6): pointing at all 5 prior integr8-core moves + this batch's data-ingestion + databasePersister
+- `graph/builder.js` (2): integr8-types (batch 001) + this batch's data-ingestion
+- `graph/traversal.js` (1): databasePersister (batch 002)
+
+**Manual patches:** None — all the new layout's cross-references resolved automatically.
+
+**Verification:** All 11 new files load with matching surfaces. Notable: `graph/traversal.js` exposes 13 exports (the sophisticated graph query API), and `data-ingestion.js` exposes 4. Everything that was dormant or active is now in its place with original behavior intact.
+
+**Lib state after this batch:** `lib/commands/integr8/` is now fully migrated (originals still in place for safety). `lib/commands/` still has only `backgroundIndexer.js` un-migrated — held back for a decision pass (broken sonicClient/multiPassAnalyzer requires).
+
+**Commit:** (filled in below)
 
 **Commit:** (filled in below)

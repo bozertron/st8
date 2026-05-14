@@ -1,43 +1,85 @@
 {
-  "batch": "integr8-core",
-  "generatedAt": "2026-05-14T13:04:00.834Z",
-  "ok": 5,
+  "batch": "indexing-parsers",
+  "generatedAt": "2026-05-14T13:08:35.751Z",
+  "ok": 11,
   "fail": 0,
   "summary": [
     {
-      "from": "lib/commands/integr8/relationshipAnalyzer.js",
-      "to": "src/features/analysis/relationship-analyzer.js",
-      "status": "ok",
-      "shape": "object{5 keys}",
-      "exportCount": 5
-    },
-    {
-      "from": "lib/commands/integr8/pathGenerator.js",
-      "to": "src/features/analysis/path-generator.js",
-      "status": "ok",
-      "shape": "object{2 keys}",
-      "exportCount": 2
-    },
-    {
-      "from": "lib/commands/integr8/reportGenerator.js",
-      "to": "src/features/analysis/report-generator.js",
+      "from": "lib/commands/overview.js",
+      "to": "src/features/indexing/overview.js",
       "status": "ok",
       "shape": "object{1 keys}",
       "exportCount": 1
     },
     {
-      "from": "lib/commands/integr8/tomlSerializer.js",
-      "to": "src/features/integr8/toml-serializer.js",
+      "from": "lib/commands/storeParser.js",
+      "to": "src/features/indexing/store-parser.js",
       "status": "ok",
-      "shape": "object{3 keys}",
-      "exportCount": 3
+      "shape": "object{1 keys}",
+      "exportCount": 1
     },
     {
-      "from": "lib/commands/integr8/migrationExecutor.js",
-      "to": "src/features/integr8/migration-executor.js",
+      "from": "lib/commands/routeParser.js",
+      "to": "src/features/indexing/route-parser.js",
       "status": "ok",
-      "shape": "object{11 keys}",
-      "exportCount": 11
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/commandParser.js",
+      "to": "src/features/indexing/command-parser.js",
+      "status": "ok",
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/typeParser.js",
+      "to": "src/features/indexing/type-parser.js",
+      "status": "ok",
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/uiParser.js",
+      "to": "src/features/indexing/ui-parser.js",
+      "status": "ok",
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/parserPersistence.js",
+      "to": "src/features/indexing/parser-persistence.js",
+      "status": "ok",
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/integr8/dataIngestion.js",
+      "to": "src/features/indexing/data-ingestion.js",
+      "status": "ok",
+      "shape": "object{4 keys}",
+      "exportCount": 4
+    },
+    {
+      "from": "lib/commands/integr8/index.js",
+      "to": "src/features/integr8/index.js",
+      "status": "ok",
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/graphBuilder.js",
+      "to": "src/features/graph/builder.js",
+      "status": "ok",
+      "shape": "object{2 keys}",
+      "exportCount": 2
+    },
+    {
+      "from": "lib/commands/graphTraversal.js",
+      "to": "src/features/graph/traversal.js",
+      "status": "ok",
+      "shape": "object{13 keys}",
+      "exportCount": 13
     }
   ]
 }
