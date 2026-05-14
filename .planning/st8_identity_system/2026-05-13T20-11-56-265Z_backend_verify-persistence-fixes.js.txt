@@ -1,0 +1,53 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — backend/verify-persistence-fixes.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      backend/verify-persistence-fixes.js||2026-05-13T15:08:05.551Z
+  Filepath:         backend/verify-persistence-fixes.js
+  Filename:         verify-persistence-fixes.js
+  Birth Timestamp:  2026-05-13T15:08:05.551Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     3f158d41ed0b8435e9963d9b555f3810b221126c43f249a7c0ac6d2a30bf93c5
+  File Size:        5286 bytes
+  Last Modified:    2026-05-13T15:08:05.551Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      path
+  require      fs
+  require      ./persistence
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imports:          lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z, backend/persistence.js||2026-05-12T07:21:03.355Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          SQLite persistence layer — Verification script for persistence.js fixes ???
+  Depends On:       file path manipulation, file system operations, database persistence layer ???
+  Value Statement:  Provides assert API, runTests API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:11:56.265Z

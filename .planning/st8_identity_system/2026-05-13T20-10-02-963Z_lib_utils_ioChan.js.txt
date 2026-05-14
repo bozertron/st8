@@ -1,0 +1,55 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/utils/ioChan.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/utils/ioChan.js||2026-05-12T08:23:39.436Z
+  Filepath:         lib/utils/ioChan.js
+  Filename:         ioChan.js
+  Birth Timestamp:  2026-05-12T08:23:39.436Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     f323839429728a735feaf5c37f803f118ae9b8aec5980a14acc5282baa4b5b8b
+  File Size:        16200 bytes
+  Last Modified:    2026-05-12T08:23:39.436Z
+  Last Indexed:     2026-05-13 20:10:02
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     ioChan
+  variable     IoChan
+  variable     CircuitBreaker
+  variable     BreakerState
+  variable     IoChannelPriority
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          I/O channel abstraction — src/utils/ioChan.ts ???
+  Depends On:       No external dependencies ???
+  Value Statement:  Provides adopt API, fulfilled API, rejected API, step API, CircuitBreaker API, IoChan API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  2
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:10:02
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:10:02.963Z

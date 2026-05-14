@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS st8_settings (
 
 // ─── FILE DISCOVERY ──────────────────────────────────────────
 
-const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go']);
+const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go', '.md', '.txt', '.json']);
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.venv', 'venv', '__pycache__', '.archive', '.planning', '.st8', 'vendor', 'snapshots']);
 
 function discoverFiles(targetDir) {

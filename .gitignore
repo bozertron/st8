@@ -31,3 +31,6 @@ snapshots/
 # Temporary files
 *.tmp
 *.temp
+
+# ST8 Identity System
+.st8/

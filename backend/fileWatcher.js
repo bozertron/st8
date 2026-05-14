@@ -61,8 +61,14 @@ class FileWatcher {
                 '**/venv',
                 '**/__pycache__',
                 '**/*.sqlite',
+                '**/*.sqlite-wal',
+                '**/*.sqlite-shm',
                 '**/*.json',
-                '**/*.toml'
+                '**/*.toml',
+                '**/.st8/**',
+                '**/.planning/st8_identity_system/**',
+                '**/.archive/**',
+                '**/snapshots/**'
             ],
             persistent: true,
             awaitWriteFinish: {
@@ -114,6 +120,10 @@ class FileWatcher {
     }
     
     stop() {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = null;
+        }
         if (this.watcher) {
             this.watcher.close();
             this.watcher = null;

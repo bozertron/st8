@@ -1,0 +1,54 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — .archive/Reference Files/pretext-main/pages/diagnostic-utils.ts
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      .archive/Reference Files/pretext-main/pages/diagnostic-utils.ts:2026-05-10T06:35:12.950Z
+  Filepath:         .archive/Reference Files/pretext-main/pages/diagnostic-utils.ts
+  Filename:         diagnostic-utils.ts
+  Birth Timestamp:  2026-05-10T06:35:12.950Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     ff4bad26a68e304880bad2884e3424b5c43d2830381f16b271ba60d8500363c8
+  File Size:        2206 bytes
+  Last Modified:    2026-05-10T06:18:52.000Z
+  Last Indexed:     2026-05-13 14:44:20
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  type         DiagnosticUnit
+  function     getDiagnosticUnits — getDiagnosticUnits(prepared: PreparedTextWithSegments): DiagnosticUnit[]: DiagnosticUnit[]
+  function     getLineContent — getLineContent(text: string, end: number): unknown: unknown
+  function     formatBreakContext — formatBreakContext(text: string, breakOffset: number, radius: any?): string: string
+  function     measureCanvasTextWidth — measureCanvasTextWidth(ctx: CanvasRenderingContext2D, text: string, font: string): number: number
+  function     measureDomTextWidth — measureDomTextWidth(doc: Document, text: string, font: string, direction: string): number: number
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  named        ../src/layout.ts {PreparedTextWithSegments}
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T15:51:11.788Z

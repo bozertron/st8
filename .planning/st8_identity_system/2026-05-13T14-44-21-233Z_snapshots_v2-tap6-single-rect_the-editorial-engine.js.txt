@@ -1,0 +1,49 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — snapshots/v2-tap6-single-rect/the-editorial-engine.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      snapshots/v2-tap6-single-rect/the-editorial-engine.js:2026-05-11T21:48:30.646Z
+  Filepath:         snapshots/v2-tap6-single-rect/the-editorial-engine.js
+  Filename:         the-editorial-engine.js
+  Birth Timestamp:  2026-05-11T21:48:30.646Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     79ee778786b5a4904d97faabbdf8b99b4ca7d952fc78867eb2f0ac146c9e0b19
+  File Size:        20154 bytes
+  Last Modified:    2026-05-11T07:57:14.000Z
+  Last Indexed:     2026-05-13 14:44:20
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  named        https://esm.sh/@chenglou/pretext@0.0.6 {prepareWithSegments, layoutWithLines, layoutNextLine, walkLineRanges}
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T14:44:21.233Z

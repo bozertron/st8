@@ -1,0 +1,58 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — backend/prdGenerator.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      backend/prdGenerator.js||2026-05-13T16:12:16.658Z
+  Filepath:         backend/prdGenerator.js
+  Filename:         prdGenerator.js
+  Birth Timestamp:  2026-05-13T16:12:16.658Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     ad056b5b0ee931fea98cbb97011df3a6591239898bc134e3525db9574c78ccfb
+  File Size:        5871 bytes
+  Last Modified:    2026-05-13T16:12:16.658Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     loadSchemaCards
+  variable     groupByLifecyclePhase
+  variable     generateCardMarkdown
+  variable     generatePRD
+  variable     writePRD
+  variable     main
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      fs
+  require      path
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      backend/server.js||2026-05-12T07:22:39.719Z
+  Imports:          lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Code or data generation ???
+  Depends On:       file system operations, file path manipulation ???
+  Value Statement:  Provides loadSchemaCards API, groupByLifecyclePhase API, generateCardMarkdown API, generatePRD API, writePRD API, main API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:20:17.529Z

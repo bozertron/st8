@@ -1,0 +1,51 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — file-explorer.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      file-explorer.js||2026-05-11T21:48:30.642Z
+  Filepath:         file-explorer.js
+  Filename:         file-explorer.js
+  Birth Timestamp:  2026-05-11T21:48:30.642Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     2d5bee63156025e6a77f41113668f99c75f28d55cc1e385ea7789c971cc2ac90
+  File Size:        27671 bytes
+  Last Modified:    2026-05-13T09:12:56.808Z
+  Last Indexed:     2026-05-13 20:10:02
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          File explorer UI — Hidden files are always shown (single-user tool, no toggle) ???
+  Depends On:       No external dependencies ???
+  Value Statement:  Provides _getWorkspacePath API, _buildLocations API, _getBreadcrumbs API, _getIcon API, _formatSize API, _formatDate API, _filterEntries API, explorerNavigate API, _fetchViaWebSocket API, _isNetworkError API, _toggleHidden API, _handleRowClick API, _handleRowDblClick API, _emitSelect API, _updateSelectionUI API, _onVirtualScroll API, _renderExplorer API, _renderStandardTable API, _renderVirtualTable API, _renderVirtualRows API, _renderRow API, explorerMount API, _retry API, _showWorkspacePicker API, _selectWorkspace API, shared type definitions, codebase indexing pipeline, _verifyCodebase API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  2
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:10:02
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:10:02.958Z

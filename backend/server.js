@@ -118,6 +118,9 @@ class St8Server {
             case '/api/production-promote':
                 this._handleProductionPromote(req, res);
                 break;
+            case '/api/gap-analysis':
+                this._handleGapAnalysis(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -222,9 +225,32 @@ class St8Server {
     }
     
     _handleIndex(req, res) {
+        // Method validation — POST only
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        // Body size limit: 1KB
+        const MAX_BODY_SIZE = 1024;
         let body = '';
-        req.on('data', chunk => body += chunk);
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+            }
+        });
+
         req.on('end', async () => {
+            if (bodyTooLarge) return;
             let persistence;
             try {
                 const { path: requestedPath } = JSON.parse(body || '{}');
@@ -270,9 +296,32 @@ class St8Server {
     }
     
     _handleFileIntent(req, res) {
+        // Method validation — POST only
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        // Body size limit: 1KB
+        const MAX_BODY_SIZE = 1024;
         let body = '';
-        req.on('data', chunk => body += chunk);
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+            }
+        });
+
         req.on('end', () => {
+            if (bodyTooLarge) return;
             try {
                 const { fingerprint, purpose, dependsOnBehavior, valueStatement } = JSON.parse(body);
                 const { St8Persistence } = require('./persistence');
@@ -334,6 +383,7 @@ class St8Server {
                         persistence.close();
                     }
                 }).catch(err => {
+                    persistence.close();
                     res.writeHead(500, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: err.message }));
                 });
@@ -368,9 +418,25 @@ class St8Server {
 
             } else if (req.method === 'POST') {
                 // POST /api/settings — upsert a setting
+                // Body size limit: 1KB
+                const MAX_BODY_SIZE = 1024;
                 let body = '';
-                req.on('data', chunk => body += chunk);
+                let bodyTooLarge = false;
+
+                req.on('data', chunk => {
+                    if (bodyTooLarge) return;
+                    body += chunk;
+                    if (body.length > MAX_BODY_SIZE) {
+                        bodyTooLarge = true;
+                        body = '';
+                        req.destroy();
+                        res.writeHead(413, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+                    }
+                });
+
                 req.on('end', () => {
+                    if (bodyTooLarge) return;
                     try {
                         const { category, key, value } = JSON.parse(body);
                         if (!category || !key) {
@@ -399,6 +465,7 @@ class St8Server {
                 res.end(JSON.stringify({ error: 'Method not allowed' }));
             }
         }).catch(err => {
+            persistence.close();
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
         });
@@ -464,9 +531,25 @@ class St8Server {
             return;
         }
 
+        // Body size limit: 1KB
+        const MAX_BODY_SIZE = 1024;
         let body = '';
-        req.on('data', chunk => body += chunk);
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+            }
+        });
+
         req.on('end', async () => {
+            if (bodyTooLarge) return;
             try {
                 // Parse request body
                 let targetDir = this.targetDir;
@@ -745,9 +828,25 @@ class St8Server {
         }
 
         // Consume the request body to drain the socket (prevents connection leak)
+        // Body size limit: 1KB
+        const MAX_BODY_SIZE = 1024;
         let body = '';
-        req.on('data', chunk => { body += chunk; });
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+            }
+        });
+
         req.on('end', async () => {
+            if (bodyTooLarge) return;
             let persistence;
             try {
                 const { St8Persistence } = require('./persistence');
@@ -852,17 +951,18 @@ class St8Server {
         let body = '';
         let bodyTooLarge = false;
         req.on('data', chunk => {
+            if (bodyTooLarge) return;
             body += chunk;
             if (body.length > MAX_BODY_SIZE) {
                 bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
             }
         });
         req.on('end', async () => {
-            if (bodyTooLarge) {
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large (max 1KB)' }));
-                return;
-            }
+            if (bodyTooLarge) return;
 
             let persistence;
             try {
@@ -907,6 +1007,47 @@ class St8Server {
                 if (persistence) persistence.close();
             }
         });
+    }
+
+    _handleGapAnalysis(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+        
+        let persistence;
+        try {
+            const { GapAnalyzer } = require('./gapAnalyzer');
+            const { St8Persistence } = require('./persistence');
+            
+            persistence = new St8Persistence();
+            persistence.initialize().then(() => {
+                const schemaCardsDir = require('path').join(this.targetDir, '.st8', 'schema-cards');
+                const analyzer = new GapAnalyzer(schemaCardsDir, persistence);
+                const report = analyzer.analyze();
+                
+                // Content negotiation
+                const accept = req.headers.accept || '';
+                if (accept.includes('text/markdown')) {
+                    const markdown = analyzer.toMarkdown(report);
+                    res.writeHead(200, { 'Content-Type': 'text/markdown' });
+                    res.end(markdown);
+                } else {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(report, null, 2));
+                }
+            }).catch(err => {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }).finally(() => {
+                if (persistence) persistence.close();
+            });
+        } catch (err) {
+            if (persistence) persistence.close();
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+        }
     }
 
     stop() {

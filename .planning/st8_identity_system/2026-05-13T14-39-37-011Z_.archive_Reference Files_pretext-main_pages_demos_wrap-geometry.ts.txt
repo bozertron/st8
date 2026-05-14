@@ -1,0 +1,59 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — .archive/Reference Files/pretext-main/pages/demos/wrap-geometry.ts
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      .archive/Reference Files/pretext-main/pages/demos/wrap-geometry.ts:2026-05-10T06:35:12.949Z
+  Filepath:         .archive/Reference Files/pretext-main/pages/demos/wrap-geometry.ts
+  Filename:         wrap-geometry.ts
+  Birth Timestamp:  2026-05-10T06:35:12.949Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     f975f966b4450a43c7d901a550abaddb71906d2125ad1dcd9d9ef98907554834
+  File Size:        10053 bytes
+  Last Modified:    2026-05-10T06:18:52.000Z
+  Last Indexed:     2026-05-13 14:39:36
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  type         Rect
+  type         Interval
+  type         Point
+  type         WrapHullMode
+  type         WrapHullOptions
+  function     getWrapHull — getWrapHull(src: string, options: WrapHullOptions): Promise: Promise
+  function     transformWrapPoints — transformWrapPoints(points: Point[], rect: Rect, angle: number): Point[]: Point[]
+  function     isPointInPolygon — isPointInPolygon(points: Point[], x: number, y: number): boolean: boolean
+  function     getPolygonIntervalForBand — getPolygonIntervalForBand(points: Point[], bandTop: number, bandBottom: number, horizontalPadding: number, verticalPadding: number): Interval | null: Interval | null
+  function     getRectIntervalsForBand — getRectIntervalsForBand(rects: Rect[], bandTop: number, bandBottom: number, horizontalPadding: number, verticalPadding: number): Interval[]: Interval[]
+  function     carveTextLineSlots — carveTextLineSlots(base: Interval, blocked: Interval[]): Interval[]: Interval[]
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T14:39:37.011Z

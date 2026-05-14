@@ -20,6 +20,8 @@ const { generateFingerprint, MutationType, ActorType } = require('./st8-types');
 const { SchemaCardEmitter } = require('./schemaCardEmitter');
 const { SchemaCardPrinter } = require('./schemaCardPrinter');
 const { notificationBus } = require('./notificationBus');
+const { GapAnalyzer } = require('./gapAnalyzer');
+const { IntentSeeder } = require('./intentSeeder');
 
 // ─── GLOBAL ERROR HANDLERS ───────────────────────────────────
 // Prevent process crash from unhandled rejections
@@ -158,10 +160,31 @@ async function main() {
         emitter.emitAllCards(persistence);
         printer.printAllFromCards(path.join(targetDir, '.st8', 'schema-cards'));
         console.log('[st8] Schema cards emitted');
+
+        // Run gap analysis
+        try {
+            const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
+            const analyzer = new GapAnalyzer(schemaCardsDir, persistence);
+            const gapReport = analyzer.analyze();
+            analyzer.writeReport(path.join(targetDir, '.st8', 'gap-analysis.md'));
+            console.log('[st8] Gap analysis written to .st8/gap-analysis.md');
+        } catch (err) {
+            console.error('[st8] Gap analysis failed:', err.message);
+        }
+
+        // Seed intent for files that don't have it yet
+        try {
+            const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
+            const seeder = new IntentSeeder(persistence, schemaCardsDir);
+            const seedResult = seeder.seedAll();
+            console.log(`[st8] Intent seeding: ${seedResult.seeded} seeded, ${seedResult.errors} errors`);
+        } catch (err) {
+            console.error('[st8] Intent seeding failed:', err.message);
+        }
     }
     
     // Start file watcher if requested
-    const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go']);
+    const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go', '.md', '.txt', '.json']);
     let watcher = null;
     if (watchMode) {
         console.log('[st8] Starting file watcher...');
@@ -190,6 +213,36 @@ async function main() {
                             if (idx !== -1) {
                                 const removed = result.files[idx];
                                 result.files.splice(idx, 1);
+
+                                // Log DELETE mutation before removing from DB
+                                persistence.logMutation({
+                                    fingerprint: removed.fingerprint,
+                                    sha256Hash: removed.sha256Hash,
+                                    mutationType: 'DELETE',
+                                    changedFields: JSON.stringify({ filepath: [removed.filepath, null] }),
+                                    actor: ActorType.WATCHER,
+                                    metadata: '{}'
+                                });
+
+                                // Publish SSE notification for deletion
+                                notificationBus.publish({
+                                    fingerprint: removed.fingerprint,
+                                    filepath: removed.filepath,
+                                    mutationType: 'DELETE',
+                                    actor: ActorType.WATCHER,
+                                    sha256Hash: removed.sha256Hash
+                                });
+
+                                // Delete stale schema card from disk
+                                try {
+                                    const cardPath = path.join(targetDir, '.st8', 'schema-cards', removed.filepath.replace(/\//g, '_').replace(/\\/g, '_') + '.json');
+                                    if (require('fs').existsSync(cardPath)) {
+                                        require('fs').unlinkSync(cardPath);
+                                    }
+                                } catch (cardErr) {
+                                    console.error(`[st8] Failed to delete schema card for ${removed.filepath}:`, cardErr.message);
+                                }
+
                                 persistence.deleteFile(removed.filepath);
                                 anyChanged = true;
                                 console.log(`[st8] Removed deleted file: ${removed.filepath}`);
@@ -241,6 +294,24 @@ async function main() {
                                 actor: ActorType.WATCHER,
                                 sha256Hash: hash
                             });
+
+                            // Emit schema card for new file (parity with 'change' handler)
+                            try {
+                                const fullPath = path.join(targetDir, relativePath);
+                                let astResult = { imports: [], exports: [] };
+                                try {
+                                    const { extractImportsAndExports } = require(path.join(__dirname, '..', 'lib', 'utils', 'astParser.js'));
+                                    astResult = extractImportsAndExports(fullPath);
+                                } catch (e) { /* AST parse failed - use empty */ }
+
+                                const lastMutation = persistence.getLastMutation(fingerprint);
+                                emitter.emitCard(newFile, astResult,
+                                    { importedBy: [], imports: [] }, null,
+                                    { count: persistence.getMutationCount(fingerprint),
+                                      lastMutation: lastMutation ? { type: lastMutation.mutationType, actor: lastMutation.actor, timestamp: lastMutation.timestamp } : { type: '', actor: '', timestamp: '' } });
+                            } catch (cardErr) {
+                                console.error(`[st8] Failed to emit schema card for new file ${relativePath}:`, cardErr.message);
+                            }
 
                             anyChanged = true;
                         } catch (err) {
@@ -306,6 +377,24 @@ async function main() {
                     const { writeManifests } = require('./manifestGenerator');
                     writeManifests(result.files, targetDir);
                     console.log('[st8] Incremental re-index complete');
+
+                    // Re-run intent seeding for new/changed files
+                    try {
+                        const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
+                        const seeder = new IntentSeeder(persistence, schemaCardsDir);
+                        seeder.seedAll();
+                    } catch (err) {
+                        console.error('[st8] Incremental intent seeding failed:', err.message);
+                    }
+
+                    // Re-run gap analysis to reflect current state
+                    try {
+                        const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
+                        const analyzer = new GapAnalyzer(schemaCardsDir, persistence);
+                        analyzer.writeReport(path.join(targetDir, '.st8', 'gap-analysis.md'));
+                    } catch (err) {
+                        console.error('[st8] Incremental gap analysis failed:', err.message);
+                    }
                 }
             }
         });

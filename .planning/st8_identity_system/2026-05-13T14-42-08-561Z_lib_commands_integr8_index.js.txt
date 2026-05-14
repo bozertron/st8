@@ -1,0 +1,54 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/integr8/index.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/integr8/index.js:2026-05-12T08:23:53.252Z
+  Filepath:         lib/commands/integr8/index.js
+  Filename:         index.js
+  Birth Timestamp:  2026-05-12T08:23:53.252Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     21dccb0f1c54ae899ef036c66312e4aa39fd6fa2da891d74f2606da92b5b7cfe
+  File Size:        7249 bytes
+  Last Modified:    2026-05-12T08:23:53.253Z
+  Last Indexed:     2026-05-13 14:42:08
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      ./dataIngestion.js
+  require      ./relationshipAnalyzer.js
+  require      ./pathGenerator.js
+  require      ./tomlSerializer.js
+  require      ./reportGenerator.js
+  require      ./databasePersister.js
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T14:42:08.561Z

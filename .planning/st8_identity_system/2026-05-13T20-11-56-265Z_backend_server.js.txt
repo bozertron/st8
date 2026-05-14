@@ -1,0 +1,77 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — backend/server.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      backend/server.js||2026-05-12T07:22:39.719Z
+  Filepath:         backend/server.js
+  Filename:         server.js
+  Birth Timestamp:  2026-05-12T07:22:39.719Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     00ede598158f817773f0c76c9ad7c8bbb86759304729d941a7ab529d4b317610
+  File Size:        42049 bytes
+  Last Modified:    2026-05-13T20:09:06.290Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     St8Server
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      http
+  require      fs
+  require      path
+  require      ./indexer
+  require      ./manifestGenerator
+  require      ./persistence
+  require      ./persistence
+  require      ./persistence
+  require      os
+  require      path
+  require      fs
+  require      crypto
+  require      ./persistence
+  require      ./indexer
+  require      ./notificationBus
+  require      ./persistence
+  require      ./notificationBus
+  require      ./persistence
+  require      ./schemaCardEmitter
+  require      ./notificationBus
+  require      ./prdGenerator
+  require      ./persistence
+  require      ./notificationBus
+  require      ./gapAnalyzer
+  require      ./persistence
+  require      path
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      backend/index.js||2026-05-12T07:23:01.935Z
+  Imports:          backend/manifestGenerator.js||2026-05-12T07:21:55.099Z, backend/indexer.js||2026-05-12T07:20:30.968Z, backend/schemaCardEmitter.js||2026-05-13T14:15:44.081Z, backend/prdGenerator.js||2026-05-13T16:12:16.658Z, backend/notificationBus.js||2026-05-13T14:15:13.100Z, backend/gapAnalyzer.js||2026-05-13T19:58:37.780Z, backend/persistence.js||2026-05-12T07:21:03.355Z, lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          HTTP server and API routes — ST8 Server — HTTP API for manifests ???
+  Depends On:       http, file system operations, file path manipulation, codebase indexing, manifestGenerator, database persistence layer, os, cryptographic hashing, notificationBus, schema card management, prdGenerator ???
+  Value Statement:  Provides HTTP API endpoints ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:11:56.265Z

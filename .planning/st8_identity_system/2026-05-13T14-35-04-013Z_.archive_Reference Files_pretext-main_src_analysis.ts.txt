@@ -1,0 +1,66 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — .archive/Reference Files/pretext-main/src/analysis.ts
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      .archive/Reference Files/pretext-main/src/analysis.ts:2026-05-10T06:35:12.955Z
+  Filepath:         .archive/Reference Files/pretext-main/src/analysis.ts
+  Filename:         analysis.ts
+  Birth Timestamp:  2026-05-10T06:35:12.955Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     fe115d3e79854ac70bbdff36b428d767327a192a9e42cfecd2232d43f7ba4cc2
+  File Size:        39709 bytes
+  Last Modified:    2026-05-10T06:18:52.000Z
+  Last Indexed:     2026-05-13 14:35:03
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  type         WhiteSpaceMode
+  type         WordBreakMode
+  type         SegmentBreakKind
+  type         MergedSegmentation
+  type         AnalysisChunk
+  type         TextAnalysis
+  type         AnalysisProfile
+  function     normalizeWhitespaceNormal — normalizeWhitespaceNormal(text: string): string: string
+  function     clearAnalysisCaches — clearAnalysisCaches(): void: void
+  function     setAnalysisLocale — setAnalysisLocale(locale: string): void: void
+  function     isCJK — isCJK(s: string): boolean: boolean
+  function     canContinueKeepAllTextRun — canContinueKeepAllTextRun(previousText: string, breakAfterPunctuation: boolean): boolean: boolean
+  const        kinsokuStart
+  const        kinsokuEnd
+  const        leftStickyPunctuation
+  function     endsWithClosingQuote — endsWithClosingQuote(text: string): boolean: boolean
+  function     isNumericRunSegment — isNumericRunSegment(text: string): boolean: boolean
+  function     analyzeText — analyzeText(text: string, profile: AnalysisProfile, whiteSpace: WhiteSpaceMode?, wordBreak: WordBreakMode?): TextAnalysis: TextAnalysis
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T14:35:04.013Z

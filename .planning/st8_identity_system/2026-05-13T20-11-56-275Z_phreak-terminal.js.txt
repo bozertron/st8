@@ -1,0 +1,51 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — phreak-terminal.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      phreak-terminal.js||2026-05-11T21:48:30.642Z
+  Filepath:         phreak-terminal.js
+  Filename:         phreak-terminal.js
+  Birth Timestamp:  2026-05-11T21:48:30.642Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     e837c4f43afb0cfba4de64a75bf4d8ccc70611a6ae035327fdaa858bdb31612c
+  File Size:        42911 bytes
+  Last Modified:    2026-05-13T16:55:46.128Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Terminal interface — Push to history ???
+  Depends On:       No external dependencies ???
+  Value Statement:  Provides phreakExecute API, _tryMediaCommand API, _renderLines API, _fullRender API, _updateExecutingIndicator API, _scrollToBottom API, _mkLine API, _escapeHtml API, _buildLineHTML API, _handleInputKeydown API, _handleOutputClick API, phreakCopyLine API, receiveSignal API, _showSignalPopup API, _dismissSignalPopup API, toggleTUI API, _enterTUI API, _isolateFiles API, _clearVoid API, _clearPhreak API, _clearAll API, _showGraph API, _showSettings API, _exitTUI API, _updateTUIBadges API, phreakMountStateless API, _buildPhoneIconHTML API, togglePhoneOffHook API, _updatePhoneIconState API, notifyMutation API, _wireEPOListener API, _unwireEPOListener API, _buildContainerHTML API, _attachInputListener API, _attachOutputClickListener API, phreakMount API, phreakFocus API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:11:56.275Z

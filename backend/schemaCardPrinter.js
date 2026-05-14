@@ -185,6 +185,78 @@ class SchemaCardPrinter {
     }
 
     /**
+     * Prune old timestamped .txt card files, keeping only the N most recent per base file.
+     * LATEST_* files are never pruned — they serve as the current snapshot.
+     *
+     * @param {number} maxPerFile - Maximum timestamped files to keep per base filename (default 10)
+     * @returns {{ pruned: number, kept: number }}
+     */
+    pruneOldCards(maxPerFile = 10) {
+        let pruned = 0;
+        let kept = 0;
+
+        try {
+            const allFiles = fs.readdirSync(this.outputDir);
+
+            // Filter to timestamped card files (ISO prefix pattern), exclude LATEST_ files
+            const timestampedFiles = allFiles.filter(f => {
+                // Must end with .txt
+                if (!f.endsWith('.txt')) return false;
+                // Skip LATEST_ files (current snapshot, never pruned)
+                if (f.startsWith('LATEST_')) return false;
+                // Must start with ISO timestamp: YYYY-MM-DDTHH-MM-SS-MMMZ_
+                return /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}/.test(f);
+            });
+
+            // Group by base filename (strip timestamp prefix)
+            // Timestamp format: "2026-05-13T12-34-56-789Z_" → 24 chars
+            const groups = {};
+            for (const file of timestampedFiles) {
+                // Extract base name after timestamp prefix
+                const match = file.match(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}[^_]+_(.+)\.txt$/);
+                if (!match) continue;
+                const baseName = match[1];
+                if (!groups[baseName]) groups[baseName] = [];
+                groups[baseName].push(file);
+            }
+
+            // Sort each group by filename descending (newest first due to ISO timestamp sort)
+            // and delete files beyond the maxPerFile limit
+            for (const [baseName, files] of Object.entries(groups)) {
+                // Sort descending — newest filenames (lexicographically largest) first
+                files.sort((a, b) => b.localeCompare(a));
+
+                if (files.length <= maxPerFile) {
+                    kept += files.length;
+                    continue;
+                }
+
+                // Keep the first maxPerFile, prune the rest
+                const toKeep = files.slice(0, maxPerFile);
+                const toPrune = files.slice(maxPerFile);
+                kept += toKeep.length;
+
+                for (const file of toPrune) {
+                    try {
+                        fs.unlinkSync(path.join(this.outputDir, file));
+                        pruned++;
+                    } catch (err) {
+                        console.error(`[st8:printer] Failed to prune ${file}:`, err.message);
+                    }
+                }
+            }
+
+            if (pruned > 0) {
+                console.log(`[st8:printer] Pruned ${pruned} old card files, kept ${kept}`);
+            }
+        } catch (err) {
+            console.error('[st8:printer] Error during card pruning:', err.message);
+        }
+
+        return { pruned, kept };
+    }
+
+    /**
      * Print all schema cards from .st8/schema-cards/ directory.
      */
     printAllFromCards(schemaCardsDir) {
@@ -200,8 +272,10 @@ class SchemaCardPrinter {
         for (const file of files) {
             try {
                 const card = JSON.parse(fs.readFileSync(path.join(schemaCardsDir, file), 'utf-8'));
-                this.printCard(card);
-                printed++;
+                const result = this.printCard(card);
+                if (result !== null) {
+                    printed++;
+                }
             } catch (err) {
                 console.error(`[st8:printer] Error printing ${file}:`, err.message);
                 errors++;
@@ -209,7 +283,11 @@ class SchemaCardPrinter {
         }
 
         console.log(`[st8:printer] Printed ${printed} cards, ${errors} errors`);
-        return { printed, errors };
+
+        // Prune old timestamped card files to prevent unbounded disk growth
+        const pruned = this.pruneOldCards();
+
+        return { printed, errors, pruned };
     }
 }
 

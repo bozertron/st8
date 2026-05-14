@@ -1,0 +1,53 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — backend/fileWatcher.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      backend/fileWatcher.js||2026-05-12T07:22:16.663Z
+  Filepath:         backend/fileWatcher.js
+  Filename:         fileWatcher.js
+  Birth Timestamp:  2026-05-12T07:22:16.663Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     cc5007dc88248f76ec5c89fa3889c912e6d6931518148a09f02c8b0c9ab9d1ac
+  File Size:        4321 bytes
+  Last Modified:    2026-05-13T14:34:39.184Z
+  Last Indexed:     2026-05-13 20:11:55
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     FileWatcher
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      path
+  require      fs
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      backend/index.js||2026-05-12T07:23:01.935Z
+  Imports:          lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          File system change monitoring — ST8 File Watcher ???
+  Depends On:       file path manipulation, file system operations ???
+  Value Statement:  Provides loadChokidar API, file change monitoring ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:55
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:11:56.261Z

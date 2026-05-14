@@ -1,0 +1,51 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — .archive/Reference Files/pretext-main/scripts/package-smoke-test.ts
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      .archive/Reference Files/pretext-main/scripts/package-smoke-test.ts:2026-05-10T06:35:12.953Z
+  Filepath:         .archive/Reference Files/pretext-main/scripts/package-smoke-test.ts
+  Filename:         package-smoke-test.ts
+  Birth Timestamp:  2026-05-10T06:35:12.953Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     8556297a044fc641d2412d565588d1ad2e6600666828d1d833a52478e4a13679
+  File Size:        5684 bytes
+  Last Modified:    2026-05-10T06:18:52.000Z
+  Last Indexed:     2026-05-13 14:44:20
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  named        node:fs/promises {mkdir, mkdtemp, readdir, rm, writeFile}
+  named        node:os {tmpdir}
+  default      node:path {path}
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T15:51:11.793Z

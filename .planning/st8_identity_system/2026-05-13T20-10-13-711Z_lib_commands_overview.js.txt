@@ -1,0 +1,51 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/overview.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/overview.js||2026-05-12T08:24:07.119Z
+  Filepath:         lib/commands/overview.js
+  Filename:         overview.js
+  Birth Timestamp:  2026-05-12T08:24:07.119Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     c5eef5501a0c99e1aef9056f29d3855e9fd4beb7c9be84c8c1f0f7012ca08c9f
+  File Size:        17893 bytes
+  Last Modified:    2026-05-12T08:24:07.119Z
+  Last Indexed:     2026-05-13 20:10:13
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     generateOverviewAndGetFileList
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Project overview display — C:\orchestr8\scripts\prd src\overview.ts ???
+  Depends On:       No external dependencies ???
+  Value Statement:  Provides adopt API, fulfilled API, rejected API, step API, getRelativeProjectFiles API, codebase indexing pipeline, generateConfigSummary API, generateEntryPointSummary API, generateDependencySummary API, generateDirectorySummary API, gatherOverviewData API, generateOverviewAndGetFileList API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  3
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:10:13
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:10:13.711Z

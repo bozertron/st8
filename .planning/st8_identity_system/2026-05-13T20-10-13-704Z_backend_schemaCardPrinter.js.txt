@@ -1,0 +1,53 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — backend/schemaCardPrinter.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      backend/schemaCardPrinter.js||2026-05-13T14:15:22.619Z
+  Filepath:         backend/schemaCardPrinter.js
+  Filename:         schemaCardPrinter.js
+  Birth Timestamp:  2026-05-13T14:15:22.619Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     967b3291cb6394d177f2b49ca8c057cd979a3dcdaba146720d0dbaf5fc9eabf6
+  File Size:        14042 bytes
+  Last Modified:    2026-05-13T16:12:15.294Z
+  Last Indexed:     2026-05-13 20:10:13
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     SchemaCardPrinter
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      path
+  require      fs
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      backend/index.js||2026-05-12T07:23:01.935Z
+  Imports:          lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Schema card emission — ST8 Schema Card Printer — Human-Readable Fallback ???
+  Depends On:       file path manipulation, file system operations ???
+  Value Statement:  Provides formatted output ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  3
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:10:13
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:10:13.704Z

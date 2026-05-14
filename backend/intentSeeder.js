@@ -40,6 +40,41 @@ const FILENAME_PURPOSE_MAP = [
     { pattern: /app/i, purpose: 'Application core' },
     { pattern: /cli/i, purpose: 'Command-line interface' },
     { pattern: /db/i, purpose: 'Database operations' },
+    { pattern: /graph[-_]?builder/i, purpose: 'Dependency graph construction' },
+    { pattern: /graph[-_]?traversal/i, purpose: 'Graph traversal and querying' },
+    { pattern: /graph[-_]?visual/i, purpose: 'Graph visualization' },
+    { pattern: /insight[-_]?store/i, purpose: 'Insight storage and retrieval' },
+    { pattern: /database[-_]?persister/i, purpose: 'Database persistence operations' },
+    { pattern: /relationship[-_]?analy/i, purpose: 'Code relationship analysis' },
+    { pattern: /toml[-_]?serial/i, purpose: 'TOML serialization' },
+    { pattern: /ast[-_]?parser/i, purpose: 'AST parsing and analysis' },
+    { pattern: /ast/i, purpose: 'AST parsing' },
+    { pattern: /io[-_]?chan/i, purpose: 'I/O channel abstraction' },
+    { pattern: /safe[-_]?fs/i, purpose: 'Safe file system operations' },
+    { pattern: /coordination/i, purpose: 'Process coordination' },
+    { pattern: /settings/i, purpose: 'Settings management' },
+    { pattern: /void[-_]?engine/i, purpose: 'Rendering engine' },
+    { pattern: /phreak/i, purpose: 'Terminal interface' },
+    { pattern: /terminal/i, purpose: 'Terminal interface' },
+    { pattern: /fake[-_]?stream/i, purpose: 'Stream mocking utility' },
+    { pattern: /file[-_]?explorer/i, purpose: 'File explorer UI' },
+    { pattern: /explorer/i, purpose: 'File explorer UI' },
+    { pattern: /visuali/i, purpose: 'Data visualization' },
+    { pattern: /overview/i, purpose: 'Project overview display' },
+    { pattern: /parser/i, purpose: 'Parsing utilities' },
+    { pattern: /background/i, purpose: 'Background processing' },
+    { pattern: /migration/i, purpose: 'Database migration' },
+    { pattern: /path[-_]?gen/i, purpose: 'Path generation' },
+    { pattern: /report/i, purpose: 'Report generation' },
+    { pattern: /data[-_]?ingest/i, purpose: 'Data ingestion pipeline' },
+    { pattern: /ingest/i, purpose: 'Data ingestion' },
+    { pattern: /ground[-_]?plane/i, purpose: 'Ground plane abstraction' },
+    { pattern: /plane/i, purpose: 'Spatial plane abstraction' },
+    { pattern: /verify/i, purpose: 'Verification and testing' },
+    { pattern: /gap[-_]?analy/i, purpose: 'Gap analysis' },
+    { pattern: /analy/i, purpose: 'Analysis module' },
+    { pattern: /prd/i, purpose: 'PRD generation' },
+    { pattern: /seeder/i, purpose: 'Data seeding' },
 ];
 
 /**
@@ -300,11 +335,17 @@ class IntentSeeder {
             const cardPath = path.join(this.schemaCardsDir, this._cardFilename(filepath));
             if (fs.existsSync(cardPath)) {
                 const card = JSON.parse(fs.readFileSync(cardPath, 'utf-8'));
-                return {
-                    imports: card.imports || [],
-                    exports: card.exports || [],
-                    comments: []
-                };
+                const cardImports = card.imports || [];
+                const cardExports = card.exports || [];
+                // If card has both imports and exports, use it directly
+                if (cardImports.length > 0 && cardExports.length > 0) {
+                    return { imports: cardImports, exports: cardExports, comments: [] };
+                }
+                // Otherwise, fall through to parse the actual file for better data
+                // but keep card imports if they exist (more reliable than regex)
+                if (cardImports.length > 0) {
+                    imports.push(...cardImports);
+                }
             }
 
             // Fallback: read the actual file and parse with regex
@@ -315,6 +356,8 @@ class IntentSeeder {
 
             const content = fs.readFileSync(fullPath, 'utf-8');
             const lines = content.split('\n');
+
+            let inModuleExports = false;
 
             for (const line of lines) {
                 const trimmed = line.trim();
@@ -338,12 +381,35 @@ class IntentSeeder {
                     });
                 }
 
-                // Match module.exports: module.exports = { X, Y } or module.exports = X
+                // Match module.exports: module.exports = { X, Y } (single-line)
                 const moduleExportMatch = trimmed.match(/module\.exports\s*=\s*{([^}]+)}/);
                 if (moduleExportMatch) {
                     const names = moduleExportMatch[1].split(',').map(s => s.trim().split(':')[0].trim());
                     for (const name of names) {
                         if (name) exports.push({ name, kind: 'named' });
+                    }
+                } else if (trimmed.match(/module\.exports\s*=\s*\{/)) {
+                    // Start of multiline module.exports = { ... }
+                    inModuleExports = true;
+                    // Check if any names on the same line as the opening brace
+                    const afterBrace = trimmed.match(/module\.exports\s*=\s*{\s*(.+)/);
+                    if (afterBrace && afterBrace[1].trim() && afterBrace[1].trim() !== '}') {
+                        const name = afterBrace[1].trim().replace(/,.*$/, '').trim().split(':')[0].trim();
+                        if (name && name !== '}') exports.push({ name, kind: 'named' });
+                    }
+                } else if (inModuleExports) {
+                    // Inside multiline module.exports block
+                    if (trimmed === '}' || trimmed === '};') {
+                        inModuleExports = false;
+                    } else if (trimmed && !trimmed.startsWith('//')) {
+                        // Extract name from "Name," or "Name" patterns
+                        const nameMatch = trimmed.match(/^(\w+)/);
+                        if (nameMatch) {
+                            const name = nameMatch[1];
+                            if (name !== 'module' && name !== 'exports') {
+                                exports.push({ name, kind: 'named' });
+                            }
+                        }
                     }
                 } else if (trimmed.match(/module\.exports\s*=\s*(\w+)/)) {
                     const name = trimmed.match(/module\.exports\s*=\s*(\w+)/)[1];
@@ -382,15 +448,23 @@ class IntentSeeder {
                 }
             }
 
-            // Deduplicate exports by name
-            const seen = new Set();
-            const uniqueExports = exports.filter(exp => {
-                if (seen.has(exp.name)) return false;
-                seen.add(exp.name);
+            // Deduplicate imports by source
+            const seenImports = new Set();
+            const uniqueImports = imports.filter(imp => {
+                if (seenImports.has(imp.source)) return false;
+                seenImports.add(imp.source);
                 return true;
             });
 
-            return { imports, exports: uniqueExports, comments };
+            // Deduplicate exports by name
+            const seenExports = new Set();
+            const uniqueExports = exports.filter(exp => {
+                if (seenExports.has(exp.name)) return false;
+                seenExports.add(exp.name);
+                return true;
+            });
+
+            return { imports: uniqueImports, exports: uniqueExports, comments };
         } catch (err) {
             console.error(`[st8:seeder] Error parsing ${filepath}:`, err.message);
             return { imports, exports, comments };

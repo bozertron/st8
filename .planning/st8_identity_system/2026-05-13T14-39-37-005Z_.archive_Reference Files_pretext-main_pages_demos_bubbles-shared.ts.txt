@@ -1,0 +1,68 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — .archive/Reference Files/pretext-main/pages/demos/bubbles-shared.ts
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      .archive/Reference Files/pretext-main/pages/demos/bubbles-shared.ts:2026-05-10T06:35:12.943Z
+  Filepath:         .archive/Reference Files/pretext-main/pages/demos/bubbles-shared.ts
+  Filename:         bubbles-shared.ts
+  Birth Timestamp:  2026-05-10T06:35:12.943Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     c40b1e0553930f3d069892f84031b041fc507f96e8cea80c6686a59779e3f4ca
+  File Size:        3385 bytes
+  Last Modified:    2026-05-10T06:18:51.000Z
+  Last Indexed:     2026-05-13 14:39:36
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  type         WrapMetrics
+  type         PreparedBubble
+  type         BubbleRenderWidths
+  type         BubbleRenderState
+  const        FONT
+  const        LINE_HEIGHT
+  const        PADDING_H
+  const        PADDING_V
+  const        BUBBLE_MAX_RATIO
+  const        PAGE_MAX_WIDTH
+  const        DESKTOP_PAGE_MARGIN
+  const        MOBILE_PAGE_MARGIN
+  const        GRID_GAP
+  const        PANEL_PADDING_X
+  function     prepareBubbleTexts — prepareBubbleTexts(texts: string[]): PreparedBubble[]: PreparedBubble[]
+  function     getMaxChatWidth — getMaxChatWidth(minWidth: number, viewportWidth: number): number: number
+  function     collectWrapMetrics — collectWrapMetrics(prepared: PreparedTextWithSegments, maxWidth: number): WrapMetrics: WrapMetrics
+  function     findTightWrapMetrics — findTightWrapMetrics(prepared: PreparedTextWithSegments, maxWidth: number): WrapMetrics: WrapMetrics
+  function     computeBubbleRender — computeBubbleRender(preparedBubbles: PreparedBubble[], chatWidth: number): BubbleRenderState: BubbleRenderState
+  function     formatPixelCount — formatPixelCount(value: number): string: string
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  named        ../../src/layout.ts {layout, prepareWithSegments, walkLineRanges, PreparedTextWithSegments}
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T14:39:37.005Z

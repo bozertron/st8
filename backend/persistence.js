@@ -58,7 +58,18 @@ CREATE TABLE IF NOT EXISTS file_registry (
   birthTimestamp TEXT,
   lastModified TEXT,
   lastIndexed TEXT DEFAULT CURRENT_TIMESTAMP,
-  isEntryPoint INTEGER DEFAULT 0
+  isEntryPoint INTEGER DEFAULT 0,
+  lastAccessed TEXT,
+  sessionsSinceAccess INTEGER DEFAULT 0,
+  expiryDate TEXT,
+  associatedWith TEXT,
+  eventTrigger TEXT,
+  brunoStatus TEXT DEFAULT 'active',
+  needsAIReview INTEGER DEFAULT 0,
+  tripleAtCount INTEGER DEFAULT 0,
+  aiContentInjected INTEGER DEFAULT 0,
+  templateVariables TEXT,
+  hasUnfilledVariables INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS connections (
@@ -209,12 +220,16 @@ class St8Persistence {
         const file = this.getFileByPath(filepath);
         if (!file) return { changes: 0 };
 
-        this.deleteConnectionsForFile(file.fingerprint);
-        this.deleteIntentForFile(file.fingerprint);
-        this.deleteMutationLogForFile(file.fingerprint);
+        const _deleteFileTx = this.db.transaction((fp, fingerprint) => {
+            this.deleteConnectionsForFile(fingerprint);
+            this.deleteIntentForFile(fingerprint);
+            this.deleteMutationLogForFile(fingerprint);
 
-        const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
-        const result = stmt.run(filepath);
+            const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
+            return stmt.run(fp);
+        });
+
+        const result = _deleteFileTx(filepath, file.fingerprint);
         return { changes: result.changes, fingerprint: file.fingerprint };
     }
     
@@ -346,29 +361,34 @@ class St8Persistence {
         const birthTimestamp = new Date().toISOString();
         const fingerprint = generateFingerprint(conceptEntry.filepath, birthTimestamp);
 
-        const stmt = this.db.prepare(`
-            INSERT OR REPLACE INTO file_registry
-            (fingerprint, filepath, filename, sha256Hash, fileSizeBytes, status,
-             reachabilityScore, impactRadius, lifecyclePhase, birthTimestamp,
-             lastModified, lastIndexed, isEntryPoint)
-            VALUES (?, ?, ?, '', 0, 'CONCEPT', 0.0, 0, 'CONCEPT', ?, '', CURRENT_TIMESTAMP, 0)
-        `);
-        stmt.run(
-            fingerprint,
+        const _registerConceptTx = this.db.transaction((fp, fname, bts, entry, fpr) => {
+            const stmt = this.db.prepare(`
+                INSERT OR REPLACE INTO file_registry
+                (fingerprint, filepath, filename, sha256Hash, fileSizeBytes, status,
+                 reachabilityScore, impactRadius, lifecyclePhase, birthTimestamp,
+                 lastModified, lastIndexed, isEntryPoint)
+                VALUES (?, ?, ?, '', 0, 'CONCEPT', 0.0, 0, 'CONCEPT', ?, '', CURRENT_TIMESTAMP, 0)
+            `);
+            stmt.run(fpr, fp, fname, bts);
+
+            // Log the concept creation mutation
+            this.logMutation({
+                fingerprint: fpr,
+                sha256Hash: '',
+                mutationType: 'CONCEPT',
+                changedFields: JSON.stringify({ lifecyclePhase: [null, 'CONCEPT'] }),
+                actor: entry.actor || 'DEVELOPER',
+                metadata: JSON.stringify(entry)
+            });
+        });
+
+        _registerConceptTx(
             conceptEntry.filepath,
             conceptEntry.filename || path.basename(conceptEntry.filepath),
-            birthTimestamp
+            birthTimestamp,
+            conceptEntry,
+            fingerprint
         );
-
-        // Log the concept creation mutation
-        this.logMutation({
-            fingerprint,
-            sha256Hash: '',
-            mutationType: 'CONCEPT',
-            changedFields: JSON.stringify({ lifecyclePhase: [null, 'CONCEPT'] }),
-            actor: conceptEntry.actor || 'DEVELOPER',
-            metadata: JSON.stringify(conceptEntry)
-        });
 
         return fingerprint;
     }
@@ -379,35 +399,37 @@ class St8Persistence {
         // Archive and remove development-phase mutation data
         // Keeps only PRODUCTION-type mutations and the latest schema card
 
-        // 1. Count what we're about to purge
+        // 1. Count what we're about to purge (read-only, outside transaction)
         const countStmt = this.db.prepare(
             `SELECT COUNT(*) as count FROM file_mutation_log
              WHERE fingerprint = ? AND mutationType NOT IN ('PRODUCTION', 'PURGE')`
         );
         const { count } = countStmt.get(fingerprint);
 
-        // 2. Delete development mutations
-        const deleteStmt = this.db.prepare(
-            `DELETE FROM file_mutation_log
-             WHERE fingerprint = ? AND mutationType NOT IN ('PRODUCTION', 'PURGE')`
-        );
-        deleteStmt.run(fingerprint);
+        // 2. Delete development mutations, log purge, update lifecycle — atomic
+        const _purgeDevTx = this.db.transaction((fp, purgedCount) => {
+            const deleteStmt = this.db.prepare(
+                `DELETE FROM file_mutation_log
+                 WHERE fingerprint = ? AND mutationType NOT IN ('PRODUCTION', 'PURGE')`
+            );
+            deleteStmt.run(fp);
 
-        // 3. Log the purge
-        this.logMutation({
-            fingerprint,
-            sha256Hash: '',
-            mutationType: 'PURGE',
-            changedFields: JSON.stringify({ purgedMutations: count }),
-            actor: 'INDEXER',
-            metadata: '{}'
+            this.logMutation({
+                fingerprint: fp,
+                sha256Hash: '',
+                mutationType: 'PURGE',
+                changedFields: JSON.stringify({ purgedMutations: purgedCount }),
+                actor: 'INDEXER',
+                metadata: '{}'
+            });
+
+            const updateStmt = this.db.prepare(
+                `UPDATE file_registry SET lifecyclePhase = 'PRODUCTION' WHERE fingerprint = ?`
+            );
+            updateStmt.run(fp);
         });
 
-        // 4. Update lifecycle phase
-        const updateStmt = this.db.prepare(
-            `UPDATE file_registry SET lifecyclePhase = 'PRODUCTION' WHERE fingerprint = ?`
-        );
-        updateStmt.run(fingerprint);
+        _purgeDevTx(fingerprint, count);
 
         return { purgedMutations: count };
     }

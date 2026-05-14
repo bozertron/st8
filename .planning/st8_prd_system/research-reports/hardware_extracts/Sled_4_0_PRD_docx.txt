@@ -1,0 +1,169 @@
+Product Requirements Document
+PROJECT NAME
+Sled 4.0
+PROJECT LEAD
+Dan Wiggins
+CLIENT
+Chromatic
+REVISION STATUS
+REV
+WHEN
+WHO
+WHAT
+WHY
+OVERVIEW
+Product Description
+Test system to validate acoustical arrangements for Chromatic advanced AI hearing aids.  Provides connectivity for up to 2 microphones and 1 speaker per side analog I/O, and USB interfacing on the other as a 4 channel in/2 channel out sound device.
+Market Need
+Internal use only
+Key Features/ Functionality
+Detachable cables for all components
+Small, battery powered interface/basic processing box
+Other Product Compatibility,
+Ecosystem, etc.
+USB C enumeration as a sound device with 4 channels in, 2 channels out
+Stakeholders
+Target User
+Chromatic alpha testers
+Target Purchaser
+(if different from user)
+N/A
+Other Stakeholders
+N/A
+COMMERCIALS AND REGULATORY
+Countries of Sale
+N/A
+Target Launch Date
+August 1, 2022
+*
+(Chromatic to confirm)
+Regulatory Requirements
+Safety (UL, CE)
+N/A
+Emissions (FCC, CE)
+N/A
+Interoperability (Cellular,
+WiFi
+)
+N/A
+Labeling
+Regulatory Marks
+N/A
+Country of Origin
+N/A
+Serial Number
+N/A
+Financials
+BOM Cost
+N/A
+COGs
+N/A
+MSRP
+N/A
+Acceptable Margin
+N/A
+Volume
+MOQ of First Production Run
+200
+Annual Volume
+N/A
+Timeline for Product Refresh (EOL)
+None
+ENVIRONMENT
+Storage Environment
+Temperature Range
+N/A
+Humidity Range
+N/A
+Operating Environment
+Indoor, Outdoor, Wearable
+Wearable, indoor/outdoor uses
+Temperature Range
+0
+to 40 deg C
+Humidity Range
+0 to 95%
+non condensing
+RH
+INDUSTRIAL DESIGN
+Brand
+N/A
+Renderings
+N/A
+Color, Material, and Finish (CMF)
+N/A
+Logo size and placement
+N/A
+Connectors
+(Power, USB, Lighting, Audio)
+Hearing aids: 3.5mm TRRS jack
+Interface Box: Twin 3.5mm TRRS jacks (one for each hearing aid), USB type C jack
+TRRS wiring: TIP=SPKR, UR = MIC1, LR = GND, S = MIC2
+Visual Interface
+(Screen size and type, LEDs)
+LED on Interface box for battery life indication
+Touch Interface
+(Mechanical actuators/switches, touch sensitivity, haptics)
+N/A
+Audio Interface
+(Microphones, speakers)
+Balance Armature in RIC configuration in hearing aids
+MIC1 on body of hearing aid
+MIC2 (100 units) on body of hearing aid
+MIC2 (100 units) on back of RIC assembly
+SYSTEM GOALS
+Block Diagram of
+System
+TBD
+Topology
+ADAU1787 for analog interfacing, I2S formatting, basic signal processing
+CT7601
+PR for I2S to USB interface
+Power supplies as needed
+Frequency Response
+20 Hz to 20 kHz, +/- 1 dB for all conversion interfaces
+Power Handling
+N/A
+Mechanical Constraints
+N/A
+As small as possible, while still allowing for debug interfaces
+Operational Features
+Turns on when all connections are plugged in
+LED indicates battery level (G/Y/R)
+DURABILITY
+Lifetime requirements
+N/A
+Cycles of various sub-systems
+N/A
+Chemical resistance (sweat, sebum, sunscreen, salt water)
+N/A
+UV resistance (sunlight)
+N/A
+Environmental (Dust, Water, etc.)
+IPX4
+Mechanical (Drop, Vibration, Abrasion, etc.)
+N/A
+PACKAGING
+In the Box
+Two hearing aid shells (left and right)
+Two 1 meter TRRS to TRRS 3.5mm cables
+Interface box
+USB C to USB C 1 meter cable
+USBC to Lightning adapter cable
+Unboxing Experience
+N/A
+Printing, colors, inserts, cardboard type, drop requirements
+N/A
+Retail Requirements
+N/A
+SKU Combinations
+N/A
+SERVICEABILITY
+Repair Services
+N/A
+Returns Process
+N/A
+Repair/Return Qualifications/Tolerances
+N/A
+Customer Support System
+N/A

@@ -1,0 +1,278 @@
+Product Requirements Document
+PROJECT NAME
+Hub
+PROJECT LEAD
+Who is product manager/lead for the project?
+CLIENT
+Who is the client for this project?
+REVISION STATUS
+REV
+WHEN
+WHO
+WHAT
+WHY
+Which version
+Date for revision
+Who did the change
+What sections were changed
+Why were the changes done
+OVERVIEW
+Product Description
+Ultra secure, industrial grade IoT
+gateway/
+Market Need
+Why does the world need your product?
+Commercial building and factory automation represent major new market opportunities for low-power mesh networks. These markets demand industrial-grade solutions and have strict reliability, scalability and security expectations that Bluetooth mesh delivers.
+Bluetooth mesh networking is a true industrial-grade solution
+with
+high security
+being one of it’s top selling points,
+i
+deally suited for building automation, sensor networks, connected lighting, and other Internet of Things (IoT) solutions where tens, hundreds, or thousands of devices need to reliably and securely communicate with one another.
+W
+hile an off the shelf IoT gateway/hub is an quick and easy solution for
+smart homes
+,
+they might not be the best choice for industrial applications.
+Majority of these gateways require internet/Wi-Fi access for device-to-cloud communication
+and
+with companies being increasingly concerned about the risk of cyber-attack, a
+custom gateway is the only answer.
+Customization is necessary because almost all industrial IoT installations require
+secure and reliable,
+tailored gateway
+,
+that fits specific devices and applications,
+rather than a “one size fits all” solution that commercial IoT gateways offer.
+which
+present an unnecessary cost for the user.
+Custom built gateway/hub provides more
+personalized
+and optimized solution
+focused on a
+specific use case, white still offering o
+pportunity for expansion and adding new types of nodes to go along with Chameleon devices,
+as well as integrating other commonly used BLE and BLE Mesh solutions such as
+s
+mart lighting, indoor
+asset
+tracking, alarm systems etc.
+For exa
+mp
+le, w
+ith “super sensor”, or multiple sensor
+nodes
+,
+it’s easy to achieve additional power savings
+. Movement detection
+and
+ambient light
+sensing
+for smart lighting, temperature and air quality
+sensing
+for AC and ventilation,
+etc.
+Key Features/
+Functionality
+What does your product do?
+The hub is a link between the mesh network and user interface on a computer.
+A secure, single point access to the network
+with
+physical authentication
+requirement which prevents unwanted access and ocntrol of the network.
+The
+hub acts as a provisioner/
+network configurator
+, adding new nodes into the network,
+assigning roles to each node,
+configuring their behaviour
+and collecting the data from
+all
+the nodes
+in the network
+.
+Network configuration data is
+transferred
+to the
+computer/server
+whenever possible,
+to prevent the hub from being a single point failure,
+while the hub still keeps the same information stored locally as a backup.
+In case there is no
+computer
+/
+server
+connected to the hub, the hub itself could also store locally, for a period of time, all the incoming dat
+a
+from the nodes
+(sensor data, power monitoring etc.)
+(TBD)
+Through the hub, user is able to
+control
+each individual provisioned node,
+for example switch on/off or dim the light on a single node, or a group of nodes. The hub also allows the user
+c
+o
+nfigure how
+each
+node interacts with other nodes in the nework,
+f
+or example grouping nodes and setting “scenes”. This makes it easy for entire environments, such as a room, to have each of its mesh nodes, its lights, heating system, air conditioning system and so on, all switch to a predefined, complimentary state, in a single, coordinated action.
+Only one
+hub
+per network is required, while there may be over 1000 nodes in a network,
+depending on the placement of the nodes and surroundings.
+D
+evices added to a network are provisioned using proven security algorithms. This uses 256-bit elliptic curves and out-of-band authentication to securely add devices.
+All communication is required to be secured using AES-CCM using 128-bit keys. All mesh messages are encrypted and authenticated.
+User access:
+or USB
+port which allows it to be connected directly to the
+computer
+/server.
+Option 2:
+The hub
+can
+act as a proxy for standard BLE protocol, which will allow the authorized user to configure the network using smart devices with BLE capabilities such as tablets, or phones.
+For security reasons, t
+he hub itself does not have internet connectivity.
+It only transfers the data to the computer/server through ethernet/serial interface.
+T
+he hub is based on Nordic’s nRF52840 SoC
+which supports BLE and BLE Mesh protocols.
+While nRF52840 has plenty of memory for firmware itself, storing provisioning data for larger networks requires additional non-volatile memory. Which is why the hub also has an external flash chip for storing network metadata.
+Other Product Compatibility,
+Ecosystem, etc.
+Bluetooth Mesh - Standard
+Ethernet - Standard
+BLE - Standard
+Stakeholders
+Target User
+Commercial
+properties
+:
+industrial buildings, warehouses, retail, hotels
+Target Purchaser
+(if different from user)
+Who will buy your product?
+Other Stakeholders
+Who else should be considered?
+COMMERCIALS AND REGULATORY
+Countries of Sale
+In which countries will you sell this version of the product?
+Target Launch Date
+When would you like it to be available?
+Regulatory Requirements
+Safety (UL, CE)
+Which safety certifications are required?
+Emissions (FCC, CE)
+Which electrical radiation certifications are required?
+Interoperability (Cellular, WiFi)
+With which networks should your product operate?
+Labeling
+Regulatory Marks
+Which are required?
+Country of Origin
+Where was it assembled?
+Serial Number
+Does your product need a serial number?
+Financials
+BOM Cost
+How much do the components cost to make?
+COGs
+BOM Cost +
+assembly labor, freight forwarding, logistics, customs, duties, etc.
+MSRP
+Target retail price?
+Acceptable Margin
+How much do you need to earn when selling a unit?
+Volume
+MOQ of First Production Run
+How many do you need to make the first time you run your production line?
+Annual Volume
+How many do you expect to sell per year?
+Timeline for Product Refresh (EOL)
+How long before you launch your product’s replacement?
+ENVIRONMENT
+Storage Environment
+Temperature Range
+-40 deg C to +70 deg C
+Humidity Range0% to 95% RH, non-condensing
+0% to 95% RH, non-condensing
+Operating Environment
+Indoor, Outdoor, Wearable
+Indoor – Yes
+Outdoor – Yes, assuming 3
+rd
+party weatherproof enclosure.
+Temperature Range
+-40 deg C to +70 deg C
+Humidity Range
+0% to 95% RH, non-condensing
+INDUSTRIAL DESIGN
+Brand
+Security and robustness
+Renderings
+Place images of your product here.
+Color, Material, and Finish (CMF)
+Which colors and textures will be used?
+Logo size and placement
+Where will the logo be placed?
+Connectors
+(Power, USB, Lighting, Audio)
+Which connectors, if any, does your product need?
+Visual Interface
+(Screen size and type, LEDs)
+What will the product display, visually?
+Touch Interface
+(Mechanical actuators/switches, touch sensitivity, haptics)
+How will people interact with their sense of touch?
+Audio Interface
+(Microphones, speakers)
+Which audio inputs and outputs?
+ELECTRICAL HARDWARE AND SENSORS
+Block Diagram of Electrical Hardware
+Paste an image here showing which hardware (e.g., sensors, screens, buttons) will be required and how they will connect.
+Input/Sensor Requirements
+What should be sensed and to what accuracy?
+Output/Actuator Requirements
+How does the product affect its physical world?
+Critical BOM Components
+What are major electrical components?
+Communication Requirements
+With what and how fast does the product need to communicate?
+Power Requirements
+Should it be plugged into an outlet or powered with disposable or rechargeable batteries? If batteries, how long should it last between replacement or recharging?
+DURABILITY
+Lifetime requirements
+How long should the product last before it is unusable?
+Cycles of various sub-systems
+How long should specific parts of the product last?
+Chemical resistance (sweat, sebum, sunscreen, salt water)
+Which chemicals should the product resist?
+UV resistance (sunlight)
+Should be product be UV resistant?
+Environmental (Dust, Water, etc.)
+Dust or water? Use IPX codes here.
+Mechanical (Drop, Vibration, Abrasion, etc.)
+What mechanical abuse should the product withstand?
+PACKAGING
+In the Box
+What comes in the box?
+Unboxing Experience
+What should the user experience when unboxing the product?
+Printing, colors, inserts, cardboard type, drop requirements
+Which elements of packaging should be included?
+Retail Requirements
+Will your product be sold in stores? If so, are there size constraints for the shelves or other considerations?
+SKU Combinations
+Are there different options? Try to design for just one when you are starting out.
+SERVICEABILITY
+Repair Services
+Will you repair or replace defective, broken, or unwanted products?
+Returns Process
+How would the customer return a product?
+Repair/Return Qualifications/Tolerances
+What defines a defective or broken product?
+Customer Support System
+How will customers contact your company?

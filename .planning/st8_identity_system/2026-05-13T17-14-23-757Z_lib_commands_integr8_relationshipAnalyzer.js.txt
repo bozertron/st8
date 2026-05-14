@@ -1,0 +1,52 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/integr8/relationshipAnalyzer.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/integr8/relationshipAnalyzer.js||2026-05-12T08:23:17.358Z
+  Filepath:         lib/commands/integr8/relationshipAnalyzer.js
+  Filename:         relationshipAnalyzer.js
+  Birth Timestamp:  2026-05-12T08:23:17.358Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     4e14275bf14537b2bf1d0b851688a4b0f86fe929e34c7556945b668f194e7ede
+  File Size:        39065 bytes
+  Last Modified:    2026-05-12T08:23:17.359Z
+  Last Indexed:     2026-05-13 17:14:23
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      ./types.js
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z
+  Imports:          backend/st8-types.js||2026-05-13T14:13:47.351Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 17:14:23
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T17:14:23.757Z

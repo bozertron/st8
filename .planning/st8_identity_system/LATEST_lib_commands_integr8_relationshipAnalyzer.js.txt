@@ -1,0 +1,56 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/integr8/relationshipAnalyzer.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/integr8/relationshipAnalyzer.js||2026-05-12T08:23:17.358Z
+  Filepath:         lib/commands/integr8/relationshipAnalyzer.js
+  Filename:         relationshipAnalyzer.js
+  Birth Timestamp:  2026-05-12T08:23:17.358Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     4e14275bf14537b2bf1d0b851688a4b0f86fe929e34c7556945b668f194e7ede
+  File Size:        39065 bytes
+  Last Modified:    2026-05-12T08:23:17.359Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     analyzeRelationships
+  variable     analyzeStructuralSubtyping
+  variable     detectBreakingChanges
+  variable     computeTarjanSCC
+  variable     detectCyclesWithTarjan
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      ./types.js
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z
+  Imports:          backend/st8-types.js||2026-05-13T14:13:47.351Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Code relationship analysis ???
+  Depends On:       types ???
+  Value Statement:  Provides analyzeRelationships API, analyzeStructuralSubtyping API, detectBreakingChanges API, computeTarjanSCC API, detectCyclesWithTarjan API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:20:17.537Z

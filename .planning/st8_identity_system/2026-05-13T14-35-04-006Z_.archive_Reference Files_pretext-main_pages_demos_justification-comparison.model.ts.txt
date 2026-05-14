@@ -1,0 +1,62 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — .archive/Reference Files/pretext-main/pages/demos/justification-comparison.model.ts
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      .archive/Reference Files/pretext-main/pages/demos/justification-comparison.model.ts:2026-05-10T06:35:12.945Z
+  Filepath:         .archive/Reference Files/pretext-main/pages/demos/justification-comparison.model.ts
+  Filename:         justification-comparison.model.ts
+  Birth Timestamp:  2026-05-10T06:35:12.945Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     1a43d4d1cccd51cb2c0a6e172efa83edb6ac38a4c8a9d3491627a5240cfc8d7f
+  File Size:        17722 bytes
+  Last Modified:    2026-05-10T06:18:51.000Z
+  Last Indexed:     2026-05-13 14:35:03
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           GREEN
+  Reachability:     0.95
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  type         DemoControls
+  type         DemoResources
+  type         LineSegment
+  type         MeasuredLine
+  type         LineSpacing
+  type         PositionedLine
+  type         QualityMetrics
+  type         CanvasColumnFrame
+  type         DemoFrame
+  type         RiverIndicator
+  function     createDemoResources — createDemoResources(): DemoResources: DemoResources
+  function     buildDemoFrame — buildDemoFrame(resources: DemoResources, controls: DemoControls): DemoFrame: DemoFrame
+  function     getRiverIndicator — getRiverIndicator(spaceWidth: number, normalSpaceWidth: number): RiverIndicator | null: RiverIndicator | null
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  named        ../../src/layout.ts {prepareWithSegments, layoutNextLine, LayoutCursor, PreparedTextWithSegments}
+  named        ./justification-comparison.data.ts {FONT, HYPHEN_EXCEPTIONS, LINE_HEIGHT, PAD, PARA_GAP, PARAGRAPHS, PREFIXES, SUFFIXES}
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T14:35:04.006Z

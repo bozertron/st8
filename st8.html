@@ -1377,12 +1377,94 @@
     padding: var(--space-3) var(--space-5);
   }
 
+  /* ─── MUTATION NOTIFICATIONS ─────────────────────────────── */
+  .mutation-toast-container {
+    position: fixed;
+    top: var(--space-4);
+    right: var(--space-4);
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    pointer-events: none;
+  }
+  .mutation-toast {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: rgba(12, 12, 14, 0.95);
+    border: 1px solid var(--cyan);
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px rgba(31, 189, 234, 0.3),
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 0 24px rgba(31, 189, 234, 0.1);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--text);
+    pointer-events: auto;
+    animation: toast-in 200ms ease-out;
+    max-width: 400px;
+  }
+  .mutation-toast.dismissing {
+    animation: toast-out 300ms ease-in forwards;
+  }
+  .mutation-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .mutation-badge.badge-create { background: var(--gold); color: var(--void); }
+  .mutation-badge.badge-edit   { background: var(--cyan); color: var(--void); }
+  .mutation-badge.badge-lock   { background: var(--pink); color: var(--void); }
+  .mutation-badge.badge-concept { background: rgba(31, 189, 234, 0.2); color: var(--cyan); border: 1px solid var(--cyan); }
+  .mutation-badge.badge-production { background: var(--gold); color: var(--void); }
+  .mutation-badge.badge-purge  { background: rgba(201, 116, 143, 0.2); color: var(--pink); border: 1px solid var(--pink); }
+  .mutation-badge.badge-other  { background: rgba(224, 224, 224, 0.15); color: var(--text); }
+  .mutation-filepath {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cyan);
+    font-size: 12px;
+  }
+  .mutation-time {
+    flex-shrink: 0;
+    color: var(--text);
+    opacity: 0.5;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(40px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mutation-toast { animation: none; }
+    .mutation-toast.dismissing { animation: none; opacity: 0; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .explorer-spin, .phreak-executing { animation: none; }
   }
 </style>
 </head>
 <body>
+  <!-- Mutation notification toasts (SSE-driven) -->
+  <div class="mutation-toast-container" id="mutation-toasts" aria-live="polite" aria-label="Mutation notifications"></div>
+
   <main class="void" id="void">
     <div id="stage"></div>
   </main>
@@ -1921,6 +2003,137 @@
       
       return null;
     }
+
+    // ─── SSE MUTATION STREAM ──────────────────────────────────
+    // Connect to the backend mutation notification stream.
+    // Uses relative URL since frontend is served from same origin.
+    (function initMutationStream() {
+      var mutationSource = null;
+      var reconnectTimer = null;
+      var reconnectDelay = 1000; // Start at 1s, exponential backoff to 30s
+      var MAX_RECONNECT_DELAY = 30000;
+      var TOAST_DURATION = 5000; // Auto-dismiss after 5s
+
+      function getBadgeClass(mutationType) {
+        var type = (mutationType || '').toUpperCase();
+        if (type === 'CREATE')     return 'badge-create';
+        if (type === 'EDIT')       return 'badge-edit';
+        if (type === 'DELETE')     return 'badge-purge';
+        if (type === 'LOCK')       return 'badge-lock';
+        if (type === 'CONCEPT')    return 'badge-concept';
+        if (type === 'PRODUCTION') return 'badge-production';
+        if (type === 'PURGE')      return 'badge-purge';
+        return 'badge-other';
+      }
+
+      function formatTime(isoString) {
+        try {
+          var d = new Date(isoString);
+          var h = String(d.getHours()).padStart(2, '0');
+          var m = String(d.getMinutes()).padStart(2, '0');
+          var s = String(d.getSeconds()).padStart(2, '0');
+          return h + ':' + m + ':' + s;
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function showMutationToast(data) {
+        var container = document.getElementById('mutation-toasts');
+        if (!container) return;
+
+        var toast = document.createElement('div');
+        toast.className = 'mutation-toast';
+
+        var badge = document.createElement('span');
+        badge.className = 'mutation-badge ' + getBadgeClass(data.mutationType);
+        badge.textContent = data.mutationType || 'UNKNOWN';
+
+        var filepath = document.createElement('span');
+        filepath.className = 'mutation-filepath';
+        filepath.textContent = data.filepath || data.fingerprint || '—';
+        filepath.title = data.filepath || data.fingerprint || '';
+
+        var time = document.createElement('span');
+        time.className = 'mutation-time';
+        time.textContent = formatTime(data.publishedAt || data.timestamp);
+
+        toast.appendChild(badge);
+        toast.appendChild(filepath);
+        toast.appendChild(time);
+        container.appendChild(toast);
+
+        // Auto-dismiss after TOAST_DURATION
+        setTimeout(function() {
+          toast.classList.add('dismissing');
+          setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+          }, 300);
+        }, TOAST_DURATION);
+      }
+
+      function connect() {
+        if (mutationSource) {
+          try { mutationSource.close(); } catch (_) {}
+        }
+
+        mutationSource = new EventSource('/api/mutations');
+
+        mutationSource.onopen = function() {
+          console.info('[st8] Mutation stream connected');
+          reconnectDelay = 1000; // Reset backoff on successful connect
+        };
+
+        mutationSource.onmessage = function(event) {
+          try {
+            var data = JSON.parse(event.data);
+
+            // Skip the initial 'connected' event from the server
+            if (data.type === 'connected') {
+              console.info('[st8] SSE handshake complete');
+              return;
+            }
+
+            console.log('[st8] Mutation:', data.mutationType, data.filepath);
+
+            // Display notification toast in UI
+            showMutationToast(data);
+
+            // Surface mutation in phreak terminal TUI
+            if (window.PhreakTerminal && window.PhreakTerminal.notifyMutation) {
+              window.PhreakTerminal.notifyMutation(data);
+            }
+          } catch (err) {
+            console.warn('[st8] Failed to parse mutation event:', err);
+          }
+        };
+
+        mutationSource.onerror = function() {
+          console.warn('[st8] Mutation stream disconnected — will auto-reconnect');
+          mutationSource.close();
+          mutationSource = null;
+
+          // Exponential backoff reconnection
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(function() {
+            reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+            connect();
+          }, reconnectDelay);
+        };
+      }
+
+      // Initial connection
+      connect();
+
+      // Expose for debugging
+      window.st8MutationStream = {
+        reconnect: connect,
+        close: function() {
+          clearTimeout(reconnectTimer);
+          if (mutationSource) { mutationSource.close(); mutationSource = null; }
+        }
+      };
+    })();
   </script>
 </body>
 </html>

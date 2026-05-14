@@ -1,0 +1,61 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/backgroundIndexer.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z
+  Filepath:         lib/commands/backgroundIndexer.js
+  Filename:         backgroundIndexer.js
+  Birth Timestamp:  2026-05-12T08:23:17.356Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     153dfb21e00b81fdea02641499237e82fdcab4e192596bbc69912fe2505cc428
+  File Size:        40071 bytes
+  Last Modified:    2026-05-12T08:23:17.356Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     BackgroundIndexer
+  variable     getBackgroundIndexer
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      events
+  require      chokidar
+  require      ./integr8/databasePersister.js
+  require      ./integr8/dataIngestion.js
+  require      ./parserPersistence.js
+  require      ./sonicClient.js
+  require      ./insightStore.js
+  require      ./multiPassAnalyzer.js
+  require      ./precisionCapture.js
+  require      ./integr8/types.js
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imports:          lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z, lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z, lib/commands/parserPersistence.js||2026-05-12T08:24:07.121Z, lib/commands/insightStore.js||2026-05-12T08:24:07.123Z, lib/commands/integr8/types.js||2026-05-12T08:23:39.439Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Codebase indexing and analysis — src/commands/backgroundIndexer.ts ???
+  Depends On:       events, file system watching, databasePersister, dataIngestion, database persistence layer, sonicClient, insightStore, multiPassAnalyzer, precisionCapture, types ???
+  Value Statement:  Provides adopt API, fulfilled API, rejected API, step API, codebase indexing pipeline, sleep API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:11:56.267Z

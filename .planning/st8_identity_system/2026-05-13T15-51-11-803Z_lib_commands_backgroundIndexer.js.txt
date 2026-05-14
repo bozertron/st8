@@ -1,0 +1,60 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/backgroundIndexer.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z
+  Filepath:         lib/commands/backgroundIndexer.js
+  Filename:         backgroundIndexer.js
+  Birth Timestamp:  2026-05-12T08:23:17.356Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     153dfb21e00b81fdea02641499237e82fdcab4e192596bbc69912fe2505cc428
+  File Size:        40071 bytes
+  Last Modified:    2026-05-12T08:23:17.356Z
+  Last Indexed:     2026-05-13 15:51:11
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      events
+  require      chokidar
+  require      ./integr8/databasePersister.js
+  require      ./integr8/dataIngestion.js
+  require      ./parserPersistence.js
+  require      ./sonicClient.js
+  require      ./insightStore.js
+  require      ./multiPassAnalyzer.js
+  require      ./precisionCapture.js
+  require      ./integr8/types.js
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  (none)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          (not set)
+  Depends On:       (not set)
+  Value Statement:  (not set)
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  1
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 15:51:11
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T15:51:11.803Z

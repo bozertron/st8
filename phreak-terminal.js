@@ -826,6 +826,43 @@ function _updatePhoneIconState() {
     });
 }
 
+// ─── MUTATION NOTIFICATIONS (SSE-driven) ──────────────────────
+// Called by the SSE mutation stream in st8.html.
+// Displays mutation events in the terminal output area.
+// Format: [MUTATION] {type} {filepath} {timestamp}
+// Colors: CREATE → gold (system), EDIT → cyan (stdout), LOCK → pink (stderr)
+
+function notifyMutation(data) {
+    if (!data) return;
+
+    var type = (data.mutationType || 'UNKNOWN').toUpperCase();
+    var filepath = data.filepath || data.fingerprint || '—';
+    var timestamp = data.publishedAt || data.timestamp || '';
+
+    // Format time as HH:MM:SS
+    var timeStr = '';
+    if (timestamp) {
+        try {
+            var d = new Date(timestamp);
+            timeStr = String(d.getHours()).padStart(2, '0') + ':' +
+                      String(d.getMinutes()).padStart(2, '0') + ':' +
+                      String(d.getSeconds()).padStart(2, '0');
+        } catch (_) {}
+    }
+
+    var msg = '[MUTATION] ' + type + ' ' + filepath + (timeStr ? ' ' + timeStr : '');
+
+    // Map mutation type to line type for color coding
+    var lineType;
+    if (type === 'CREATE')      lineType = 'system';  // gold
+    else if (type === 'EDIT')   lineType = 'stdout';  // cyan
+    else if (type === 'LOCK')   lineType = 'stderr';  // pink
+    else                        lineType = 'system';  // default gold
+
+    phreakState.lines.push(_mkLine(lineType, msg));
+    _renderLines();
+}
+
 // ─── EPO BUS LISTENER ─────────────────────────────────────────
 // Listens for signals from the actu8 EPO WebSocket bus.
 // Translates EPO broadcast messages into phreak signals.
@@ -998,6 +1035,9 @@ if (typeof window !== 'undefined') {
         // New: Signal framework
         receiveSignal: receiveSignal,
         getSignals: function() { return phreakState.signals; },
+
+        // New: Mutation notification (SSE-driven)
+        notifyMutation: notifyMutation,
 
         // New: Phone toggle
         togglePhoneOffHook: togglePhoneOffHook,

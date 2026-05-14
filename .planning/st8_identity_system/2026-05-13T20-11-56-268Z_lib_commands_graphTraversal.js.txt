@@ -1,0 +1,63 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — lib/commands/graphTraversal.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      lib/commands/graphTraversal.js||2026-05-12T08:23:17.355Z
+  Filepath:         lib/commands/graphTraversal.js
+  Filename:         graphTraversal.js
+  Birth Timestamp:  2026-05-12T08:23:17.355Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     46a9a836ca47c9384704ab3a329b4ae475fb8edda4f6c6d4d6ec3e694e1b52af
+  File Size:        32589 bytes
+  Last Modified:    2026-05-12T08:23:17.355Z
+  Last Indexed:     2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     clearCache
+  variable     ensureIndexes
+  variable     findPaths
+  variable     analyzeReachability
+  variable     extractSubgraph
+  variable     computeImpactChain
+  variable     findImportsOf
+  variable     findConsumersOf
+  variable     findOrphans
+  variable     getDirectorySubgraph
+  variable     getDirectoryBoundary
+  variable     getDataFlowMetrics
+  variable     getFileFlows
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      ./integr8/databasePersister.js
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imports:          lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Graph traversal and querying — src/commands/graphTraversal.ts ???
+  Depends On:       databasePersister ???
+  Value Statement:  Provides clearCache API, getCoherentGraphData API, getDb API, shouldCloseDb API, codebase indexing pipeline, validateGraphId API, getAllNodes API, getAllEdges API, getCachedNodes API, getCachedEdges API, buildAdjacency API, normalizeDirPath API, nodeIsInDirectory API, isCaseInsensitiveFS API, pathEquals API, pathEndsWith API, findPaths API, analyzeReachability API, extractSubgraph API, computeImpactChain API, findImportsOf API, findConsumersOf API, findOrphans API, getDirectorySubgraph API, getDirectoryBoundary API, getDataFlowMetrics API, getFileFlows API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  4
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:11:56
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:11:56.268Z

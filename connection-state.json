@@ -1,0 +1,1330 @@
+{
+  "metadata": {
+    "timestamp": "2026-05-13T20:11:56.056Z",
+    "targetDirectory": "/home/bozertron/1_AT_A_TIME/st8",
+    "totalFiles": 42,
+    "statusCounts": {
+      "GREEN": 13,
+      "YELLOW": 0,
+      "RED": 29
+    }
+  },
+  "files": [
+    {
+      "fingerprint": "backend/fileWatcher.js||2026-05-12T07:22:16.663Z",
+      "filepath": "backend/fileWatcher.js",
+      "filename": "fileWatcher.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "cc5007dc88248f76ec5c89fa3889c912e6d6931518148a09f02c8b0c9ab9d1ac",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/gapAnalyzer.js||2026-05-13T19:58:37.780Z",
+      "filepath": "backend/gapAnalyzer.js",
+      "filename": "gapAnalyzer.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "07fb89b8be55bbba7e49c124352f250f807efb20d4a61c304d86fd6a439f535e",
+      "imports": [
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/index.js||2026-05-12T07:23:01.935Z",
+      "filepath": "backend/index.js",
+      "filename": "index.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "95ac1934e6dfd8add4189ec5adfdfb98734ee36fda937083a8387b09e785e2c9",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./indexer",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./manifestGenerator",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./fileWatcher",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./server",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./st8-types",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./schemaCardEmitter",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./schemaCardPrinter",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./notificationBus",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./gapAnalyzer",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./manifestGenerator",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "crypto",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "crypto",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./manifestGenerator",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/indexer.js||2026-05-12T07:20:30.968Z",
+      "filepath": "backend/indexer.js",
+      "filename": "indexer.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "ed44261822b7b6c57358a5ddf67b83c8aac1f7fcee48f62e5ebaba13dd271213",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./st8-types",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "crypto",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/intentSeeder.js||2026-05-13T19:58:06.979Z",
+      "filepath": "backend/intentSeeder.js",
+      "filename": "intentSeeder.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "b2bf120c6a2a3ebab2524642836704e890e714d06eccdd60f8e859087f71a395",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "module",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/manifestGenerator.js||2026-05-12T07:21:55.099Z",
+      "filepath": "backend/manifestGenerator.js",
+      "filename": "manifestGenerator.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "04150c7487a653f16c0e50cceb01740fcf30c37943429a738ef9f20fc4b88f41",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/notificationBus.js||2026-05-13T14:15:13.100Z",
+      "filepath": "backend/notificationBus.js",
+      "filename": "notificationBus.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "c470df2bc713ea5bb9f5e8d4a7d9595b7cfee8af27060cb73fd583d395e52914",
+      "imports": [
+        {
+          "source": "events",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/persistence.js||2026-05-12T07:21:03.355Z",
+      "filepath": "backend/persistence.js",
+      "filename": "persistence.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "ea59e194892179846a4eb5de78a1e1994ab2b808c5c8e962bf3382d119ce4701",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./st8-types",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "better-sqlite3",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./st8-types",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/prdGenerator.js||2026-05-13T16:12:16.658Z",
+      "filepath": "backend/prdGenerator.js",
+      "filename": "prdGenerator.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "ad056b5b0ee931fea98cbb97011df3a6591239898bc134e3525db9574c78ccfb",
+      "imports": [
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/schemaCardEmitter.js||2026-05-13T14:15:44.081Z",
+      "filepath": "backend/schemaCardEmitter.js",
+      "filename": "schemaCardEmitter.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "d7e84127d6a29b780c247910d80cbc3b37ed3fab386bfd1c500e1830bc314e7e",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./st8-types",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/schemaCardPrinter.js||2026-05-13T14:15:22.619Z",
+      "filepath": "backend/schemaCardPrinter.js",
+      "filename": "schemaCardPrinter.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "967b3291cb6394d177f2b49ca8c057cd979a3dcdaba146720d0dbaf5fc9eabf6",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/server.js||2026-05-12T07:22:39.719Z",
+      "filepath": "backend/server.js",
+      "filename": "server.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "00ede598158f817773f0c76c9ad7c8bbb86759304729d941a7ab529d4b317610",
+      "imports": [
+        {
+          "source": "http",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./indexer",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./manifestGenerator",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "os",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "crypto",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./indexer",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./notificationBus",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./notificationBus",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./schemaCardEmitter",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./notificationBus",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./prdGenerator",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./notificationBus",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./gapAnalyzer",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/st8-types.js||2026-05-13T14:13:47.351Z",
+      "filepath": "backend/st8-types.js",
+      "filename": "st8-types.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "56fe72318a65897bf984d15e8db51f47802a92bc76f8268f890e64e2ecf78de1",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "backend/verify-persistence-fixes.js||2026-05-13T15:08:05.551Z",
+      "filepath": "backend/verify-persistence-fixes.js",
+      "filename": "verify-persistence-fixes.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "3f158d41ed0b8435e9963d9b555f3810b221126c43f249a7c0ac6d2a30bf93c5",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./persistence",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "coordination.js||2026-05-12T08:09:56.549Z",
+      "filepath": "coordination.js",
+      "filename": "coordination.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "dbf0430b2bf034facf0afc53910142c8aa12d3c359104e1134a8c10658c1bbee",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "fake-stream.js||2026-05-11T21:48:30.641Z",
+      "filepath": "fake-stream.js",
+      "filename": "fake-stream.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "7ddf703ac6e471b1544b19c519c18919b791e47dc82bc995d14b7ad3eaa1f151",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "file-explorer.js||2026-05-11T21:48:30.642Z",
+      "filepath": "file-explorer.js",
+      "filename": "file-explorer.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "2d5bee63156025e6a77f41113668f99c75f28d55cc1e385ea7789c971cc2ac90",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "graph-visualizer.js||2026-05-12T08:01:28.404Z",
+      "filepath": "graph-visualizer.js",
+      "filename": "graph-visualizer.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "87db68a764a9502f70c002db879e27e2e5eefae53ac0edc29033811fc19c71f1",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z",
+      "filepath": "lib/commands/backgroundIndexer.js",
+      "filename": "backgroundIndexer.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "153dfb21e00b81fdea02641499237e82fdcab4e192596bbc69912fe2505cc428",
+      "imports": [
+        {
+          "source": "events",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "chokidar",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./integr8/databasePersister.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./integr8/dataIngestion.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./parserPersistence.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./sonicClient.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./insightStore.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./multiPassAnalyzer.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./precisionCapture.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./integr8/types.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/graphBuilder.js||2026-05-12T08:23:17.353Z",
+      "filepath": "lib/commands/graphBuilder.js",
+      "filename": "graphBuilder.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "9a25a350e3cfaf036b132cfa9f41526f33aef274ac1536de58d746cb2daa4015",
+      "imports": [
+        {
+          "source": "./integr8/types.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./integr8/dataIngestion.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/graphTraversal.js||2026-05-12T08:23:17.355Z",
+      "filepath": "lib/commands/graphTraversal.js",
+      "filename": "graphTraversal.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "46a9a836ca47c9384704ab3a329b4ae475fb8edda4f6c6d4d6ec3e694e1b52af",
+      "imports": [
+        {
+          "source": "./integr8/databasePersister.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/insightStore.js||2026-05-12T08:24:07.123Z",
+      "filepath": "lib/commands/insightStore.js",
+      "filename": "insightStore.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "8b10ebbf0cd0d968cbbae2c702763c077d18d6058a1299bfb80e67eafcc7f005",
+      "imports": [
+        {
+          "source": "./integr8/databasePersister.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z",
+      "filepath": "lib/commands/integr8/dataIngestion.js",
+      "filename": "dataIngestion.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "26252475dfff09c6fbff0bee93a23382ae53b9d856a1dddae8b535c567181e59",
+      "imports": [
+        {
+          "source": "./types.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../overview.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../storeParser.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../routeParser.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../commandParser.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../typeParser.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../uiParser.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../parserPersistence.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../../utils/astParser.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../../utils/safeFs.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "../../utils/ioChan.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z",
+      "filepath": "lib/commands/integr8/databasePersister.js",
+      "filename": "databasePersister.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "04ae44a9c1e3dbd32ff918f64512885d7867d15c6862c013ffdd84d39f842c66",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z",
+      "filepath": "lib/commands/integr8/index.js",
+      "filename": "index.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "21dccb0f1c54ae899ef036c66312e4aa39fd6fa2da891d74f2606da92b5b7cfe",
+      "imports": [
+        {
+          "source": "./dataIngestion.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./relationshipAnalyzer.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./pathGenerator.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./tomlSerializer.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./reportGenerator.js",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./databasePersister.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/migrationExecutor.js||2026-05-12T08:23:53.251Z",
+      "filepath": "lib/commands/integr8/migrationExecutor.js",
+      "filename": "migrationExecutor.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "7d5da68a5bf092ae189a4e63af5cbfd127af1d0f5a2666f65f476a6211b46557",
+      "imports": [
+        {
+          "source": "./views/NewView.vue",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./types",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./tomlSerializer",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "child_process",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "crypto",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "crypto",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z",
+      "filepath": "lib/commands/integr8/pathGenerator.js",
+      "filename": "pathGenerator.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "e94effb08cc1076889336c2e0875acf4f6bf36a39d8db1a7defacf0bd1ba268e",
+      "imports": [
+        {
+          "source": "./${toNode.name}",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "./types",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/relationshipAnalyzer.js||2026-05-12T08:23:17.358Z",
+      "filepath": "lib/commands/integr8/relationshipAnalyzer.js",
+      "filename": "relationshipAnalyzer.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "4e14275bf14537b2bf1d0b851688a4b0f86fe929e34c7556945b668f194e7ede",
+      "imports": [
+        {
+          "source": "./types.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/reportGenerator.js||2026-05-12T08:23:53.250Z",
+      "filepath": "lib/commands/integr8/reportGenerator.js",
+      "filename": "reportGenerator.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "0463aaf686a6d7e9de57b77a35a6d75caa234f63ea434efb8d47890d740198cd",
+      "imports": [
+        {
+          "source": "./types.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/tomlSerializer.js||2026-05-12T08:23:17.360Z",
+      "filepath": "lib/commands/integr8/tomlSerializer.js",
+      "filename": "tomlSerializer.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "8b88f44eb2e5e8a38b252c76c333dc025a36b95efebccd01b9afbc7b99f06b03",
+      "imports": [
+        {
+          "source": "./types",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/integr8/types.js||2026-05-12T08:23:39.439Z",
+      "filepath": "lib/commands/integr8/types.js",
+      "filename": "types.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "24f21d7b8965ac3d7954f32ccc6eb2c6d98ff03c07e93c575c481f0c3519c25f",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/overview.js||2026-05-12T08:24:07.119Z",
+      "filepath": "lib/commands/overview.js",
+      "filename": "overview.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "c5eef5501a0c99e1aef9056f29d3855e9fd4beb7c9be84c8c1f0f7012ca08c9f",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/commands/parserPersistence.js||2026-05-12T08:24:07.121Z",
+      "filepath": "lib/commands/parserPersistence.js",
+      "filename": "parserPersistence.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "adbee951b8a3e72d7a917c1743b1095d55446382a24fae72dc8d7a2fbf07c01a",
+      "imports": [
+        {
+          "source": "./integr8/databasePersister.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/utils/astParser.js||2026-05-12T08:23:17.352Z",
+      "filepath": "lib/utils/astParser.js",
+      "filename": "astParser.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "a9e687253fb86f5de397e20e712d308f227871d9660ba18938916c0b14052070",
+      "imports": [
+        {
+          "source": "@babel/parser",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/utils/groundPlane.js||2026-05-12T08:23:39.438Z",
+      "filepath": "lib/utils/groundPlane.js",
+      "filename": "groundPlane.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "c42a6284a7dcaa40fff2a66ec626d2498ac4dd43e099e91ae4980d40bb173de1",
+      "imports": [
+        {
+          "source": "./safeFs.js",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/utils/ioChan.js||2026-05-12T08:23:39.436Z",
+      "filepath": "lib/utils/ioChan.js",
+      "filename": "ioChan.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "f323839429728a735feaf5c37f803f118ae9b8aec5980a14acc5282baa4b5b8b",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "lib/utils/safeFs.js||2026-05-12T08:23:39.435Z",
+      "filepath": "lib/utils/safeFs.js",
+      "filename": "safeFs.js",
+      "status": "GREEN",
+      "reachabilityScore": 0.95,
+      "impactRadius": 0,
+      "sha256Hash": "5914a4d73bca45ac2763fd9e3cd161101b30ca5d7b3db0909af2e778fa20f52d",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "phreak-terminal.js||2026-05-11T21:48:30.642Z",
+      "filepath": "phreak-terminal.js",
+      "filename": "phreak-terminal.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "e837c4f43afb0cfba4de64a75bf4d8ccc70611a6ae035327fdaa858bdb31612c",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "settings-reader.js||2026-05-11T21:48:30.642Z",
+      "filepath": "settings-reader.js",
+      "filename": "settings-reader.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "0bf9e4597121a7a768b1c496eec60cc74e8d21d7c7e6adbab93068a3e5531377",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "settings-ui.js||2026-05-12T08:05:12.940Z",
+      "filepath": "settings-ui.js",
+      "filename": "settings-ui.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "b57a37df95cf9a08a26ec1988208e7466d33f5fa685106ebc2f17be79ef52aa7",
+      "imports": [],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "start.js||2026-05-12T08:27:16.939Z",
+      "filepath": "start.js",
+      "filename": "start.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "613beb7fddc9270d29500840790e39ed168ff509731cb8465348842eb7bf9fb3",
+      "imports": [
+        {
+          "source": "path",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "fs",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "child_process",
+          "names": [],
+          "isDefault": false
+        },
+        {
+          "source": "open",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    },
+    {
+      "fingerprint": "void-engine.js||2026-05-11T21:48:30.649Z",
+      "filepath": "void-engine.js",
+      "filename": "void-engine.js",
+      "status": "RED",
+      "reachabilityScore": 0,
+      "impactRadius": 0,
+      "sha256Hash": "92311a9b3186a07cf440dc2e2235a3eb2f139a713312ae70ac1c598686d8412e",
+      "imports": [
+        {
+          "source": "https://esm.sh/@chenglou/pretext@0.0.6",
+          "names": [],
+          "isDefault": false
+        }
+      ],
+      "importedBy": [],
+      "intent": {
+        "purpose": "",
+        "dependsOnBehavior": "",
+        "valueStatement": ""
+      }
+    }
+  ]
+}

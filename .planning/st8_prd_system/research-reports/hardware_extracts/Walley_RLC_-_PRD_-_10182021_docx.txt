@@ -1,0 +1,458 @@
+Product Requirements Document
+P
+roject
+N
+ame
+Walley
+P
+roject
+L
+ead
+Benjamin Webster
+CTO
+Dan Wiggins
+High Voltage
+Hardware
+Advisor
+Alex
+Cosneau
+Hardware Lead
+Winston Shi
+RF Advisor
+Nordic Semiconductor
+FAE + HQ Team
+Firmware Lead
+Sefir
+Memic
+C
+lient
+ULC
+Inc. – Intellectual Property
+Licensing
+Division
+REVISION STATUS
+REV
+WHEN
+WHO
+WHAT
+WHY
+1.0
+07/18/2021
+Ben
+Full Revision
+Reflection of final decisions for
+GtM
+showcase
+1.1
+09/03/2021
+Ben
+Full Revision
+Product Scope Simplification & Optimization
+– Residential and Light Commercial (RLC)
+, First attempt at DFM
+OVERVIEW
+Product Description
+Don’t make a bunch of smart switches
+and outlets.
+M
+ake one device t
+hat
+enables
+all
+switches
+and outlets to be
+smart.
+Market Need
+T
+he world is overhauling their electrical grids to service contemporary needs. There are no exceptions.
+Underdeveloped countries are targeting state of the art infrastructure in favor of legacy designs
+, developed countries are investing in comprehensive redesigns.
+There is a large emerging market for next generation power generation, storage, and management. The usual suspects in this market would be alternative energy generators that have been heavily marketed globally
+– solar panels, wind turbines,
+etc..
+And c
+ompanies like Tesla who are
+leading the charge with devices like the
+powerwall
+for dedicated storge,
+and
+grid/local switching.
+There are more companies, but this is the ‘mass
+perspective’
+. The public has yet to gain a ‘
+Ford
+vs.
+Chevy’ level of understanding in this market, the lack of popular opinion will be leveraged in the product’s favor.
+At a professional – infrastructure grade – level, there are
+plenty of devices that will estimate consumption, but when it comes to taking action, the only options are effectively toys built for weekend warriors
+– time consuming to install, a pain to configure, and ill-defined form factors
+, or
+,
+expensive - $1000+ per circuit c
+ontactors
++
+PLC’s
+built for
+extreme situations
+and require large budgets for maintenance
+.
+There is no middle ground product that provides the masses a safe, reliable, method to perform a granular power consumption analysis, and then dynamically allocate power based on the observations
+and conditions
+,
+while
+also be
+ing
+install friendly – in turn making it economically viable – to the
+professionals who are installing it at scale.
+That is
+what we’re building.
+Walley is the middle ground product that is designed by professionals, for professionals
+– to enable
+smart power management at
+scale
+.
+Walley will provide professionals a new revenue opportunity, while helping governments and utilities manage power
+consumption and
+waste.
+Key Features/ Functionality
+Walley is compatible in
+a wide variety of AC
+Power Grids
+:
+85V AC – 264V AC (50Hz – 60Hz)
+Walley can meet the building and safety code for a 20A device in a 120V AC grid (Canada/USA):
+Device must be able to safely sustain 20A of power @120V for one hour.
+Device must be able to safely sustain 16A of power @120V continuously.
+W
+alley monitors power consumption
+:
+I’ve done some research on parts here. Microchip, ADI, Allegro, many semiconductor companies make parts.
+At a glance
+, prices range from about $
+0.50
+- $4.
+I believe a part like this is viable, need confirmation:
+https://www.mouser.ca/new/onsemi/onsemi-ncs21xr-current-monitor/#Bullet-3
+Walley provides 10 different modes of operation, called personalities:
+Single Power Outlet Mode – Requirements:
+Present to the RF as a single outlet device with power monitoring capability and an additional single power monitor device.
+Control OUT1 and OUT2 in parallel
+at all times
+.
+Respond only to RF controls;
+ignore local controls at all times
+Provide power monitor feedback for outlet device (OUT1)
+Provide power monitor feedback for power monitor device (OUT2)
+Dual power outlet mode (each plug independently) – Requirements:
+Present to RF as two independent outlets (P
+LUG
+1 and P
+LUG
+2) with power monitoring capability.
+Control OUT1 and OUT2 independently.
+Respond only to RF controls;
+ignore local controls at all times
+.
+Provide power monitor feedback for each output.
+Single 2-way switch mode (both outputs operate in parallel) – Requirements:
+Present to the RF as a single 2-way switch with power monitoring capability and an additional single power monitor device.
+Control OUT1 and OUT2 in parallel
+at all times
+.
+Respond to RF controls.
+Respond to CRTL1 by toggling OUT1/OUT2 when CTRL1 is toggled (2-way switch).
+Provide power monitor feedback for switch device (OUT1).
+Provide power monitor feedback for power monitor device (OUT2).
+Dual 2-way switch mode (each output operates independently) – Requirements:
+Present to the RF as two independent switches (S
+WITCH
+1 and S
+WITCH
+2) each with power monitoring capability.
+Control OUT1 and OUT2 independently.
+Respond to RF controls.
+Respond to CRTL1 by toggling OUT1 when CTRL1 is toggled.
+Respond to CTRL2 by toggling OUT2 when CTRL2 is toggled.
+Provide power monitor feedback for each output.
+Single 2-way dimmer mode (both outputs operate in parallel, variable from 0% to 100% PWM) – Requirements:
+Present to the RF as a single 2-way dimmer with power monitoring capability and an additional power monitoring device.
+Control OUT1 and OUT2 in parallel
+at all times
+.
+Respond to RF controls.
+Respond only to CTRL1; adjust OUT1/OUT2 PWM to be proportional to the voltage seen on CTRL1 (0V = 0%, 1.5V = 50%, 3V = 100%).
+Provide power monitor feedback for dimmer device (OUT1).
+Provide power monitor feedback for power monitor device (OUT2).
+Dual 2-way dimmer mode (each output operates independently, variable from 0% to 100% PWM) – Requirements:
+Present to the RF as two 2-way dimmers (
+DIMMER
+1 and
+DIMMER
+2) with power monitoring capability.
+Control OUT1 and OUT2 independently.
+Respond to RF controls.
+Respond to CTRL1 by adjusting OUT1 PWM to be proportional to the voltage seen on CTRL1 (0V = 0%, 1.5V = 50%, 3V = 100%).
+Respond to CTRL2 by adjusting OUT2 PWM to be proportional to the voltage seen on CTRL2 (0V = 0%, 1.5V = 50%, 3V = 100%).
+Provide power monitor feedback for each dimmer device.
+Single 2-way switch (output 1) and a single 2-way dimmer (output 2, variable from 0% to 100% PWM) – Requirements:
+Present to the RF as a single 2-way switch and as a single 2-way dimmer (SWITCH 1 and DIMMER 2) each with power monitoring capability.
+Control OUT1 and OUT2 independently.
+Respond to RF control.
+Respond to CRTL1 by toggling OUT1 when CTRL1 is toggled (2-way switch).
+Respond to CTRL2 by adjusting OUT2 PWM to be proportional to the voltage seen on CTRL2 (0V = 0%, 1.5V = 50%, 3V = 100%).
+Provide power monitor feedback for the switch and dimmer independently.
+Single 3-way switch mode (output 1 only) – Requirements:
+Present to the RF as a single 3-way switch with power monitoring capability and a separate power monitor device.
+Control OUT1 and OUT2 in parallel
+at all times
+.
+Respond to RF controls.
+Respond to CTRL1 by toggling OUT1/OUT2 when CTRL1 is toggled.
+Respond to CTRL2 by toggling OUT1/OUT2 PWM when CTRL1 is toggled.
+Provide power monitor feedback for the 3-way switch for OUT1.
+Provide power monitor feedback for OUT2 as the power monitor device.
+Single 3-way dimmer mode (output 1 only, variable from 0% to 100% PWM) – Requirements:
+Present to the RF as a single 3-way dimmer with power monitoring capability and a separate power monitor device.
+Control OUT1 and OUT2 in parallel
+at all times
+.
+Respond to RF controls.
+Respond to CTRL1 by adjusting OUT1/OUT2 PWM to be proportional to the voltage seen on CTRL1 (0V = 0%, 1.5V = 50%, 3V = 100%).
+Respond to CTRL2 by adjusting OUT1/OUT2 PWM to be proportional to the voltage seen on CTRL2 (0V = 0%, 1.5V = 50%, 3V = 100%).
+Provide power monitor feedback for the 3-way dimmer for OUT1.
+Provide power monitor feedback for OUT2 as the power monitor device.
+Single 3 phase mode (both outputs operate in parallel) – Requirements:
+Present to the RF as a single 3 phase switch with power monitoring capability.
+Control OUT1 and OUT2 in parallel
+at all times
+.
+Respond to RF controls.
+Respond to CTRL1 by toggling OUT1/OUT2 when CTRL1 is toggled.
+Provide power monitor feedback as the square root of the monitored power of OUT1 times OUT2.
+Selection of personality is by a
+single-select
+means only accessible at time of installation:
+https://www.digikey.com/en/products/detail/adam-tech/HPH2-A-10-UA-SMT/9831541
+@Winston: This connector ^ is what Dan suggests
+to use
+for the single select method. Terminating the circuit at specific position by a simple jumper will dictate the “personality” of the device.
+For cost purposes, you are welcome to suggest alternative parts and suppliers that meet the same criteria.
+Ease
+of Installation:
+Walley provides all electrical connections as a set of colored
+pig-tails
+for ease-of-installation via supplied wire nuts.
+Pig-Tail
+= Lengths of Wire
+Wire Nut =
+Wire Requirements:
+Multistrand
+– 600V Rating
+7 X 14
+awg
+wires =
+3 X Line Input
+Black: hot
+White: Neutral
+Green: Ground
+4 X Outputs (2 Per Device)
+Red: In channel 1
+Brown: Out channel 1
+Yellow: In Channel 2
+Orange: Out channel 2
+6 X 20
+awg
+wires =
+2 X 10V Source
+Blue: Channel 1
+Grey: Channel 2
+2 X Control Wire – Used for sensing analog switch/dimmer positions. Nordic input max 3V3. Assume source as 10V source line, resistor divide to 3V or less.
+Purple: CTRL1
+Pink: CTRL2
+All wire lengths are to be 12” minimum
+and pre-stripped.
+Product Compatibility,
+Ecosystem, etc.
+Bluetooth Mesh – Standard
+Zigbee – Standard
+85
+V AC –>
+264
+V AC – Standard Electrical Systems
+for Residential and Light Commercial
+Analog Outlet, Switches, and Dimmer systems
+Stakeholders
+Target User
+Electricians
+Target Purchaser
+(
+if
+different from user)
+Electrical Contractors
+, Electrical Supply Distribution Channels, Real Estate Developers.
+Other Stakeholders
+Insurance, Utilities, Gov’t
+COMMERCIALS AND REGULATORY
+Countries of Sale
+Launch in North America, target is global.
+Target Launch Date
+January 2022 Mass Production
+Regulatory Requirements
+Safety (UL, CE)
+UL/ETL/CE
+Emissions (FCC, CE)
+FCC
+/CE
+Interoperability (Cellular,
+WiFi
+)
+Zigbee and Bluetooth Mesh
+Labeling
+Regulatory Marks
+TBD
+Country of Origin
+USA
+Serial Number
+Bluetooth ID can serve as Serial Number if we require unique ID codes
+.
+Financials
+BOM Cost
+The BOM target is $1
+2
+in mass production (1MM pc. Build qty.)
+COGs
+Market Dependent - TBD
+MSRP
+TBD
+Acceptable Margin
+TBD
+Volume
+MOQ of First Production Run
+Plan of record is 1K for Business Development & Case Study Generation.
+Annual Volume
+1MM+ Year two of sales.
+Timeline for Product Refresh (EOL)
+36 - 48 Months
+ENVIRONMENT
+Storage Environment
+Temperature Range
+-
+40 deg C to +70 deg C
+Humidity Range
+0% to 95% RH, non-condensing
+Operating Environment
+Indoor, Outdoor
+Indoor – Yes
+Outdoor – Yes, assuming 3
+rd
+party weatherproof enclosure.
+Temperature Range
+-
+40 deg C to +70 deg C
+Humidity Range
+0% to 95% RH, non-condensing
+INDUSTRIAL DESIGN
+Brand
+TBD – Metra Brand Initiative in process
+.
+Renderings
+TBD
+Color, Material, and Finish (CMF)
+Case
+Color – Grey
+Case Materials – Aluminum
+& Plastic
+In-tool surface finishes
+where possible
+– Expectation is minimal post processing required on parts.
+Laser engraving for directions & Certs
+Researching
+2 X
+utility sticker
+s
+for install records
+, device ID & serial
+.
+Pull one off, one stays on device.
+Logo size and placement
+TBD
+Connectors
+(Power, USB, Lighting, Audio)
+https://www.digikey.com/en/products/detail/adam-tech/HPH2-A-10-UA-SMT/9831541
+- This is for ‘personality’ selection.
+Visual Interface
+(Screen size and type, LEDs)
+Contact information for device support laser engraved on case surface.
+Sticker for install records, device ID & serial.
+Touch Interface
+(Mechanical actuators/switches, touch sensitivity, haptics)
+Reset/Forget-from-network is accomplished via selecting two personalities at startup; user selects a desired personality, and then installs a second jumper on any other personality
+;
+t
+his causes the system to reset.
+Removal of the second jumper will reset and reboot Walley into the first selected personality and in a mode ready to pair to a network.
+Wires are held/stripped and twisted during install.
+Personality selected with a standard shorting jumper:
+https://www.digikey.com/en/products/detail/sullins-connector-solutions/NPB02SVFN-RC/2618271
+ELECTRICAL HARDWARE AND SENSORS
+Block Diagram of Electrical Hardware
+Paste an image here showing which hardware (e.g., sensors, screens, buttons) will be required and how they will connect.
+Sensor Requirements
+Accurately measure current delivered to each
+Triac
+. The output associated (internal losses
+– output of
+Triac
+) is not relevant for generation 1.
+Output/Actuator Requirements
+The device must sustain 1
+6
+A continuous power @120V AC @ 60 Hz (North American Standard AC) per
+Triac
+without encountering thermal overload.
+Thermal overload = Failure to pass safety standards.
+Critical BOM Components
+NRF52 processor, TRIAC chips, Power monitor device
+Communication Requirements
+Compatible with Bluetooth Mesh (Nordic), Zigbee
+Power Requirements
+Powered by supplied AC input
+DURABILITY
+Lifetime requirements
+Minimum 5 years
+Cycles of various sub-systems
+N/A
+Chemical resistance (sweat, sebum, sunscreen, salt water)
+N/A
+UV resistance (sunlight)
+N/A
+Environmental (Dust, Water, etc.)
+N/A
+Mechanical (Drop, Vibration, Abrasion, etc.)
+Three drops to concrete from 1 meter should not affect normal operation of device.
+PACKAGING
+In the Box
+Walley
+Two shorting jumpers (both installed)
+Seven 10-14
+AWG wire nuts
+Four 16-20
+AWG wire nuts
+Four #4 x 3/4” sheet metal screws
+Unboxing Experience
+TBD
+Printing, colors, inserts, cardboard type, drop requirements
+TBD
+Retail Requirements
+Will your product be sold in stores? If so, are there size constraints for the shelves or other considerations?
+SKU Combinations
+Are there different options? Try to design for just one when you are starting out.
+SERVICEABILITY
+Repair Services
+TBD
+Returns Process
+TBD
+Repair/Return Qualifications/Tolerances
+TBD
+Customer Support System
+TBD

@@ -1,0 +1,52 @@
+════════════════════════════════════════════════════════════════════════
+  ST8 IDENTITY CARD — backend/notificationBus.js
+════════════════════════════════════════════════════════════════════════
+
+┌─ IDENTITY ──────────────────────────────────────────────────┐
+  Fingerprint:      backend/notificationBus.js||2026-05-13T14:15:13.100Z
+  Filepath:         backend/notificationBus.js
+  Filename:         notificationBus.js
+  Birth Timestamp:  2026-05-13T14:15:13.100Z
+  Lifecycle Phase:  DEVELOPMENT
+  Is Entry Point:   false
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONTENT VERSION ──────────────────────────────────────────┐
+  SHA-256 Hash:     c470df2bc713ea5bb9f5e8d4a7d9595b7cfee8af27060cb73fd583d395e52914
+  File Size:        4238 bytes
+  Last Modified:    2026-05-13T15:10:47.884Z
+  Last Indexed:     2026-05-13 20:10:13
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CLASSIFICATION ───────────────────────────────────────────┐
+  Status:           RED
+  Reachability:     0
+  Impact Radius:    0
+└──────────────────────────────────────────────────────────────┘
+
+┌─ EXPORTS ──────────────────────────────────────────────────┐
+  variable     NotificationBus
+  variable     notificationBus
+└──────────────────────────────────────────────────────────────┘
+
+┌─ IMPORTS ──────────────────────────────────────────────────┐
+  require      events
+└──────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS ──────────────────────────────────────────────┐
+  Imported by:      backend/index.js||2026-05-12T07:23:01.935Z, backend/server.js||2026-05-12T07:22:39.719Z
+└──────────────────────────────────────────────────────────────┘
+
+┌─ INTENT ───────────────────────────────────────────────────┐
+  Purpose:          Event notification system — ST8 Notification Bus ???
+  Depends On:       events ???
+  Value Statement:  Provides NotificationBus API, notificationBus API ???
+└──────────────────────────────────────────────────────────────┘
+
+┌─ MUTATIONS ────────────────────────────────────────────────┐
+  Total Mutations:  3
+  Last Mutation:    CREATE by INDEXER
+  Last Timestamp:   2026-05-13 20:10:13
+└──────────────────────────────────────────────────────────────┘
+
+Generated: 2026-05-13T20:10:13.703Z
