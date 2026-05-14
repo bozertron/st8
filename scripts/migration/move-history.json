@@ -215,6 +215,42 @@
           "to": "src/core/database/verify-persistence-fixes.js"
         }
       ]
+    },
+    {
+      "batch": "frontend-components",
+      "completedAt": "2026-05-14T13:21:33.107Z",
+      "moves": [
+        {
+          "from": "coordination.js",
+          "to": "src/frontend/services/coordination.js",
+          "client": true
+        },
+        {
+          "from": "settings-reader.js",
+          "to": "src/frontend/services/state.js",
+          "client": true
+        },
+        {
+          "from": "file-explorer.js",
+          "to": "src/frontend/components/file-explorer/file-explorer.js",
+          "client": true
+        },
+        {
+          "from": "graph-visualizer.js",
+          "to": "src/frontend/components/graph-viewer/graph-viewer.js",
+          "client": true
+        },
+        {
+          "from": "phreak-terminal.js",
+          "to": "src/frontend/components/terminal/terminal.js",
+          "client": true
+        },
+        {
+          "from": "settings-ui.js",
+          "to": "src/frontend/components/settings/settings.js",
+          "client": true
+        }
+      ]
     }
   ]
 }

@@ -86,6 +86,20 @@ function main() {
       continue;
     }
 
+    // For client-side (browser) JS, skip require — they reference window/
+    // document at module load. Just check syntax via `node --check`.
+    function probeClientSyntaxOnly(absPath) {
+      try {
+        execFileSync('node', ['--check', absPath], {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 15000,
+        });
+        return { ok: true, keys: ['<browser-module>'], kind: 'browser' };
+      } catch (e) {
+        return { ok: false, error: (e.stderr ? e.stderr.toString() : e.message).split('\n').slice(0, 2).join(' | ') };
+      }
+    }
+
     // Load each file in a child process — entry-point scripts call
     // process.exit() at module load which would kill this verifier
     // mid-run. Each child intercepts process.exit, requires the target,
@@ -146,8 +160,9 @@ function main() {
       return res;
     }
 
-    const origRes = probe(fromAbs);
-    const newRes = probe(toAbs);
+    const isClient = m.client === true;
+    const origRes = isClient ? probeClientSyntaxOnly(fromAbs) : probe(fromAbs);
+    const newRes = isClient ? probeClientSyntaxOnly(toAbs) : probe(toAbs);
 
     const origMod = origRes.ok ? { __keys: origRes.keys, __kind: origRes.kind } : null;
     const newMod = newRes.ok ? { __keys: newRes.keys, __kind: newRes.kind } : null;

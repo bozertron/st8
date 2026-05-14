@@ -1,29 +1,56 @@
 {
-  "batch": "server-and-entry",
-  "generatedAt": "2026-05-14T13:16:11.838Z",
-  "ok": 3,
+  "batch": "frontend-components",
+  "generatedAt": "2026-05-14T13:21:33.105Z",
+  "ok": 6,
   "fail": 0,
   "summary": [
     {
-      "from": "backend/index.js",
-      "to": "src/core/server/main.js",
+      "from": "coordination.js",
+      "to": "src/frontend/services/coordination.js",
+      "client": true,
       "status": "ok",
-      "shape": "object{0 keys}",
-      "exportCount": 0
-    },
-    {
-      "from": "backend/server.js",
-      "to": "src/core/server/app.js",
-      "status": "ok",
-      "shape": "object{1 keys}",
+      "shape": "browser{1 keys}",
       "exportCount": 1
     },
     {
-      "from": "backend/verify-persistence-fixes.js",
-      "to": "src/core/database/verify-persistence-fixes.js",
+      "from": "settings-reader.js",
+      "to": "src/frontend/services/state.js",
+      "client": true,
       "status": "ok",
-      "shape": "object{0 keys}",
-      "exportCount": 0
+      "shape": "browser{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "file-explorer.js",
+      "to": "src/frontend/components/file-explorer/file-explorer.js",
+      "client": true,
+      "status": "ok",
+      "shape": "browser{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "graph-visualizer.js",
+      "to": "src/frontend/components/graph-viewer/graph-viewer.js",
+      "client": true,
+      "status": "ok",
+      "shape": "browser{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "phreak-terminal.js",
+      "to": "src/frontend/components/terminal/terminal.js",
+      "client": true,
+      "status": "ok",
+      "shape": "browser{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "settings-ui.js",
+      "to": "src/frontend/components/settings/settings.js",
+      "client": true,
+      "status": "ok",
+      "shape": "browser{1 keys}",
+      "exportCount": 1
     }
   ]
 }

@@ -1,332 +1,37 @@
 {
-  "batch": "server-and-entry",
-  "generatedAt": "2026-05-14T13:13:48.390Z",
-  "totalEdits": 44,
+  "batch": "frontend-components",
+  "generatedAt": "2026-05-14T13:21:32.723Z",
+  "totalEdits": 0,
   "failures": 0,
   "summary": [
     {
-      "status": "edit",
-      "file": "src/core/server/main.js",
-      "edits": [
-        {
-          "start": 315,
-          "end": 324,
-          "oldSpec": "./indexer",
-          "newSpec": "../../features/indexing/indexer",
-          "line": 14
-        },
-        {
-          "start": 364,
-          "end": 377,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 15
-        },
-        {
-          "start": 417,
-          "end": 436,
-          "oldSpec": "./manifestGenerator",
-          "newSpec": "../../features/schema-cards/manifest-generator",
-          "line": 16
-        },
-        {
-          "start": 473,
-          "end": 486,
-          "oldSpec": "./fileWatcher",
-          "newSpec": "../../features/watcher/file-watcher",
-          "line": 17
-        },
-        {
-          "start": 521,
-          "end": 529,
-          "oldSpec": "./server",
-          "newSpec": "./app",
-          "line": 18
-        },
-        {
-          "start": 599,
-          "end": 610,
-          "oldSpec": "./st8-types",
-          "newSpec": "../../shared/types/st8-types",
-          "line": 19
-        },
-        {
-          "start": 653,
-          "end": 672,
-          "oldSpec": "./schemaCardEmitter",
-          "newSpec": "../../features/schema-cards/emitter",
-          "line": 20
-        },
-        {
-          "start": 715,
-          "end": 734,
-          "oldSpec": "./schemaCardPrinter",
-          "newSpec": "../../features/schema-cards/printer",
-          "line": 21
-        },
-        {
-          "start": 775,
-          "end": 792,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 22
-        },
-        {
-          "start": 829,
-          "end": 842,
-          "oldSpec": "./gapAnalyzer",
-          "newSpec": "../../features/analysis/gap-analyzer",
-          "line": 23
-        },
-        {
-          "start": 880,
-          "end": 894,
-          "oldSpec": "./intentSeeder",
-          "newSpec": "../../features/analysis/intent-seeder",
-          "line": 24
-        },
-        {
-          "start": 6258,
-          "end": 6277,
-          "oldSpec": "./manifestGenerator",
-          "newSpec": "../../features/schema-cards/manifest-generator",
-          "line": 155
-        },
-        {
-          "start": 18858,
-          "end": 18877,
-          "oldSpec": "./manifestGenerator",
-          "newSpec": "../../features/schema-cards/manifest-generator",
-          "line": 377
-        }
-      ]
-    },
-    {
-      "status": "edit",
-      "file": "src/core/server/app.js",
-      "edits": [
-        {
-          "start": 9553,
-          "end": 9562,
-          "oldSpec": "./indexer",
-          "newSpec": "../../features/indexing/indexer",
-          "line": 283
-        },
-        {
-          "start": 9618,
-          "end": 9637,
-          "oldSpec": "./manifestGenerator",
-          "newSpec": "../../features/schema-cards/manifest-generator",
-          "line": 284
-        },
-        {
-          "start": 9693,
-          "end": 9706,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 285
-        },
-        {
-          "start": 11983,
-          "end": 11996,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 345
-        },
-        {
-          "start": 15174,
-          "end": 15187,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 416
-        },
-        {
-          "start": 23284,
-          "end": 23297,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 606
-        },
-        {
-          "start": 27524,
-          "end": 27533,
-          "oldSpec": "./indexer",
-          "newSpec": "../../features/indexing/indexer",
-          "line": 698
-        },
-        {
-          "start": 29104,
-          "end": 29121,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 741
-        },
-        {
-          "start": 31143,
-          "end": 31156,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 797
-        },
-        {
-          "start": 31213,
-          "end": 31230,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 798
-        },
-        {
-          "start": 33905,
-          "end": 33918,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 870
-        },
-        {
-          "start": 33977,
-          "end": 33996,
-          "oldSpec": "./schemaCardEmitter",
-          "newSpec": "../../features/schema-cards/emitter",
-          "line": 871
-        },
-        {
-          "start": 34053,
-          "end": 34070,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 872
-        },
-        {
-          "start": 37045,
-          "end": 37059,
-          "oldSpec": "./prdGenerator",
-          "newSpec": "../../features/prd/generator",
-          "line": 944
-        },
-        {
-          "start": 39226,
-          "end": 39239,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1002
-        },
-        {
-          "start": 39296,
-          "end": 39313,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 1003
-        },
-        {
-          "start": 40635,
-          "end": 40648,
-          "oldSpec": "./gapAnalyzer",
-          "newSpec": "../../features/analysis/gap-analyzer",
-          "line": 1039
-        },
-        {
-          "start": 40700,
-          "end": 40713,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1040
-        },
-        {
-          "start": 42429,
-          "end": 42442,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1077
-        },
-        {
-          "start": 43426,
-          "end": 43439,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1097
-        },
-        {
-          "start": 45248,
-          "end": 45261,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1138
-        },
-        {
-          "start": 47841,
-          "end": 47853,
-          "oldSpec": "./brunoOscar",
-          "newSpec": "../../features/lifecycle/bruno-oscar",
-          "line": 1200
-        },
-        {
-          "start": 47909,
-          "end": 47922,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1201
-        },
-        {
-          "start": 47979,
-          "end": 47996,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 1202
-        },
-        {
-          "start": 50007,
-          "end": 50019,
-          "oldSpec": "./brunoOscar",
-          "newSpec": "../../features/lifecycle/bruno-oscar",
-          "line": 1255
-        },
-        {
-          "start": 50075,
-          "end": 50088,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1256
-        },
-        {
-          "start": 50145,
-          "end": 50162,
-          "oldSpec": "./notificationBus",
-          "newSpec": "../notification-bus",
-          "line": 1257
-        },
-        {
-          "start": 51448,
-          "end": 51461,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1288
-        },
-        {
-          "start": 53308,
-          "end": 53321,
-          "oldSpec": "./persistence",
-          "newSpec": "../database/persistence",
-          "line": 1339
-        },
-        {
-          "start": 54370,
-          "end": 54386,
-          "oldSpec": "./templateEngine",
-          "newSpec": "../../features/prd/template-engine",
-          "line": 1364
-        },
-        {
-          "start": 55972,
-          "end": 55988,
-          "oldSpec": "./templateEngine",
-          "newSpec": "../../features/prd/template-engine",
-          "line": 1401
-        }
-      ]
+      "status": "ok",
+      "file": "src/frontend/services/coordination.js",
+      "edits": []
     },
     {
       "status": "ok",
-      "file": "src/core/database/verify-persistence-fixes.js",
+      "file": "src/frontend/services/state.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/frontend/components/file-explorer/file-explorer.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/frontend/components/graph-viewer/graph-viewer.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/frontend/components/terminal/terminal.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/frontend/components/settings/settings.js",
       "edits": []
     }
   ]

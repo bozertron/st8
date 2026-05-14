@@ -2092,6 +2092,37 @@ Files that exit on load now report as `kind: 'entrypoint'` with a single `<entry
 
 **Every wire in the migrated backend works.** The refactor preserved 100% of the runtime behavior. The user's "I just want it working again" mandate — met.
 
+**Commit:** `12c8e5c`
+
+---
+
+### Batch 012 — `frontend-components`
+
+**Goal:** Move the 6 root-level frontend `.js` files into `src/frontend/`. These are browser-only modules — they communicate via `window` globals and have zero `require()` calls. No import rewrites; no manual patches.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `coordination.js` | `src/frontend/services/coordination.js` | 211 | ✅ |
+| `settings-reader.js` | `src/frontend/services/state.js` | 114 | ✅ |
+| `file-explorer.js` | `src/frontend/components/file-explorer/file-explorer.js` | 749 | ✅ |
+| `graph-visualizer.js` | `src/frontend/components/graph-viewer/graph-viewer.js` | 457 | ✅ |
+| `phreak-terminal.js` | `src/frontend/components/terminal/terminal.js` | 1,087 | ✅ |
+| `settings-ui.js` | `src/frontend/components/settings/settings.js` | 340 | ✅ |
+
+**Total:** 2,958 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 0 — browser code, no `require()` / `import` statements.
+
+**Manual patches:** None.
+
+**`st8.html` not modified.** It still loads the original `.js` files from repo root via `<script src="...">`. Updating those script srcs is part of the larger `st8.html` peel-apart task (extract CSS + inline JS, slim down to ~70 lines of shell). Deferred to a later batch — keeps this move purely additive and revertible.
+
+**Tooling upgrade (`scripts/migration/verify.js`):** Added a `probeClientSyntaxOnly()` path for browser-only modules. Manifest entries now support `"client": true` — these get `node --check` syntax verification instead of full `require()` (which would throw on `window` / `document` references). All 6 client files passed syntax-check on both old and new paths.
+
+**Verification:** All 6 syntax-check clean at both locations. Logic byte-identical (SHA-256). Since these are browser modules, true runtime verification requires loading them in a browser via `st8.html` — that proof comes when the HTML peel-apart batch lands.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)
