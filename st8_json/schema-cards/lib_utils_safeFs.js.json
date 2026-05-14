@@ -1,0 +1,140 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:39.435Z",
+  "connections": {
+    "importedBy": [
+      "lib/utils/groundPlane.js||2026-05-12T08:23:39.438Z"
+    ],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 48,
+      "name": "WriteBufferPool",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 48,
+      "name": "FileHandlePool",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 49,
+      "name": "isTransient",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 50,
+      "name": "isPermission",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 51,
+      "name": "isMissing",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 52,
+      "name": "isCorrupt",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 53,
+      "name": "registerFallback",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 54,
+      "name": "safeReadFile",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 55,
+      "name": "safeWriteFile",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 56,
+      "name": "safeReaddir",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 57,
+      "name": "safeMkdir",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 58,
+      "name": "safeStat",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 59,
+      "name": "safeAccess",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 60,
+      "name": "safeUnlink",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 61,
+      "name": "safeLstat",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/safeFs.js"
+    }
+  ],
+  "fileSizeBytes": 23110,
+  "filename": "safeFs.js",
+  "filepath": "lib/utils/safeFs.js",
+  "fingerprint": "lib/utils/safeFs.js||2026-05-12T08:23:39.435Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Safe file system operations — src/utils/safeFs.ts ???",
+    "valueStatement": "Provides adopt API, fulfilled API, rejected API, step API, classifyErrorCode API, classifySeverity API, isRetryable API, buildFsError API, isTransient API, isPermission API, isMissing API, isCorrupt API, sleep API, withRetry API, registerFallback API, getFallbackPath API, safeReadFile API, safeWriteFile API, safeReaddir API, safeMkdir API, safeStat API, safeAccess API, safeUnlink API, safeLstat API, FileHandlePool API, WriteBufferPool API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:39.435Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "5914a4d73bca45ac2763fd9e3cd161101b30ca5d7b3db0909af2e778fa20f52d",
+  "status": "GREEN"
+}

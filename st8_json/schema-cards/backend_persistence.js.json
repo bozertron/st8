@@ -1,0 +1,74 @@
+{
+  "birthTimestamp": "2026-05-12T07:21:03.355Z",
+  "connections": {
+    "importedBy": [
+      "backend/index.js||2026-05-12T07:23:01.935Z",
+      "backend/schemaCardEmitter.js||2026-05-13T14:15:44.081Z",
+      "backend/server.js||2026-05-12T07:22:39.719Z",
+      "backend/verify-persistence-fixes.js||2026-05-13T15:08:05.551Z"
+    ],
+    "imports": [
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z",
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 509,
+      "name": "St8Persistence",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/persistence.js"
+    }
+  ],
+  "fileSizeBytes": 19262,
+  "filename": "persistence.js",
+  "filepath": "backend/persistence.js",
+  "fingerprint": "backend/persistence.js||2026-05-12T07:21:03.355Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "path",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "fs",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./st8-types",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "better-sqlite3",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./st8-types",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file path manipulation, file system operations, type definitions and constants, SQLite database engine ???",
+    "purpose": "SQLite persistence layer ???",
+    "valueStatement": "Provides CRUD operations for file registry ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:55",
+  "lastModified": "2026-05-13T17:05:13.157Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "ea59e194892179846a4eb5de78a1e1994ab2b808c5c8e962bf3382d119ce4701",
+  "status": "RED"
+}

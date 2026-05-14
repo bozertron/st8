@@ -1,0 +1,53 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.352Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 39,
+      "name": "extractImportsAndExports",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/astParser.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 40,
+      "name": "extractFromText",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/astParser.js"
+    }
+  ],
+  "fileSizeBytes": 45002,
+  "filename": "astParser.js",
+  "filepath": "lib/utils/astParser.js",
+  "fingerprint": "lib/utils/astParser.js||2026-05-12T08:23:17.352Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "@babel/parser",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "parser ???",
+    "purpose": "AST parsing and analysis ???",
+    "valueStatement": "Provides extractImportsAndExports API, extractFromText API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-13T19:55:13.275Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "a9e687253fb86f5de397e20e712d308f227871d9660ba18938916c0b14052070",
+  "status": "GREEN"
+}

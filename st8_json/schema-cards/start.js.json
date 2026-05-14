@@ -1,0 +1,55 @@
+{
+  "birthTimestamp": "2026-05-12T08:27:16.939Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z"
+    ]
+  },
+  "exports": [],
+  "fileSizeBytes": 4996,
+  "filename": "start.js",
+  "filepath": "start.js",
+  "fingerprint": "start.js||2026-05-12T08:27:16.939Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "path",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "fs",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "child_process",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "open",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file path manipulation, file system operations, child_process, open ???",
+    "purpose": "ST8 — Startup Script ???",
+    "valueStatement": "Provides main API, installDependencies API, startBackend API, openBrowser API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:27:16.939Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "613beb7fddc9270d29500840790e39ed168ff509731cb8465348842eb7bf9fb3",
+  "status": "RED"
+}

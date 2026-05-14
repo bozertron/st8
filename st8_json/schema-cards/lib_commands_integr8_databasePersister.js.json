@@ -1,0 +1,53 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.357Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z",
+      "lib/commands/graphTraversal.js||2026-05-12T08:23:17.355Z",
+      "lib/commands/insightStore.js||2026-05-12T08:24:07.123Z",
+      "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z",
+      "lib/commands/parserPersistence.js||2026-05-12T08:24:07.121Z"
+    ],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 41,
+      "name": "DatabasePersister",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/databasePersister.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 42,
+      "name": "getSharedDatabasePath",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/databasePersister.js"
+    }
+  ],
+  "fileSizeBytes": 9910,
+  "filename": "databasePersister.js",
+  "filepath": "lib/commands/integr8/databasePersister.js",
+  "fingerprint": "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Database persistence operations — src/commands/integr8/databasePersister.ts ???",
+    "valueStatement": "Provides getSharedDatabasePath API, DatabasePersister API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:17.357Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "04ae44a9c1e3dbd32ff918f64512885d7867d15c6862c013ffdd84d39f842c66",
+  "status": "GREEN"
+}

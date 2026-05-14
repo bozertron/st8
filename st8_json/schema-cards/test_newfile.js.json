@@ -1,0 +1,32 @@
+{
+  "birthTimestamp": "2026-01-01",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [],
+  "fileSizeBytes": 100,
+  "filename": "newfile.js",
+  "filepath": "test/newfile.js",
+  "fingerprint": "test/newfile.js||2026-01-01",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "",
+    "purpose": "",
+    "valueStatement": ""
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-01-01",
+  "lastModified": "2026-01-01",
+  "lastMutation": {
+    "actor": "",
+    "timestamp": "",
+    "type": ""
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 0,
+  "reachabilityScore": 0,
+  "sha256Hash": "abc123",
+  "status": "RED"
+}

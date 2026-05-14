@@ -1,0 +1,92 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:39.439Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z",
+      "lib/commands/graphBuilder.js||2026-05-12T08:23:17.353Z"
+    ],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "VerificationLevel",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "ResolutionStrategy",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "ConflictType",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "MigrationAction",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "EdgeType",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "NodeType",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "DependencyStatus",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "IntegrationOutcome",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/types.js"
+    }
+  ],
+  "fileSizeBytes": 3865,
+  "filename": "types.js",
+  "filepath": "lib/commands/integr8/types.js",
+  "fingerprint": "lib/commands/integr8/types.js||2026-05-12T08:23:39.439Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Type definitions and constants — src/commands/integr8/types.ts ???",
+    "valueStatement": "Internal module with no public exports ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:39.439Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "24f21d7b8965ac3d7954f32ccc6eb2c6d98ff03c07e93c575c481f0c3519c25f",
+  "status": "GREEN"
+}

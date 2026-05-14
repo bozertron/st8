@@ -1,0 +1,90 @@
+{
+  "birthTimestamp": "2026-05-13T16:12:16.658Z",
+  "connections": {
+    "importedBy": [
+      "backend/server.js||2026-05-12T07:22:39.719Z"
+    ],
+    "imports": [
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 193,
+      "name": "loadSchemaCards",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/prdGenerator.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 193,
+      "name": "groupByLifecyclePhase",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/prdGenerator.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 193,
+      "name": "generateCardMarkdown",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/prdGenerator.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 193,
+      "name": "generatePRD",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/prdGenerator.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 193,
+      "name": "writePRD",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/prdGenerator.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 193,
+      "name": "main",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/prdGenerator.js"
+    }
+  ],
+  "fileSizeBytes": 5871,
+  "filename": "prdGenerator.js",
+  "filepath": "backend/prdGenerator.js",
+  "fingerprint": "backend/prdGenerator.js||2026-05-13T16:12:16.658Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "fs",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "path",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file system operations, file path manipulation ???",
+    "purpose": "Code or data generation ???",
+    "valueStatement": "Provides loadSchemaCards API, groupByLifecyclePhase API, generateCardMarkdown API, generatePRD API, writePRD API, main API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-13T16:12:16.658Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "ad056b5b0ee931fea98cbb97011df3a6591239898bc134e3525db9574c78ccfb",
+  "status": "RED"
+}

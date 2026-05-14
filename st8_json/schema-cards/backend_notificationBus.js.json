@@ -1,0 +1,56 @@
+{
+  "birthTimestamp": "2026-05-13T14:15:13.100Z",
+  "connections": {
+    "importedBy": [
+      "backend/index.js||2026-05-12T07:23:01.935Z",
+      "backend/server.js||2026-05-12T07:22:39.719Z"
+    ],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 125,
+      "name": "NotificationBus",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/notificationBus.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 125,
+      "name": "notificationBus",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/notificationBus.js"
+    }
+  ],
+  "fileSizeBytes": 4238,
+  "filename": "notificationBus.js",
+  "filepath": "backend/notificationBus.js",
+  "fingerprint": "backend/notificationBus.js||2026-05-13T14:15:13.100Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "events",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "events ???",
+    "purpose": "Event notification system ???",
+    "valueStatement": "Provides NotificationBus API, notificationBus API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:55",
+  "lastModified": "2026-05-13T15:10:47.884Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:55",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "c470df2bc713ea5bb9f5e8d4a7d9595b7cfee8af27060cb73fd583d395e52914",
+  "status": "RED"
+}

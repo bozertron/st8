@@ -1,0 +1,54 @@
+{
+  "birthTimestamp": "2026-05-11T21:48:30.642Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "class",
+      "line": 47,
+      "name": "SettingsReader",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/settings-reader.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 113,
+      "name": "LocalStorageAdapter",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/settings-reader.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 113,
+      "name": "MemoryAdapter",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/settings-reader.js"
+    }
+  ],
+  "fileSizeBytes": 3591,
+  "filename": "settings-reader.js",
+  "filepath": "settings-reader.js",
+  "fingerprint": "settings-reader.js||2026-05-11T21:48:30.642Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Settings management — vendor/settings-reader.js ???",
+    "valueStatement": "Provides LocalStorageAdapter API, MemoryAdapter API, SettingsReader API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-11T07:57:25.000Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "0bf9e4597121a7a768b1c496eec60cc74e8d21d7c7e6adbab93068a3e5531377",
+  "status": "RED"
+}

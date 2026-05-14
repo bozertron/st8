@@ -1,0 +1,51 @@
+{
+  "birthTimestamp": "2026-05-13T15:08:05.551Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z",
+      "backend/persistence.js||2026-05-12T07:21:03.355Z"
+    ]
+  },
+  "exports": [],
+  "fileSizeBytes": 5286,
+  "filename": "verify-persistence-fixes.js",
+  "filepath": "backend/verify-persistence-fixes.js",
+  "fingerprint": "backend/verify-persistence-fixes.js||2026-05-13T15:08:05.551Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "path",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "fs",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./persistence",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file path manipulation, file system operations, database persistence layer ???",
+    "purpose": "SQLite persistence layer — Verification script for persistence.js fixes ???",
+    "valueStatement": "Provides assert API, runTests API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-13T15:08:05.551Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "3f158d41ed0b8435e9963d9b555f3810b221126c43f249a7c0ac6d2a30bf93c5",
+  "status": "RED"
+}

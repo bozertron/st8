@@ -1,0 +1,132 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.355Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 48,
+      "name": "clearCache",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 49,
+      "name": "ensureIndexes",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 50,
+      "name": "findPaths",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 51,
+      "name": "analyzeReachability",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 52,
+      "name": "extractSubgraph",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 53,
+      "name": "computeImpactChain",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 54,
+      "name": "findImportsOf",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 55,
+      "name": "findConsumersOf",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 56,
+      "name": "findOrphans",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 57,
+      "name": "getDirectorySubgraph",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 58,
+      "name": "getDirectoryBoundary",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 59,
+      "name": "getDataFlowMetrics",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 60,
+      "name": "getFileFlows",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphTraversal.js"
+    }
+  ],
+  "fileSizeBytes": 32589,
+  "filename": "graphTraversal.js",
+  "filepath": "lib/commands/graphTraversal.js",
+  "fingerprint": "lib/commands/graphTraversal.js||2026-05-12T08:23:17.355Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./integr8/databasePersister.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "databasePersister ???",
+    "purpose": "Graph traversal and querying ???",
+    "valueStatement": "Provides clearCache API, codebase indexing pipeline, findPaths API, analyzeReachability API, extractSubgraph API, computeImpactChain API, findImportsOf API, findConsumersOf API, findOrphans API, getDirectorySubgraph API, getDirectoryBoundary API, getDataFlowMetrics API, getFileFlows API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:17.355Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "46a9a836ca47c9384704ab3a329b4ae475fb8edda4f6c6d4d6ec3e694e1b52af",
+  "status": "RED"
+}

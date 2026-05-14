@@ -1,0 +1,78 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:53.252Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z",
+      "lib/commands/integr8/relationshipAnalyzer.js||2026-05-12T08:23:17.358Z",
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z",
+      "lib/commands/integr8/tomlSerializer.js||2026-05-12T08:23:17.360Z",
+      "lib/commands/integr8/reportGenerator.js||2026-05-12T08:23:53.250Z",
+      "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 47,
+      "name": "runIntegr8Command",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/index.js"
+    }
+  ],
+  "fileSizeBytes": 7249,
+  "filename": "index.js",
+  "filepath": "lib/commands/integr8/index.js",
+  "fingerprint": "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./dataIngestion.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./relationshipAnalyzer.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./pathGenerator.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./tomlSerializer.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./reportGenerator.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./databasePersister.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "dataIngestion, relationshipAnalyzer, file path manipulation, tomlSerializer, reportGenerator, databasePersister ???",
+    "purpose": "Module entry point ???",
+    "valueStatement": "Provides runIntegr8Command API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:53.253Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "21dccb0f1c54ae899ef036c66312e4aa39fd6fa2da891d74f2606da92b5b7cfe",
+  "status": "RED"
+}

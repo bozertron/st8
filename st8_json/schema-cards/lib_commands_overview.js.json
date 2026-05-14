@@ -1,0 +1,40 @@
+{
+  "birthTimestamp": "2026-05-12T08:24:07.119Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 15,
+      "name": "generateOverviewAndGetFileList",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/overview.js"
+    }
+  ],
+  "fileSizeBytes": 17893,
+  "filename": "overview.js",
+  "filepath": "lib/commands/overview.js",
+  "fingerprint": "lib/commands/overview.js||2026-05-12T08:24:07.119Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Project overview display — C:\\orchestr8\\scripts\\prd src\\overview.ts ???",
+    "valueStatement": "Provides adopt API, fulfilled API, rejected API, step API, getRelativeProjectFiles API, codebase indexing pipeline, generateConfigSummary API, generateEntryPointSummary API, generateDependencySummary API, generateDirectorySummary API, gatherOverviewData API, generateOverviewAndGetFileList API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:24:07.119Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "c5eef5501a0c99e1aef9056f29d3855e9fd4beb7c9be84c8c1f0f7012ca08c9f",
+  "status": "GREEN"
+}

@@ -1,0 +1,50 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:53.250Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z"
+    ],
+    "imports": [
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 5,
+      "name": "generateMigrationReport",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/reportGenerator.js"
+    }
+  ],
+  "fileSizeBytes": 13664,
+  "filename": "reportGenerator.js",
+  "filepath": "lib/commands/integr8/reportGenerator.js",
+  "fingerprint": "lib/commands/integr8/reportGenerator.js||2026-05-12T08:23:53.250Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./types.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "types ???",
+    "purpose": "Code or data generation ???",
+    "valueStatement": "Provides generateMigrationReport API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:53.250Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "0463aaf686a6d7e9de57b77a35a6d75caa234f63ea434efb8d47890d740198cd",
+  "status": "GREEN"
+}

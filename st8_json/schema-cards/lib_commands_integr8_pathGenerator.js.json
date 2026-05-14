@@ -1,0 +1,76 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:53.249Z",
+  "connections": {
+    "importedBy": [
+      "backend/fileWatcher.js||2026-05-12T07:22:16.663Z",
+      "backend/gapAnalyzer.js||2026-05-13T19:58:37.780Z",
+      "backend/index.js||2026-05-12T07:23:01.935Z",
+      "backend/indexer.js||2026-05-12T07:20:30.968Z",
+      "backend/intentSeeder.js||2026-05-13T19:58:06.979Z",
+      "backend/manifestGenerator.js||2026-05-12T07:21:55.099Z",
+      "backend/persistence.js||2026-05-12T07:21:03.355Z",
+      "backend/prdGenerator.js||2026-05-13T16:12:16.658Z",
+      "backend/schemaCardEmitter.js||2026-05-13T14:15:44.081Z",
+      "backend/schemaCardPrinter.js||2026-05-13T14:15:22.619Z",
+      "backend/server.js||2026-05-12T07:22:39.719Z",
+      "backend/verify-persistence-fixes.js||2026-05-13T15:08:05.551Z",
+      "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z",
+      "start.js||2026-05-12T08:27:16.939Z"
+    ],
+    "imports": [
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 39,
+      "name": "generateMigrationPath",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/pathGenerator.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 40,
+      "name": "performTopologicalAnalysis",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/pathGenerator.js"
+    }
+  ],
+  "fileSizeBytes": 38347,
+  "filename": "pathGenerator.js",
+  "filepath": "lib/commands/integr8/pathGenerator.js",
+  "fingerprint": "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "dynamic",
+      "isDynamic": true,
+      "source": "./${toNode.name}",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./types",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "${toNode.name}, types ???",
+    "purpose": "Code or data generation ???",
+    "valueStatement": "Provides generateMigrationPath API, performTopologicalAnalysis API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:53.249Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "e94effb08cc1076889336c2e0875acf4f6bf36a39d8db1a7defacf0bd1ba268e",
+  "status": "GREEN"
+}

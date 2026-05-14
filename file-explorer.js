@@ -356,6 +356,11 @@ function _renderExplorer() {
                         disabled
                         onclick="window.VoidFileExplorer._emitSelect()"
                     >ADD TO CHAT</button>
+                    <button
+                        class="explorer-prd-btn"
+                        id="explorer-prd-btn"
+                        onclick="window.openPRDWizard()"
+                    >CREATE PRD</button>
                 </footer>
             </main>
         </div>
@@ -382,6 +387,7 @@ function _renderStandardTable(entries) {
                     <th>NAME</th>
                     <th>SIZE</th>
                     <th>MODIFIED</th>
+                    <th>Purpose</th>
                 </tr>
             </thead>
             <tbody>
@@ -403,6 +409,7 @@ function _renderVirtualTable(entries) {
                         <th>NAME</th>
                         <th>SIZE</th>
                         <th>MODIFIED</th>
+                        <th>Purpose</th>
                     </tr>
                 </thead>
             </table>
@@ -455,13 +462,60 @@ function _renderRow(entry) {
             </td>
             <td class="explorer-col-meta">${_formatSize(entry.size)}</td>
             <td class="explorer-col-meta">${_formatDate(entry.modifiedAt)}</td>
+            <td class="explorer-col-purpose">${entry.intent && entry.intent.purpose ? escapeHtml(entry.intent.purpose) : ''}${entry.needsAIReview ? ' <span class="badge-ai-review">@@@</span>' : ''}</td>
         </tr>
     `;
+}
+
+// ─── STYLES ───────────────────────────────────────────────────
+
+function _injectExplorerStyles() {
+    if (document.getElementById('explorer-dynamic-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'explorer-dynamic-styles';
+    style.textContent = `
+.explorer-col-purpose {
+  color: var(--cyan);
+  font-size: 12px;
+  font-style: italic;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.badge-ai-review {
+  background: var(--gold);
+  color: var(--void);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: bold;
+  margin-left: 4px;
+}
+.explorer-prd-btn {
+  background: transparent;
+  border: 1px solid var(--gold) !important;
+  color: var(--gold);
+  padding: 5px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.explorer-prd-btn:hover {
+  background: var(--gold);
+  color: var(--void);
+}
+    `;
+    document.head.appendChild(style);
 }
 
 // ─── MOUNT ────────────────────────────────────────────────────
 
 function explorerMount(panelBodyEl, onSelect) {
+    _injectExplorerStyles();
     explorerState.onSelect = onSelect || null;
 
     // Refresh locations in case config was set after load

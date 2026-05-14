@@ -1,0 +1,40 @@
+{
+  "birthTimestamp": "2026-05-11T21:48:30.641Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "class",
+      "line": 41,
+      "name": "FakeStream",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/fake-stream.js"
+    }
+  ],
+  "fileSizeBytes": 3369,
+  "filename": "fake-stream.js",
+  "filepath": "fake-stream.js",
+  "fingerprint": "fake-stream.js||2026-05-11T21:48:30.641Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Stream mocking utility — vendor/fake-stream.js ???",
+    "valueStatement": "Provides FakeStream API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-11T07:57:25.000Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "7ddf703ac6e471b1544b19c519c18919b791e47dc82bc995d14b7ad3eaa1f151",
+  "status": "RED"
+}

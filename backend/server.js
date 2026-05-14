@@ -121,6 +121,24 @@ class St8Server {
             case '/api/gap-analysis':
                 this._handleGapAnalysis(req, res);
                 break;
+            case '/api/prd-projects':
+                this._handlePrdProjects(req, res, url);
+                break;
+            case '/api/bruno-call':
+                this._handleBrunoCall(req, res);
+                break;
+            case '/api/oscar-house':
+                this._handleOscarHouse(req, res);
+                break;
+            case '/api/needs-ai-review':
+                this._handleNeedsAIReview(req, res);
+                break;
+            case '/api/mark-reviewed':
+                this._handleMarkReviewed(req, res);
+                break;
+            case '/api/templates':
+                this._handleTemplates(req, res, url);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -1047,6 +1065,353 @@ class St8Server {
             if (persistence) persistence.close();
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    _handlePrdProjects(req, res, url) {
+        if (req.method === 'GET') {
+            // Check for /api/prd-projects/:name
+            const match = url.pathname.match(/^\/api\/prd-projects\/(.+)$/);
+            if (match) {
+                const name = decodeURIComponent(match[1]);
+                const { St8Persistence } = require('./persistence');
+                const persistence = new St8Persistence();
+                try {
+                    persistence.initialize();
+                    const project = persistence.getPRDProject(name);
+                    if (!project) {
+                        res.writeHead(404, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Project not found' }));
+                        return;
+                    }
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', project }));
+                } catch (err) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                } finally {
+                    persistence.close();
+                }
+            } else {
+                // List all projects
+                const { St8Persistence } = require('./persistence');
+                const persistence = new St8Persistence();
+                try {
+                    persistence.initialize();
+                    const projects = persistence.getAllPRDProjects();
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', projects }));
+                } catch (err) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                } finally {
+                    persistence.close();
+                }
+            }
+        } else if (req.method === 'POST') {
+            // Body limit: 2KB for projects
+            const MAX_BODY_SIZE = 2048;
+            let body = '';
+            let bodyTooLarge = false;
+
+            req.on('data', chunk => {
+                if (bodyTooLarge) return;
+                body += chunk;
+                if (body.length > MAX_BODY_SIZE) {
+                    bodyTooLarge = true;
+                    body = '';
+                    req.destroy();
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Request body too large' }));
+                }
+            });
+
+            req.on('end', async () => {
+                if (bodyTooLarge) return;
+                try {
+                    const { name, template, variables } = JSON.parse(body);
+                    if (!name || !template) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'name and template are required' }));
+                        return;
+                    }
+                    const { St8Persistence } = require('./persistence');
+                    const persistence = new St8Persistence();
+                    try {
+                        await persistence.initialize();
+                        const projectPath = path.join(this.targetDir || '.', 'prd-projects', name);
+                        persistence.createPRDProject(name, projectPath, template, variables || {});
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({
+                            status: 'ok',
+                            project: { name, path: projectPath, template, variables: variables || {} }
+                        }));
+                    } catch (err) {
+                        if (err.message && err.message.includes('UNIQUE constraint failed')) {
+                            res.writeHead(409, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: 'Project name already exists' }));
+                            return;
+                        }
+                        throw err;
+                    } finally {
+                        persistence.close();
+                    }
+                } catch (err) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            });
+        } else {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+    }
+
+    _handleBrunoCall(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        const MAX_BODY_SIZE = 1024;
+        let body = '';
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large' }));
+            }
+        });
+
+        req.on('end', () => {
+            if (bodyTooLarge) return;
+            try {
+                const parsed = body ? JSON.parse(body) : {};
+                const threshold = parsed.threshold || 5;
+
+                const { BrunoOscar } = require('./brunoOscar');
+                const { St8Persistence } = require('./persistence');
+                const { notificationBus } = require('./notificationBus');
+                const persistence = new St8Persistence();
+
+                persistence.initialize().then(() => {
+                    try {
+                        const bruno = new BrunoOscar(persistence, notificationBus);
+                        const result = bruno.runBrunoCall(threshold);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(result));
+                    } finally {
+                        persistence.close();
+                    }
+                }).catch(err => {
+                    persistence.close();
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                });
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    _handleOscarHouse(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        const MAX_BODY_SIZE = 1024;
+        let body = '';
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large' }));
+            }
+        });
+
+        req.on('end', () => {
+            if (bodyTooLarge) return;
+            try {
+                const parsed = body ? JSON.parse(body) : {};
+                const gracePeriod = parsed.gracePeriod || 7;
+
+                const { BrunoOscar } = require('./brunoOscar');
+                const { St8Persistence } = require('./persistence');
+                const { notificationBus } = require('./notificationBus');
+                const persistence = new St8Persistence();
+
+                persistence.initialize().then(() => {
+                    try {
+                        const oscar = new BrunoOscar(persistence, notificationBus);
+                        const result = oscar.runOscarHouse(gracePeriod);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(result));
+                    } finally {
+                        persistence.close();
+                    }
+                }).catch(err => {
+                    persistence.close();
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                });
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    _handleNeedsAIReview(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+
+        const { St8Persistence } = require('./persistence');
+        const persistence = new St8Persistence();
+
+        persistence.initialize().then(() => {
+            try {
+                const files = persistence.getFilesNeedingAIReview();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', files }));
+            } finally {
+                persistence.close();
+            }
+        }).catch(err => {
+            persistence.close();
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+        });
+    }
+
+    _handleMarkReviewed(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+
+        const MAX_BODY_SIZE = 1024;
+        let body = '';
+        let bodyTooLarge = false;
+
+        req.on('data', chunk => {
+            if (bodyTooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                bodyTooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large' }));
+            }
+        });
+
+        req.on('end', () => {
+            if (bodyTooLarge) return;
+            try {
+                const { filepath, approved, notes } = JSON.parse(body || '{}');
+                if (!filepath) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'filepath is required' }));
+                    return;
+                }
+
+                const { St8Persistence } = require('./persistence');
+                const persistence = new St8Persistence();
+
+                persistence.initialize().then(() => {
+                    try {
+                        persistence.markAIReviewed(filepath);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ status: 'ok', filepath, reviewed: true }));
+                    } finally {
+                        persistence.close();
+                    }
+                }).catch(err => {
+                    persistence.close();
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                });
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    _handleTemplates(req, res, url) {
+        if (req.method === 'GET') {
+            const { TemplateEngine } = require('./templateEngine');
+            try {
+                const engine = new TemplateEngine();
+                const templates = engine.listTemplates();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', templates }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        } else if (req.method === 'POST') {
+            const MAX_BODY_SIZE = 2048;
+            let body = '';
+            let bodyTooLarge = false;
+
+            req.on('data', chunk => {
+                if (bodyTooLarge) return;
+                body += chunk;
+                if (body.length > MAX_BODY_SIZE) {
+                    bodyTooLarge = true;
+                    body = '';
+                    req.destroy();
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Request body too large' }));
+                }
+            });
+
+            req.on('end', () => {
+                if (bodyTooLarge) return;
+                try {
+                    const { name, content, description } = JSON.parse(body);
+                    if (!name || !content) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'name and content are required' }));
+                        return;
+                    }
+
+                    const { TemplateEngine } = require('./templateEngine');
+                    const engine = new TemplateEngine();
+                    engine.saveTemplate(name, `# ${description || name}\n${content}`);
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', name, variables: engine.detectVariables(content) }));
+                } catch (err) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            });
+        } else {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
         }
     }
 

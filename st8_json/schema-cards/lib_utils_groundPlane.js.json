@@ -1,0 +1,69 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:39.438Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/utils/safeFs.js||2026-05-12T08:23:39.435Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 49,
+      "name": "initGroundPlane",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/groundPlane.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 50,
+      "name": "getVerifiedPath",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/groundPlane.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 51,
+      "name": "validateGroundPlane",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/groundPlane.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 52,
+      "name": "getGroundPlanePaths",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/groundPlane.js"
+    }
+  ],
+  "fileSizeBytes": 10820,
+  "filename": "groundPlane.js",
+  "filepath": "lib/utils/groundPlane.js",
+  "fingerprint": "lib/utils/groundPlane.js||2026-05-12T08:23:39.438Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./safeFs.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file system operations ???",
+    "purpose": "Ground plane abstraction ???",
+    "valueStatement": "Provides initGroundPlane API, getVerifiedPath API, validateGroundPlane API, getGroundPlanePaths API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:39.438Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "c42a6284a7dcaa40fff2a66ec626d2498ac4dd43e099e91ae4980d40bb173de1",
+  "status": "RED"
+}

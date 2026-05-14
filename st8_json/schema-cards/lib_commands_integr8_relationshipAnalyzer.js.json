@@ -1,0 +1,78 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.358Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z"
+    ],
+    "imports": [
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 5,
+      "name": "analyzeRelationships",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/relationshipAnalyzer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 6,
+      "name": "analyzeStructuralSubtyping",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/relationshipAnalyzer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 7,
+      "name": "detectBreakingChanges",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/relationshipAnalyzer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 8,
+      "name": "computeTarjanSCC",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/relationshipAnalyzer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 9,
+      "name": "detectCyclesWithTarjan",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/relationshipAnalyzer.js"
+    }
+  ],
+  "fileSizeBytes": 39065,
+  "filename": "relationshipAnalyzer.js",
+  "filepath": "lib/commands/integr8/relationshipAnalyzer.js",
+  "fingerprint": "lib/commands/integr8/relationshipAnalyzer.js||2026-05-12T08:23:17.358Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./types.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "types ???",
+    "purpose": "Code relationship analysis ???",
+    "valueStatement": "Provides analyzeRelationships API, analyzeStructuralSubtyping API, detectBreakingChanges API, computeTarjanSCC API, detectCyclesWithTarjan API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:17.359Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "4e14275bf14537b2bf1d0b851688a4b0f86fe929e34c7556945b668f194e7ede",
+  "status": "GREEN"
+}

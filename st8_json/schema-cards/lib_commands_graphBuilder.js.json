@@ -1,0 +1,61 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.353Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/commands/integr8/types.js||2026-05-12T08:23:39.439Z",
+      "lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 14,
+      "name": "buildDependencyGraph",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphBuilder.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 15,
+      "name": "getImpactAnalysis",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/graphBuilder.js"
+    }
+  ],
+  "fileSizeBytes": 9031,
+  "filename": "graphBuilder.js",
+  "filepath": "lib/commands/graphBuilder.js",
+  "fingerprint": "lib/commands/graphBuilder.js||2026-05-12T08:23:17.353Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./integr8/types.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./integr8/dataIngestion.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "types, dataIngestion ???",
+    "purpose": "Dependency graph construction ???",
+    "valueStatement": "Provides buildDependencyGraph API, getImpactAnalysis API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:17.353Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "9a25a350e3cfaf036b132cfa9f41526f33aef274ac1536de58d746cb2daa4015",
+  "status": "RED"
+}

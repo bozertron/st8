@@ -1,0 +1,123 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:39.441Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z",
+      "lib/commands/graphBuilder.js||2026-05-12T08:23:17.353Z",
+      "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z"
+    ],
+    "imports": [
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 47,
+      "name": "getParserHealthReport",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/dataIngestion.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 48,
+      "name": "resetParserHealth",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/dataIngestion.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 49,
+      "name": "ingestSingleProject",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/dataIngestion.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 50,
+      "name": "ingestProjectData",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/dataIngestion.js"
+    }
+  ],
+  "fileSizeBytes": 47588,
+  "filename": "dataIngestion.js",
+  "filepath": "lib/commands/integr8/dataIngestion.js",
+  "fingerprint": "lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./types.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../overview.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../storeParser.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../routeParser.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../commandParser.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../typeParser.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../uiParser.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../parserPersistence.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../../utils/astParser.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../../utils/safeFs.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "../../utils/ioChan.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "types, overview, storeParser, routeParser, commandParser, typeParser, uiParser, database persistence layer, AST parsing, file system operations, ioChan ???",
+    "purpose": "Data ingestion pipeline ???",
+    "valueStatement": "Provides getParserHealthReport API, resetParserHealth API, ingestSingleProject API, ingestProjectData API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:39.441Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "26252475dfff09c6fbff0bee93a23382ae53b9d856a1dddae8b535c567181e59",
+  "status": "GREEN"
+}

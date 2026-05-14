@@ -133,6 +133,32 @@ CREATE TABLE IF NOT EXISTS st8_settings (
   updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (category, key)
 );
+
+CREATE TABLE IF NOT EXISTS prd_projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  path TEXT NOT NULL,
+  template TEXT NOT NULL,
+  variables TEXT,
+  created TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_prd_projects_name ON prd_projects(name);
+
+CREATE TABLE IF NOT EXISTS ai_content (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  filepath TEXT NOT NULL,
+  content TEXT NOT NULL,
+  reviewed INTEGER DEFAULT 0,
+  timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_content_filepath ON ai_content(filepath);
+CREATE INDEX IF NOT EXISTS idx_ai_content_reviewed ON ai_content(reviewed);
+CREATE INDEX IF NOT EXISTS idx_file_registry_bruno ON file_registry(brunoStatus);
+CREATE INDEX IF NOT EXISTS idx_file_registry_ai_review ON file_registry(needsAIReview);
+CREATE INDEX IF NOT EXISTS idx_file_registry_unfilled ON file_registry(hasUnfilledVariables);
 `;
 
 // ─── PERSISTENCE CLASS ───────────────────────────────────────
@@ -496,6 +522,162 @@ class St8Persistence {
     deleteSetting(category, key) {
         const stmt = this.db.prepare('DELETE FROM st8_settings WHERE category = ? AND key = ?');
         return stmt.run(category, key);
+    }
+
+    // ─── BRUNO & OSCAR METHODS ─────────────────────────────
+
+    getStaleFiles(threshold) {
+        const stmt = this.db.prepare(
+            "SELECT * FROM file_registry WHERE sessionsSinceAccess >= ? AND brunoStatus = 'active'"
+        );
+        return stmt.all(threshold);
+    }
+
+    updateFileLifecycle(filepath, updates) {
+        const allowedFields = ['lastAccessed', 'sessionsSinceAccess', 'expiryDate',
+                              'associatedWith', 'eventTrigger', 'brunoStatus'];
+        const fields = Object.keys(updates).filter(f => allowedFields.includes(f));
+        if (fields.length === 0) return { changes: 0 };
+
+        const setClause = fields.map(f => `${f} = ?`).join(', ');
+        const stmt = this.db.prepare(`UPDATE file_registry SET ${setClause} WHERE filepath = ?`);
+        return stmt.run(...fields.map(f => updates[f]), filepath);
+    }
+
+    incrementSessionCounters() {
+        const stmt = this.db.prepare(
+            "UPDATE file_registry SET sessionsSinceAccess = sessionsSinceAccess + 1 WHERE brunoStatus = 'active'"
+        );
+        return stmt.run();
+    }
+
+    markFileAccessed(filepath) {
+        const stmt = this.db.prepare(
+            'UPDATE file_registry SET sessionsSinceAccess = 0, lastAccessed = CURRENT_TIMESTAMP WHERE filepath = ?'
+        );
+        return stmt.run(filepath);
+    }
+
+    archiveFile(filepath) {
+        const stmt = this.db.prepare(
+            "UPDATE file_registry SET brunoStatus = 'archived' WHERE filepath = ?"
+        );
+        return stmt.run(filepath);
+    }
+
+    setExpiryDate(filepath, daysFromNow) {
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + daysFromNow);
+        const stmt = this.db.prepare(
+            'UPDATE file_registry SET expiryDate = ? WHERE filepath = ?'
+        );
+        return stmt.run(expiryDate.toISOString(), filepath);
+    }
+
+    // ─── @@@ SYMBOL METHODS ────────────────────────────────
+
+    flagForAIReview(filepath, tripleAtCount) {
+        const stmt = this.db.prepare(
+            'UPDATE file_registry SET needsAIReview = 1, tripleAtCount = ? WHERE filepath = ?'
+        );
+        return stmt.run(tripleAtCount, filepath);
+    }
+
+    markAIReviewed(filepath) {
+        const stmt = this.db.prepare(
+            'UPDATE file_registry SET needsAIReview = 0 WHERE filepath = ?'
+        );
+        return stmt.run(filepath);
+    }
+
+    getFilesNeedingAIReview() {
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_registry WHERE needsAIReview = 1 ORDER BY filepath'
+        );
+        return stmt.all();
+    }
+
+    storeAIContent(filepath, content) {
+        const stmt = this.db.prepare(
+            'INSERT OR REPLACE INTO ai_content (filepath, content, reviewed, timestamp) VALUES (?, ?, 0, CURRENT_TIMESTAMP)'
+        );
+        return stmt.run(filepath, content);
+    }
+
+    getAIContent(filepath) {
+        const stmt = this.db.prepare(
+            'SELECT * FROM ai_content WHERE filepath = ? ORDER BY timestamp DESC'
+        );
+        return stmt.all(filepath);
+    }
+
+    // ─── TEMPLATE METHODS ───────────────────────────────────
+
+    setTemplateVariables(filepath, variables) {
+        const varsJson = JSON.stringify(variables);
+        const hasUnfilled = Object.values(variables).some(v => v === null || v === undefined || v === '');
+        const stmt = this.db.prepare(
+            'UPDATE file_registry SET templateVariables = ?, hasUnfilledVariables = ? WHERE filepath = ?'
+        );
+        return stmt.run(varsJson, hasUnfilled ? 1 : 0, filepath);
+    }
+
+    getTemplateVariables(filepath) {
+        const stmt = this.db.prepare(
+            'SELECT templateVariables, hasUnfilledVariables FROM file_registry WHERE filepath = ?'
+        );
+        const row = stmt.get(filepath);
+        if (!row || !row.templateVariables) return { variables: {}, hasUnfilled: false };
+        try {
+            return { variables: JSON.parse(row.templateVariables), hasUnfilled: Boolean(row.hasUnfilledVariables) };
+        } catch {
+            return { variables: {}, hasUnfilled: false };
+        }
+    }
+
+    // ─── PRD PROJECT METHODS ─────────────────────────────────
+
+    createPRDProject(name, projectPath, template, variables) {
+        const stmt = this.db.prepare(
+            'INSERT INTO prd_projects (name, path, template, variables) VALUES (?, ?, ?, ?)'
+        );
+        return stmt.run(name, projectPath, template, JSON.stringify(variables));
+    }
+
+    getPRDProject(name) {
+        const stmt = this.db.prepare('SELECT * FROM prd_projects WHERE name = ?');
+        const row = stmt.get(name);
+        if (row && row.variables) {
+            try { row.variables = JSON.parse(row.variables); } catch { }
+        }
+        return row;
+    }
+
+    getAllPRDProjects() {
+        const stmt = this.db.prepare('SELECT * FROM prd_projects ORDER BY created DESC');
+        const rows = stmt.all();
+        for (const row of rows) {
+            if (row.variables) {
+                try { row.variables = JSON.parse(row.variables); } catch { }
+            }
+        }
+        return rows;
+    }
+
+    updatePRDProject(name, updates) {
+        const allowedFields = ['path', 'template', 'variables'];
+        const fields = Object.keys(updates).filter(f => allowedFields.includes(f));
+        if (fields.length === 0) return { changes: 0 };
+
+        const setClause = fields.map(f => `${f} = ?`).join(', ');
+        const stmt = this.db.prepare(`UPDATE prd_projects SET ${setClause}, updated = CURRENT_TIMESTAMP WHERE name = ?`);
+        const values = fields.map(f => f === 'variables' ? JSON.stringify(updates[f]) : updates[f]);
+        return stmt.run(...values, name);
+    }
+
+    deletePRDProject(name) {
+        const stmt = this.db.prepare('DELETE FROM prd_projects WHERE name = ?');
+        return stmt.run(name);
     }
 
     // ─── UTILITY ────────────────────────────────────────────

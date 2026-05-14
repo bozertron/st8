@@ -1,0 +1,56 @@
+{
+  "birthTimestamp": "2026-05-11T21:48:30.649Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [],
+  "fileSizeBytes": 22296,
+  "filename": "void-engine.js",
+  "filepath": "void-engine.js",
+  "fingerprint": "void-engine.js||2026-05-11T21:48:30.649Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "named",
+      "line": 2,
+      "source": "https://esm.sh/@chenglou/pretext@0.0.6",
+      "specifiers": [
+        {
+          "isType": false,
+          "name": "prepareWithSegments"
+        },
+        {
+          "isType": false,
+          "name": "layoutWithLines"
+        },
+        {
+          "isType": false,
+          "name": "layoutNextLine"
+        },
+        {
+          "isType": false,
+          "name": "walkLineRanges"
+        }
+      ]
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "pretext@0.0.6 ???",
+    "purpose": "Rendering engine — the-editorial-engine.ts ???",
+    "valueStatement": "Provides carveTextLineSlots API, circleIntervalForBand API, of API, participant API, createRectEl API, syncPool API, layoutColumn API, hitTestRects API, animate API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-11T07:57:25.000Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "92311a9b3186a07cf440dc2e2235a3eb2f139a713312ae70ac1c598686d8412e",
+  "status": "RED"
+}

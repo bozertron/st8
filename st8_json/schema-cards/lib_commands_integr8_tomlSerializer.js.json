@@ -1,0 +1,65 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.360Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/integr8/index.js||2026-05-12T08:23:53.252Z",
+      "lib/commands/integr8/migrationExecutor.js||2026-05-12T08:23:53.251Z"
+    ],
+    "imports": [
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 4,
+      "name": "serializeMigrationPlanToToml",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/tomlSerializer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 5,
+      "name": "serializeGraphMetadataToToml",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/tomlSerializer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 6,
+      "name": "parseMigrationPlanFromToml",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/tomlSerializer.js"
+    }
+  ],
+  "fileSizeBytes": 16349,
+  "filename": "tomlSerializer.js",
+  "filepath": "lib/commands/integr8/tomlSerializer.js",
+  "fingerprint": "lib/commands/integr8/tomlSerializer.js||2026-05-12T08:23:17.360Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./types",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "types ???",
+    "purpose": "TOML serialization ???",
+    "valueStatement": "Provides serializeMigrationPlanToToml API, serializeGraphMetadataToToml API, parseMigrationPlanFromToml API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:17.360Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "8b88f44eb2e5e8a38b252c76c333dc025a36b95efebccd01b9afbc7b99f06b03",
+  "status": "GREEN"
+}

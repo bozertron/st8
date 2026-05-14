@@ -1,0 +1,55 @@
+{
+  "birthTimestamp": "2026-05-13T14:15:22.619Z",
+  "connections": {
+    "importedBy": [
+      "backend/index.js||2026-05-12T07:23:01.935Z"
+    ],
+    "imports": [
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 294,
+      "name": "SchemaCardPrinter",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/schemaCardPrinter.js"
+    }
+  ],
+  "fileSizeBytes": 14042,
+  "filename": "schemaCardPrinter.js",
+  "filepath": "backend/schemaCardPrinter.js",
+  "fingerprint": "backend/schemaCardPrinter.js||2026-05-13T14:15:22.619Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "path",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "fs",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file path manipulation, file system operations ???",
+    "purpose": "Schema card emission ???",
+    "valueStatement": "Provides formatted output ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-13T16:12:15.294Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "967b3291cb6394d177f2b49ca8c057cd979a3dcdaba146720d0dbaf5fc9eabf6",
+  "status": "RED"
+}

@@ -1,0 +1,135 @@
+{
+  "birthTimestamp": "2026-05-13T14:13:47.351Z",
+  "connections": {
+    "importedBy": [
+      "backend/index.js||2026-05-12T07:23:01.935Z",
+      "backend/indexer.js||2026-05-12T07:20:30.968Z",
+      "backend/persistence.js||2026-05-12T07:21:03.355Z",
+      "backend/schemaCardEmitter.js||2026-05-13T14:15:44.081Z",
+      "lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z",
+      "lib/commands/integr8/migrationExecutor.js||2026-05-12T08:23:53.251Z",
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z",
+      "lib/commands/integr8/relationshipAnalyzer.js||2026-05-12T08:23:17.358Z",
+      "lib/commands/integr8/reportGenerator.js||2026-05-12T08:23:53.250Z",
+      "lib/commands/integr8/tomlSerializer.js||2026-05-12T08:23:17.360Z"
+    ],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "LifecyclePhase",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "FileStatus",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "MutationType",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "ActorType",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "St8FileEntry",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "St8SchemaCard",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "St8MutationRecord",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "validateAgainstShape",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "validateSt8FileEntry",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "validateSt8SchemaCard",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "validateSt8MutationRecord",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "generateFingerprint",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 266,
+      "name": "parseFingerprint",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/st8-types.js"
+    }
+  ],
+  "fileSizeBytes": 11078,
+  "filename": "st8-types.js",
+  "filepath": "backend/st8-types.js",
+  "fingerprint": "backend/st8-types.js||2026-05-13T14:13:47.351Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Type definitions and constants — ST8 Types — Canonical Type Definitions ???",
+    "valueStatement": "Provides validateAgainstShape API, validateSt8FileEntry API, validateSt8SchemaCard API, validateSt8MutationRecord API, generateFingerprint API, parseFingerprint API, LifecyclePhase API, FileStatus API, shared type definitions, St8FileEntry API, St8SchemaCard API, St8MutationRecord API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-13T15:09:42.981Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "56fe72318a65897bf984d15e8db51f47802a92bc76f8268f890e64e2ecf78de1",
+  "status": "RED"
+}

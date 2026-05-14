@@ -1,0 +1,32 @@
+{
+  "birthTimestamp": "2026-05-12T08:01:28.404Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [],
+  "fileSizeBytes": 19632,
+  "filename": "graph-visualizer.js",
+  "filepath": "graph-visualizer.js",
+  "fingerprint": "graph-visualizer.js||2026-05-12T08:01:28.404Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Graph visualization — Try to load D3 from CDN ???",
+    "valueStatement": "Provides loadD3 API, GraphVisualizer API, _showNodeDetails API, _escapeHtml API, showGraphPopup API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-13T04:55:03.684Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "87db68a764a9502f70c002db879e27e2e5eefae53ac0edc29033811fc19c71f1",
+  "status": "RED"
+}

@@ -73,8 +73,23 @@ const FILENAME_PURPOSE_MAP = [
     { pattern: /verify/i, purpose: 'Verification and testing' },
     { pattern: /gap[-_]?analy/i, purpose: 'Gap analysis' },
     { pattern: /analy/i, purpose: 'Analysis module' },
-    { pattern: /prd/i, purpose: 'PRD generation' },
+    { pattern: /prd/i, purpose: 'Product Requirements Document' },
     { pattern: /seeder/i, purpose: 'Data seeding' },
+    { pattern: /press[-_]?release/i, purpose: 'Press Release' },
+    { pattern: /gtm[-_]?plan/i, purpose: 'Go-To-Market Plan' },
+    { pattern: /stakeholder/i, purpose: 'Stakeholder Registry' },
+    { pattern: /technical[-_]?spec/i, purpose: 'Technical Specification' },
+    { pattern: /roadmap/i, purpose: 'Project Roadmap' },
+    { pattern: /meeting[-_]?notes/i, purpose: 'Meeting Notes' },
+    { pattern: /decision[-_]?log/i, purpose: 'Decision Log' },
+    { pattern: /risk[-_]?register/i, purpose: 'Risk Register' },
+    { pattern: /user[-_]?story/i, purpose: 'User Story' },
+    { pattern: /acceptance[-_]?criteria/i, purpose: 'Acceptance Criteria' },
+    { pattern: /changelog/i, purpose: 'Change Log' },
+    { pattern: /readme/i, purpose: 'Project README' },
+    { pattern: /todo/i, purpose: 'Todo List' },
+    { pattern: /bug[-_]?report/i, purpose: 'Bug Report' },
+    { pattern: /feature[-_]?request/i, purpose: 'Feature Request' },
 ];
 
 /**
@@ -168,6 +183,16 @@ class IntentSeeder {
 
             // Parse file content for imports/exports heuristics
             const { imports, exports, comments } = this._parseFileContent(file.filepath);
+
+            // Detect @@@ symbols in file content
+            const TRIPLE_AT_PATTERN = /(?:^|\s)@@@(?:\s|$)|<!--\s*@@@\s*-->|@@@AI_REVIEW/gm;
+            const contentForDetection = fs.readFileSync(file.filepath, 'utf-8');
+            const tripleAtMatches = contentForDetection.match(TRIPLE_AT_PATTERN) || [];
+            const tripleAtCount = tripleAtMatches.length;
+
+            if (tripleAtCount > 0 && this.persistence) {
+                this.persistence.flagForAIReview(file.filepath, tripleAtCount);
+            }
 
             // Generate intent fields
             const purpose = this._generatePurpose(file.filepath, file.filename, imports, exports, comments);

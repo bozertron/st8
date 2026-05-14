@@ -1,0 +1,57 @@
+{
+  "birthTimestamp": "2026-05-12T08:24:07.123Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z"
+    ],
+    "imports": [
+      "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 42,
+      "name": "InsightStore",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/insightStore.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 43,
+      "name": "getInsightStore",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/insightStore.js"
+    }
+  ],
+  "fileSizeBytes": 15196,
+  "filename": "insightStore.js",
+  "filepath": "lib/commands/insightStore.js",
+  "fingerprint": "lib/commands/insightStore.js||2026-05-12T08:24:07.123Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./integr8/databasePersister.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "databasePersister ???",
+    "purpose": "Insight storage and retrieval ???",
+    "valueStatement": "Provides InsightStore API, getInsightStore API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:24:07.123Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "8b10ebbf0cd0d968cbbae2c702763c077d18d6058a1299bfb80e67eafcc7f005",
+  "status": "GREEN"
+}

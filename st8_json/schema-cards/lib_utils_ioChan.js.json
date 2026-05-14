@@ -1,0 +1,68 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:39.436Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 16,
+      "name": "ioChan",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/ioChan.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 16,
+      "name": "IoChan",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/ioChan.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 16,
+      "name": "CircuitBreaker",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/ioChan.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 16,
+      "name": "BreakerState",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/ioChan.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 16,
+      "name": "IoChannelPriority",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/utils/ioChan.js"
+    }
+  ],
+  "fileSizeBytes": 16200,
+  "filename": "ioChan.js",
+  "filepath": "lib/utils/ioChan.js",
+  "fingerprint": "lib/utils/ioChan.js||2026-05-12T08:23:39.436Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "I/O channel abstraction — src/utils/ioChan.ts ???",
+    "valueStatement": "Provides adopt API, fulfilled API, rejected API, step API, CircuitBreaker API, IoChan API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:39.436Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "f323839429728a735feaf5c37f803f118ae9b8aec5980a14acc5282baa4b5b8b",
+  "status": "GREEN"
+}

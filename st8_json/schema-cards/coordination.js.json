@@ -1,0 +1,32 @@
+{
+  "birthTimestamp": "2026-05-12T08:09:56.549Z",
+  "connections": {
+    "importedBy": [],
+    "imports": []
+  },
+  "exports": [],
+  "fileSizeBytes": 7491,
+  "filename": "coordination.js",
+  "filepath": "coordination.js",
+  "fingerprint": "coordination.js||2026-05-12T08:09:56.549Z",
+  "impactRadius": 0,
+  "imports": [],
+  "intent": {
+    "dependsOnBehavior": "No external dependencies ???",
+    "purpose": "Process coordination — Notify listeners ???",
+    "valueStatement": "Provides loadManifest API, notifyListeners API, startPolling API, stopPolling API, addListener API, compareManifests API, generateAiContext API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:09:56.550Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "dbf0430b2bf034facf0afc53910142c8aa12d3c359104e1134a8c10658c1bbee",
+  "status": "RED"
+}

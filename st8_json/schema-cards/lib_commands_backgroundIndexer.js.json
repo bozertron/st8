@@ -1,0 +1,104 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:17.356Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z",
+      "lib/commands/integr8/dataIngestion.js||2026-05-12T08:23:39.441Z",
+      "lib/commands/parserPersistence.js||2026-05-12T08:24:07.121Z",
+      "lib/commands/insightStore.js||2026-05-12T08:24:07.123Z",
+      "lib/commands/integr8/types.js||2026-05-12T08:23:39.439Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 51,
+      "name": "BackgroundIndexer",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/backgroundIndexer.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 52,
+      "name": "getBackgroundIndexer",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/backgroundIndexer.js"
+    }
+  ],
+  "fileSizeBytes": 40071,
+  "filename": "backgroundIndexer.js",
+  "filepath": "lib/commands/backgroundIndexer.js",
+  "fingerprint": "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "events",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "chokidar",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./integr8/databasePersister.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./integr8/dataIngestion.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./parserPersistence.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./sonicClient.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./insightStore.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./multiPassAnalyzer.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./precisionCapture.js",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./integr8/types.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "events, file system watching, databasePersister, dataIngestion, database persistence layer, sonicClient, insightStore, multiPassAnalyzer, precisionCapture, types ???",
+    "purpose": "Codebase indexing and analysis ???",
+    "valueStatement": "Provides codebase indexing pipeline ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:17.356Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "153dfb21e00b81fdea02641499237e82fdcab4e192596bbc69912fe2505cc428",
+  "status": "RED"
+}

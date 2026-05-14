@@ -1,0 +1,145 @@
+{
+  "birthTimestamp": "2026-05-12T08:23:53.251Z",
+  "connections": {
+    "importedBy": [],
+    "imports": [
+      "backend/st8-types.js||2026-05-13T14:13:47.351Z",
+      "lib/commands/integr8/tomlSerializer.js||2026-05-12T08:23:17.360Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 46,
+      "name": "loadMigrationPlan",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 47,
+      "name": "executeMigrationPlan",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 48,
+      "name": "detectRouterFramework",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 49,
+      "name": "detectFrameworkFromPackageJson",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 50,
+      "name": "verifyIntegration",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 51,
+      "name": "rollbackMigration",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 52,
+      "name": "createPreMigrationSnapshot",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 53,
+      "name": "executeAtomicMigration",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 54,
+      "name": "rollbackFromSnapshot",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 55,
+      "name": "listAvailableSnapshots",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    },
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 56,
+      "name": "rollbackToLatest",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/integr8/migrationExecutor.js"
+    }
+  ],
+  "fileSizeBytes": 84514,
+  "filename": "migrationExecutor.js",
+  "filepath": "lib/commands/integr8/migrationExecutor.js",
+  "fingerprint": "lib/commands/integr8/migrationExecutor.js||2026-05-12T08:23:53.251Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "dynamic",
+      "isDynamic": true,
+      "source": "./views/NewView.vue",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./types",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "./tomlSerializer",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "child_process",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "crypto",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "crypto",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "NewView.vue, types, tomlSerializer, child_process, cryptographic hashing ???",
+    "purpose": "Database migration ???",
+    "valueStatement": "Provides loadMigrationPlan API, executeMigrationPlan API, detectRouterFramework API, detectFrameworkFromPackageJson API, verifyIntegration API, rollbackMigration API, createPreMigrationSnapshot API, executeAtomicMigration API, rollbackFromSnapshot API, listAvailableSnapshots API, rollbackToLatest API ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:23:53.251Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "7d5da68a5bf092ae189a4e63af5cbfd127af1d0f5a2666f65f476a6211b46557",
+  "status": "RED"
+}

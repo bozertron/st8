@@ -1,4 +1,133 @@
 <!DOCTYPE html>
+<!--
+╔══════════════════════════════════════════════════════════════════════════════════════╗
+║                              ST8.HTML FILE INDEX                                    ║
+║                              Generated: 2026-05-13                                  ║
+╠══════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                      ║
+║  SECTION 1: STYLES (Lines 137-1686)                                                  ║
+║    ├─ Fonts (@font-face) ........................ Lines 138-148                       ║
+║    ├─ CSS Custom Properties (:root) ............. Lines 150-165                      ║
+║    ├─ Base Reset & Body ......................... Lines 167-179                       ║
+║    ├─ Void / Drift Surface ...................... Lines 180-235                       ║
+║    ├─ Chat Area ................................. Lines 237-266                       ║
+║    ├─ File List (right panel) ................... Lines 268-378                       ║
+║    ├─ Notes Popup ............................... Lines 380-497                       ║
+║    ├─ Graph Popup ............................... Lines 499-601                       ║
+║    ├─ Settings Popup ............................ Lines 603-815                       ║
+║    ├─ Void Cursor / Wave Pulse .................. Lines 817-855                      ║
+║    ├─ Bottom Dock ............................... Lines 857-941                       ║
+║    ├─ Panel Overlay ............................. Lines 943-1010                      ║
+║    ├─ File Explorer Styles ...................... Lines 1012-1226                     ║
+║    ├─ Workspace Picker .......................... Lines 1228-1288                     ║
+║    ├─ Phreak Terminal Styles .................... Lines 1290-1527                     ║
+║    ├─ Mutation Notifications & Toasts ........... Lines 1530-1607                    ║
+║    ├─ Reduced Motion Overrides .................. Lines 1609-1611                    ║
+║    ├─ AI Review Badge ........................... Lines 1613-1623                     ║
+║    ├─ PRD Wizard Styles ......................... Lines 1625-1662                     ║
+║    └─ Variable Editor Styles .................... Lines 1664-1686                     ║
+║                                                                                      ║
+║  SECTION 2: HTML STRUCTURE (Lines 1687-1757)                                         ║
+║    ├─ Head close / Body open .................... Lines 1687-1688                     ║
+║    ├─ Mutation Toast Container (#mutation-toasts) Line 1690                           ║
+║    ├─ Main Void / #stage ........................ Lines 1692-1694                     ║
+║    ├─ Footer Dock ............................... Lines 1696-1711                     ║
+║    ├─ Explorer Panel Overlay .................... Lines 1713-1722                     ║
+║    ├─ Phreak Terminal Overlay ................... Lines 1724-1733                     ║
+║    └─ PRD Project Wizard Overlay ................ Lines 1735-1757                     ║
+║                                                                                      ║
+║  SECTION 3: JAVASCRIPT (Lines 1760-2585)                                             ║
+║                                                                                      ║
+║    ┌─ Script Block 1: Void-Engine Loader (Lines 1760-1780) ─────────────────────┐    ║
+║    │  ├─ window.loadVoidEngine() ................ Lines 1762-1773                │    ║
+║    │  └─ window.unloadVoidEngine() .............. Lines 1774-1779                │    ║
+║    └────────────────────────────────────────────────────────────────────────────┘    ║
+║                                                                                      ║
+║    ┌─ Script Block 2: Utility Functions (Lines 1783-1789) ──────────────────────┐    ║
+║    │  └─ window.escapeHtml(s) ................... Lines 1784-1788                │    ║
+║    └────────────────────────────────────────────────────────────────────────────┘    ║
+║                                                                                      ║
+║    ┌─ External Script Includes (Lines 1790-1794) ───────────────────────────────┐    ║
+║    │  ├─ file-explorer.js ....................... Line 1790                       │    ║
+║    │  ├─ phreak-terminal.js ..................... Line 1791                       │    ║
+║    │  ├─ graph-visualizer.js .................... Line 1792                       │    ║
+║    │  ├─ settings-ui.js ......................... Line 1793                       │    ║
+║    │  └─ coordination.js ........................ Line 1794                       │    ║
+║    └────────────────────────────────────────────────────────────────────────────┘    ║
+║                                                                                      ║
+║    ┌─ Script Block 3: Main Application (Lines 1796-2585) ──────────────────────┐     ║
+║    │                                                                            │     ║
+║    │  ── PANEL CONTROLLER (Lines 1797-1918) ──                                  │     ║
+║    │  ├─ panels{} object ........................ Lines 1798-1874                │     ║
+║    │  │   ├─ panels.explorer.mount() ............ Lines 1804-1826               │     ║
+║    │  │   └─ panels.phreak.mount() .............. Lines 1833-1872               │     ║
+║    │  ├─ openPanel(name) ........................ Lines 1876-1886                │     ║
+║    │  ├─ closePanel(name) ....................... Lines 1887-1891                │     ║
+║    │  ├─ togglePanel(name) ...................... Lines 1892-1895                │     ║
+║    │  ├─ Button click listeners (explorer/phreak) Lines 1897-1898               │     ║
+║    │  ├─ [data-close] button listeners .......... Lines 1899-1908               │     ║
+║    │  ├─ Overlay backdrop click-to-close ........ Lines 1909-1911               │     ║
+║    │  └─ Escape key handler (keydown) ........... Lines 1912-1918               │     ║
+║    │                                                                            │     ║
+║    │  ── PRD WIZARD (Lines 1920-1971) ──                                        │     ║
+║    │  ├─ window.openPRDWizard() ................. Lines 1921-1924                │     ║
+║    │  ├─ window.closePRDWizard() ................ Lines 1925-1927                │     ║
+║    │  ├─ loadTemplatesForWizard() [async] ....... Lines 1929-1946               │     ║
+║    │  └─ window.createPRDProject() [async] ...... Lines 1948-1971               │     ║
+║    │                                                                            │     ║
+║    │  ── TEMPLATE VARIABLE EDITOR (Lines 1973-2014) ──                          │     ║
+║    │  ├─ showPopup(title, html, onSave) ......... Lines 1974-1993               │     ║
+║    │  └─ window.showVariableEditor(filepath,vars) Lines 1995-2014               │     ║
+║    │                                                                            │     ║
+║    │  ── WORKSPACE CHANGE HANDLER (Lines 2016-2069) ──                          │     ║
+║    │  └─ window.st8WorkspaceChanged(wsType) ..... Lines 2017-2069               │     ║
+║    │                                                                            │     ║
+║    │  ── FILE LIST RENDERING (Lines 2071-2114) ──                               │     ║
+║    │  └─ window.renderFileList(files) ........... Lines 2072-2114               │     ║
+║    │                                                                            │     ║
+║    │  ── FILE ACTION HANDLERS (Lines 2116-2124) ──                              │     ║
+║    │  ├─ window.handleFileNotes(filepath) ....... Lines 2117-2120               │     ║
+║    │  └─ window.handleFileClipboard(filepath) ... Lines 2121-2124               │     ║
+║    │                                                                            │     ║
+║    │  ── COPY FILE CONTEXT (Lines 2126-2197) ──                                 │     ║
+║    │  └─ copyFileContext(filepath) .............. Lines 2127-2197               │     ║
+║    │                                                                            │     ║
+║    │  ── COPY FEEDBACK (Lines 2199-2216) ──                                     │     ║
+║    │  └─ showCopyFeedback(filepath) ............. Lines 2200-2216               │     ║
+║    │                                                                            │     ║
+║    │  ── NOTES POPUP (Lines 2218-2258) ──                                       │     ║
+║    │  └─ showNotesPopup(filepath) ............... Lines 2219-2258               │     ║
+║    │                                                                            │     ║
+║    │  ── SAVE FILE NOTES (Lines 2260-2322) ──                                   │     ║
+║    │  └─ window.saveFileNotes(filepath) ......... Lines 2261-2322               │     ║
+║    │                                                                            │     ║
+║    │  ── INDEXING COMPLETE HANDLER (Lines 2324-2338) ──                          │     ║
+║    │  └─ window.st8IndexingComplete(targetPath) . Lines 2325-2338               │     ║
+║    │                                                                            │     ║
+║    │  ── FETCH MANIFEST (Lines 2340-2363) ──                                    │     ║
+║    │  └─ fetchManifest(targetPath) [async] ...... Lines 2341-2363               │     ║
+║    │                                                                            │     ║
+║    │  ── BRUNO & OSCAR + AI REVIEW TOASTS (Lines 2365-2442) ──                  │     ║
+║    │  ├─ showBrunoToast(data) ................... Lines 2366-2371               │     ║
+║    │  ├─ showArchiveToast(data) ................. Lines 2373-2377               │     ║
+║    │  ├─ showAIReviewToast(data) ................ Lines 2379-2384               │     ║
+║    │  ├─ showActionToast(typeLabel,text,...) ..... Lines 2386-2426               │     ║
+║    │  ├─ window.reviewStaleFile(filepath) ....... Lines 2428-2430               │     ║
+║    │  ├─ window.archiveFile(filepath) ........... Lines 2432-2438               │     ║
+║    │  └─ window.openAIReview(filepath) .......... Lines 2440-2442               │     ║
+║    │                                                                            │     ║
+║    │  ── SSE MUTATION STREAM (Lines 2444-2584) ──                               │     ║
+║    │  └─ IIFE initMutationStream() .............. Lines 2447-2584               │     ║
+║    │      ├─ getBadgeClass(mutationType) ........ Lines 2454-2464               │     ║
+║    │      ├─ formatTime(isoString) .............. Lines 2466-2476               │     ║
+║    │      ├─ showMutationToast(data) ............ Lines 2478-2510               │     ║
+║    │      ├─ connect() .......................... Lines 2512-2571               │     ║
+║    │      └─ window.st8MutationStream{} exposed . Lines 2577-2583               │     ║
+║    │                                                                            │     ║
+║    └────────────────────────────────────────────────────────────────────────────┘    ║
+║                                                                                      ║
+╚══════════════════════════════════════════════════════════════════════════════════════╝
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -148,7 +277,7 @@
   }
   .file-list-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-3);
     padding: var(--space-2) var(--space-3);
     margin-bottom: var(--space-1);
@@ -178,6 +307,27 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .file-list-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .file-purpose {
+    font-size: 11px;
+    color: var(--cyan);
+    opacity: 0.7;
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .badge-unknown {
+    background: var(--pink);
+    color: var(--void);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    margin-left: 4px;
+    display: inline-block;
   }
   .file-actions {
     display: flex;
@@ -1459,6 +1609,80 @@
   @media (prefers-reduced-motion: reduce) {
     .explorer-spin, .phreak-executing { animation: none; }
   }
+
+  /* ─── AI REVIEW BADGE ───────────────────────────────────── */
+  .badge-ai-review {
+    background: var(--gold);
+    color: var(--void);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    margin-left: 4px;
+    display: inline-block;
+  }
+
+  /* ─── PRD WIZARD ────────────────────────────────────────── */
+  .prd-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .prd-field label {
+    color: var(--cyan);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .prd-input, .prd-select {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    padding: 8px;
+  }
+  .prd-btn-create {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 10px 20px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    border-radius: 3px;
+    width: 100%;
+  }
+  .prd-btn-create:hover {
+    background: var(--gold);
+    color: var(--void);
+  }
+
+  /* ─── VARIABLE EDITOR ───────────────────────────────────── */
+  .var-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .var-field label {
+    color: var(--cyan);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .var-input {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    padding: 8px;
+  }
 </style>
 </head>
 <body>
@@ -1505,6 +1729,30 @@
         <button class="panel-close" data-close="phreak" aria-label="Close">◇</button>
       </div>
       <div class="panel-body" id="phreak-host"></div>
+    </div>
+  </div>
+
+  <!-- PRD Project Wizard -->
+  <div class="panel-overlay" id="overlay-prd-wizard" data-panel="prd-wizard" role="dialog" aria-modal="true" aria-label="PRD Project Wizard">
+    <div class="panel-frame" style="width: min(500px, 92vw); height: min(600px, 86vh);">
+      <div class="panel-titlebar">
+        <span class="panel-title">PRD PROJECT WIZARD</span>
+        <button class="panel-close" data-close="prd-wizard" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" style="padding: 24px;">
+        <div class="prd-field">
+          <label>PROJECT NAME</label>
+          <input type="text" id="prd-name" class="prd-input" placeholder="e.g., st8-launch">
+        </div>
+        <div class="prd-field">
+          <label>TEMPLATE</label>
+          <select id="prd-template" class="prd-select">
+            <option value="">Select template...</option>
+          </select>
+        </div>
+        <div id="prd-variables-container"></div>
+        <button class="prd-btn-create" id="prd-create-btn" onclick="createPRDProject()">CREATE PROJECT</button>
+      </div>
     </div>
   </div>
 
@@ -1649,7 +1897,14 @@
     document.getElementById('btn-explorer').addEventListener('click', () => togglePanel('explorer'));
     document.getElementById('btn-phreak').addEventListener('click',  () => togglePanel('phreak'));
     document.querySelectorAll('[data-close]').forEach(btn => {
-      btn.addEventListener('click', () => closePanel(btn.dataset.close));
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.close;
+        if (panels[name]) closePanel(name);
+        else {
+          const overlay = document.getElementById('overlay-' + name);
+          if (overlay) overlay.classList.remove('open');
+        }
+      });
     });
     document.querySelectorAll('.panel-overlay').forEach(ov => {
       ov.addEventListener('mousedown', e => { if (e.target === ov) closePanel(ov.dataset.panel); });
@@ -1661,6 +1916,102 @@
         if (panels[k].overlay.classList.contains('open')) closePanel(k);
       });
     });
+
+    // ─── PRD WIZARD ─────────────────────────────────────────
+    window.openPRDWizard = function() {
+      document.getElementById('overlay-prd-wizard').classList.add('open');
+      loadTemplatesForWizard();
+    };
+    window.closePRDWizard = function() {
+      document.getElementById('overlay-prd-wizard').classList.remove('open');
+    };
+
+    async function loadTemplatesForWizard() {
+      try {
+        const response = await fetch('/api/templates');
+        const data = await response.json();
+        const select = document.getElementById('prd-template');
+        select.innerHTML = '<option value="">Select template...</option>';
+        if (data.templates) {
+          data.templates.forEach(function(t) {
+            var opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.name;
+            select.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+      }
+    }
+
+    window.createPRDProject = async function() {
+      var name = document.getElementById('prd-name').value;
+      var template = document.getElementById('prd-template').value;
+      if (!name || !template) {
+        alert('Name and template are required');
+        return;
+      }
+      try {
+        var response = await fetch('/api/prd-projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, template: template, variables: {} })
+        });
+        if (response.ok) {
+          closePRDWizard();
+          alert('PRD project created: ' + name);
+        } else {
+          var err = await response.json();
+          alert('Error: ' + (err.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Failed to create project: ' + err.message);
+      }
+    };
+
+    // ─── TEMPLATE VARIABLE EDITOR ────────────────────────────
+    function showPopup(title, html, onSave) {
+      var overlay = document.createElement('div');
+      overlay.className = 'notes-popup-overlay';
+      overlay.innerHTML = '<div class="notes-popup">' +
+        '<div class="notes-popup-header">' +
+          '<span class="notes-popup-title">' + escapeHtml(title) + '</span>' +
+          '<button class="notes-popup-close" onclick="this.closest(\'.notes-popup-overlay\').remove()">◇</button>' +
+        '</div>' +
+        '<div class="notes-popup-body">' + html + '</div>' +
+        '<div class="notes-popup-footer">' +
+          '<button class="notes-btn notes-btn-cancel" onclick="this.closest(\'.notes-popup-overlay\').remove()">CANCEL</button>' +
+          '<button class="notes-btn notes-btn-save">SAVE</button>' +
+        '</div>' +
+      '</div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('.notes-btn-save').addEventListener('click', function() {
+        if (onSave) onSave();
+        overlay.remove();
+      });
+    }
+
+    window.showVariableEditor = function(filepath, variables) {
+      var vars = variables || {};
+      var html = Object.keys(vars).map(function(key) {
+        return '<div class="var-field"><label>' + escapeHtml(key) + '</label>' +
+          '<input type="text" class="var-input" data-var="' + escapeHtml(key) + '" ' +
+          'value="' + escapeHtml(vars[key] || '') + '" placeholder="Enter ' + escapeHtml(key) + '..."></div>';
+      }).join('');
+      // Simple prompt-based editor for now
+      if (Object.keys(vars).length === 0) {
+        alert('No variables to fill');
+        return;
+      }
+      showPopup('Fill Variables: ' + filepath, html, function() {
+        var filled = {};
+        document.querySelectorAll('.var-input').forEach(function(input) {
+          filled[input.dataset.var] = input.value;
+        });
+        console.log('Filled variables:', filled);
+      });
+    };
 
     // ─── WORKSPACE CHANGE HANDLER ─────────────────────────────
     window.st8WorkspaceChanged = function(wsType) {
@@ -1742,9 +2093,16 @@
 
       html += files.map(function(file) {
         var statusClass = file.status === 'GREEN' ? 'green' : file.status === 'YELLOW' ? 'yellow' : 'red';
+        var purpose = file.intent && file.intent.purpose ? file.intent.purpose : '(no purpose)';
+        var hasUnknown = purpose.indexOf('???') !== -1;
         return '<div class="file-list-item" data-path="' + escapeHtml(file.filepath) + '">' +
           '<div class="file-status-dot ' + statusClass + '"></div>' +
-          '<div class="file-name">' + escapeHtml(file.filename) + '</div>' +
+          '<div class="file-list-content">' +
+            '<div class="file-name">' + escapeHtml(file.filename) + (file.needsAIReview ? ' <span class="badge-ai-review">@@@</span>' : '') + '</div>' +
+            '<div class="file-purpose">' + escapeHtml(purpose) +
+              (hasUnknown ? ' <span class="badge-unknown">???</span>' : '') +
+            '</div>' +
+          '</div>' +
           '<div class="file-actions">' +
             '<button class="file-action-btn" onclick="window.handleFileNotes(\'' + escapeHtml(file.filepath) + '\')">Notes</button>' +
             '<button class="file-action-btn" onclick="window.handleFileClipboard(\'' + escapeHtml(file.filepath) + '\')">Copy</button>' +
@@ -2004,6 +2362,85 @@
       return null;
     }
 
+    // ─── BRUNO & OSCAR + AI REVIEW TOASTS ────────────────────
+    function showBrunoToast(data) {
+        showActionToast('BRUNO', data.filepath || data.fingerprint, 'badge-bruno',
+            'Review', function() { reviewStaleFile(data.filepath); },
+            'Archive', function() { archiveFile(data.filepath); }
+        );
+    }
+
+    function showArchiveToast(data) {
+        showActionToast('ARCHIVED', data.filepath || data.fingerprint, 'badge-archive',
+            null, null, null, null
+        );
+    }
+
+    function showAIReviewToast(data) {
+        showActionToast('AI REVIEW', data.filepath || data.fingerprint, 'badge-ai',
+            'Review', function() { openAIReview(data.filepath); },
+            'Dismiss', function() { }
+        );
+    }
+
+    function showActionToast(typeLabel, text, badgeClass, btn1Text, btn1Action, btn2Text, btn2Action) {
+        var container = document.getElementById('mutation-toasts');
+        if (!container) return;
+
+        var toast = document.createElement('div');
+        toast.className = 'mutation-toast';
+
+        var badge = document.createElement('span');
+        badge.className = 'mutation-badge ' + badgeClass;
+        badge.textContent = typeLabel;
+
+        var filepath = document.createElement('span');
+        filepath.className = 'mutation-filepath';
+        filepath.textContent = text || '—';
+
+        toast.appendChild(badge);
+        toast.appendChild(filepath);
+
+        if (btn1Text) {
+            var btn1 = document.createElement('button');
+            btn1.className = 'file-action-btn';
+            btn1.textContent = btn1Text;
+            btn1.onclick = btn1Action;
+            toast.appendChild(btn1);
+        }
+        if (btn2Text) {
+            var btn2 = document.createElement('button');
+            btn2.className = 'file-action-btn';
+            btn2.textContent = btn2Text;
+            btn2.onclick = btn2Action;
+            toast.appendChild(btn2);
+        }
+
+        container.appendChild(toast);
+        setTimeout(function() {
+            toast.classList.add('dismissing');
+            setTimeout(function() {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 300);
+        }, 8000);
+    }
+
+    window.reviewStaleFile = function(filepath) {
+        console.log('Reviewing stale file:', filepath);
+    };
+
+    window.archiveFile = function(filepath) {
+        fetch('/api/oscar-house', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: [filepath] })
+        });
+    };
+
+    window.openAIReview = function(filepath) {
+        console.log('Opening AI review for:', filepath);
+    };
+
     // ─── SSE MUTATION STREAM ──────────────────────────────────
     // Connect to the backend mutation notification stream.
     // Uses relative URL since frontend is served from same origin.
@@ -2098,6 +2535,17 @@
 
             // Display notification toast in UI
             showMutationToast(data);
+
+            // Bruno & Oscar notifications
+            if (data.mutationType === 'BRUNO_CALL') {
+                showBrunoToast(data);
+            }
+            if (data.mutationType === 'ARCHIVE') {
+                showArchiveToast(data);
+            }
+            if (data.mutationType === 'AI_REVIEW_NEEDED') {
+                showAIReviewToast(data);
+            }
 
             // Surface mutation in phreak terminal TUI
             if (window.PhreakTerminal && window.PhreakTerminal.notifyMutation) {

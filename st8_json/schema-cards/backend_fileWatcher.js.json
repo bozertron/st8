@@ -1,0 +1,55 @@
+{
+  "birthTimestamp": "2026-05-12T07:22:16.663Z",
+  "connections": {
+    "importedBy": [
+      "backend/index.js||2026-05-12T07:23:01.935Z"
+    ],
+    "imports": [
+      "lib/commands/integr8/pathGenerator.js||2026-05-12T08:23:53.249Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 137,
+      "name": "FileWatcher",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/backend/fileWatcher.js"
+    }
+  ],
+  "fileSizeBytes": 4321,
+  "filename": "fileWatcher.js",
+  "filepath": "backend/fileWatcher.js",
+  "fingerprint": "backend/fileWatcher.js||2026-05-12T07:22:16.663Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "path",
+      "specifiers": []
+    },
+    {
+      "importType": "require",
+      "source": "fs",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "file path manipulation, file system operations ???",
+    "purpose": "File system change monitoring ???",
+    "valueStatement": "Provides file change monitoring ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:55",
+  "lastModified": "2026-05-13T14:34:39.184Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:55",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0,
+  "sha256Hash": "cc5007dc88248f76ec5c89fa3889c912e6d6931518148a09f02c8b0c9ab9d1ac",
+  "status": "RED"
+}

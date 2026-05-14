@@ -1,0 +1,50 @@
+{
+  "birthTimestamp": "2026-05-12T08:24:07.121Z",
+  "connections": {
+    "importedBy": [
+      "lib/commands/backgroundIndexer.js||2026-05-12T08:23:17.356Z"
+    ],
+    "imports": [
+      "lib/commands/integr8/databasePersister.js||2026-05-12T08:23:17.357Z"
+    ]
+  },
+  "exports": [
+    {
+      "exportVisibility": "named",
+      "kind": "variable",
+      "line": 42,
+      "name": "ParserPersistence",
+      "sourceFile": "/home/bozertron/1_AT_A_TIME/st8/lib/commands/parserPersistence.js"
+    }
+  ],
+  "fileSizeBytes": 14278,
+  "filename": "parserPersistence.js",
+  "filepath": "lib/commands/parserPersistence.js",
+  "fingerprint": "lib/commands/parserPersistence.js||2026-05-12T08:24:07.121Z",
+  "impactRadius": 0,
+  "imports": [
+    {
+      "importType": "require",
+      "source": "./integr8/databasePersister.js",
+      "specifiers": []
+    }
+  ],
+  "intent": {
+    "dependsOnBehavior": "databasePersister ???",
+    "purpose": "SQLite persistence layer ???",
+    "valueStatement": "Provides CRUD operations for file registry ???"
+  },
+  "isEntryPoint": false,
+  "lastIndexed": "2026-05-13 20:11:56",
+  "lastModified": "2026-05-12T08:24:07.121Z",
+  "lastMutation": {
+    "actor": "INDEXER",
+    "timestamp": "2026-05-13 20:11:56",
+    "type": "CREATE"
+  },
+  "lifecyclePhase": "DEVELOPMENT",
+  "mutationCount": 4,
+  "reachabilityScore": 0.95,
+  "sha256Hash": "adbee951b8a3e72d7a917c1743b1095d55446382a24fae72dc8d7a2fbf07c01a",
+  "status": "GREEN"
+}
