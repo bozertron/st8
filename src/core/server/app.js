@@ -15,7 +15,10 @@ const path = require('path');
 
 // ─── STATIC FILE SERVING ─────────────────────────────────────
 
-const STATIC_DIR = path.join(__dirname, '..');
+// Post-move: __dirname is src/core/server/. The repo root (where st8.html,
+// fonts/, and the old root-level frontend .js files live, AND where the
+// new src/frontend/ tree sits) is three levels up.
+const STATIC_DIR = path.join(__dirname, '..', '..', '..');
 const MIME_TYPES = {
     '.html': 'text/html',
     '.js': 'application/javascript',
@@ -147,10 +150,16 @@ class St8Server {
     
     _serveStaticFile(req, res, url) {
         let filePath = url.pathname;
-        
-        // Default to st8.html
+
+        // Default to the original st8.html (legacy monolith — still the source
+        // of truth until the new shell is browser-verified).
         if (filePath === '/') {
             filePath = '/st8.html';
+        }
+        // `/v2` serves the new slim shell at src/frontend/index.html so it
+        // can be A/B tested against the original during the refactor.
+        else if (filePath === '/v2' || filePath === '/v2/') {
+            filePath = '/src/frontend/index.html';
         }
         
         const fullPath = path.join(STATIC_DIR, filePath);

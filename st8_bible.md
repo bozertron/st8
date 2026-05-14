@@ -2253,6 +2253,50 @@ Output: `src/frontend/app.js` (818 lines including header + section separators).
 
 **Originals preserved:** `st8.html` at repo root is untouched. The original 6 root-level component `.js` files are untouched. Until the browser smoke test confirms parity, the original UI is the fallback.
 
+**Commit:** `d62e10a`
+
+---
+
+### Batch 016 — `backend-static-fix-and-v2-route`
+
+**Goal:** Wire the running backend to serve the new shell so it can be browser-tested. Fix a latent bug in static-file serving introduced by batch 010 along the way.
+
+**Latent bug found and fixed (high-impact catch):**
+
+`src/core/server/app.js` line 18 had:
+
+```js
+const STATIC_DIR = path.join(__dirname, '..');
+```
+
+In the original location (`backend/server.js`), `__dirname` was `/home/user/st8/backend` and `..` walked up to the repo root — correct. After the batch 010 move, `__dirname` became `/home/user/st8/src/core/server` and `..` walked to `/home/user/st8/src/core` — wrong. The earlier end-to-end smoke test in batch 011 only hit `/api/health` (which doesn't touch the static-file path), so the bug went unnoticed. Anyone who tried to load `/`, `/st8.html`, a CSS file, or a font would have gotten 404s.
+
+**Fix:** retarget `STATIC_DIR` to walk up three levels:
+
+```js
+const STATIC_DIR = path.join(__dirname, '..', '..', '..');
+```
+
+This resolves to `/home/user/st8` — same effective root as the original. All existing static-file routes now work again.
+
+**`/v2` route added:** Inside `_serveStaticFile()`, a new branch maps the `/v2` (and `/v2/`) path to `src/frontend/index.html`. The original `/` still serves `st8.html` so the two can be A/B tested side-by-side until the browser smoke test confirms parity.
+
+**Verification (full HTTP boot test):**
+
+```
+$ node start.js /tmp/st8-smoke-target
+... full backend boots, server starts on :3847 ...
+$ curl /              -> 2587 lines (original st8.html)               ✅
+$ curl /v2            -> 142 lines  (new slim shell)                  ✅
+$ curl /src/frontend/styles/tokens.css  -> extracted CSS, verbatim   ✅
+$ curl /src/frontend/app.js             -> extracted JS, verbatim    ✅
+$ curl -I /fonts/Monoton-Regular.ttf    -> HTTP 200                  ✅
+```
+
+Static-file serving is fully restored AND the new shell is reachable.
+
+**Browser smoke test (still needed — humans only):** open `http://localhost:3847/v2` in a real browser, ideally side-by-side with `http://localhost:3847/`. Visual aesthetics, dock buttons, panel overlays, file list rendering, terminal, settings, toast notifications, SSE mutation stream — everything should match.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)
