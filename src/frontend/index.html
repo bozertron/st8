@@ -18,9 +18,10 @@
    - void-engine loader removed (void-engine moved to a separate project,
      per founder direction). The window.loadVoidEngine call sites inside
      app.js remain — they're guarded with if-checks and become safe no-ops.
-   - settings-reader.js was never script-loaded by the original st8.html,
-     so it is NOT included here either. The file lives at
-     src/frontend/services/state.js and can be added later if/when wired up.
+   - settings-reader.js (formerly src/frontend/services/state.js) was
+     dead code — never script-loaded by the original st8.html, had its
+     own hardcoded DEFAULT_VOIDFLOW that duplicated settings.js's defaults
+     (silent divergence risk). Retired to OGB/src/frontend/services/state.js.txt.
 
  Load order (preserved from original):
    1. Component scripts (file-explorer, terminal, graph-viewer, settings,

@@ -24,6 +24,7 @@ const { GapAnalyzer } = require('../../features/analysis/gap-analyzer');
 const { IntentSeeder } = require('../../features/analysis/intent-seeder');
 const { hookRegistry, HOOKS } = require('../hook-registry');
 const { registerDefaultSubscribers } = require('../hooks/default-subscribers');
+const { registerForceChecks } = require('../hooks/force-checks');
 
 // ─── GLOBAL ERROR HANDLERS ───────────────────────────────────
 // Prevent process crash from unhandled rejections
@@ -95,6 +96,11 @@ async function main() {
     // generation, schema-card emission, gap analysis, and intent seeding
     // as discrete subscribers instead of inline procedural code.
     registerDefaultSubscribers(hookRegistry);
+
+    // Force-check pass at P=90 — runs after the other 4 subscribers, writes
+    // .st8/force-check.md with cross-tool integrity verdicts. Catches
+    // emitter/manifest/gap-analyzer drift before it propagates.
+    registerForceChecks(hookRegistry);
 
     // Fire INDEX_START so any future module that wants pre-pass setup
     // (e.g. clear stale .st8/ artifacts) has a hook point.

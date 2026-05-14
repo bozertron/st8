@@ -1470,12 +1470,12 @@ class St8Server {
                     details: payload,
                 });
 
-                // Fire the lifecycle hook so subscribers can react. Loaded
-                // lazily to avoid a circular require with main.js.
+                // Fire COMMIT_RECORDED so subscribers can react (regenerate
+                // manifests, refresh dashboard widgets, etc.). Loaded lazily
+                // to avoid a circular require with main.js.
                 try {
                     const { hookRegistry, HOOKS } = require('../hook-registry');
-                    await hookRegistry.execute(HOOKS.LIFECYCLE_TRANSITION, {
-                        kind: 'commit',
+                    await hookRegistry.execute(HOOKS.COMMIT_RECORDED, {
                         commit: payload,
                     });
                 } catch (hookErr) {

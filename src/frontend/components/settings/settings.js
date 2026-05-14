@@ -23,12 +23,43 @@ const SETTINGS_CATEGORIES = [
     { id: 'network', name: 'NETWORK', icon: '◇', description: 'EPO bus and connections' }
 ];
 
+// ─── LLM PROVIDER REGISTRY ───────────────────────────────────
+//
+// Canonical list of provider IDs that a `models` entry can declare via its
+// `provider` field. Adding a new provider here is the single source of
+// truth — the model-entry editor will read this list to populate its
+// provider dropdown.
+//
+// Schema for a `models` entry (used in DEFAULT_SETTINGS.models below):
+//   {
+//     id:        '<stable-id>',      // user-chosen short slug
+//     name:      '<display name>',
+//     provider:  '<one of LLM_PROVIDERS.id>',
+//     model:     '<provider-specific model name>',  // e.g. 'claude-sonnet-4-6'
+//     apiKey:    '<opaque, server-side validated>', // optional — env var if blank
+//     baseUrl:   '<override>',                       // optional — for self-hosted
+//     enabled:   true/false
+//   }
+
+const LLM_PROVIDERS = [
+    { id: 'anthropic', name: 'Anthropic',         docsUrl: 'https://docs.anthropic.com',                  envKey: 'ANTHROPIC_API_KEY' },
+    { id: 'openai',    name: 'OpenAI',            docsUrl: 'https://platform.openai.com/docs',            envKey: 'OPENAI_API_KEY' },
+    { id: 'google',    name: 'Google (Gemini)',   docsUrl: 'https://ai.google.dev/docs',                  envKey: 'GOOGLE_API_KEY' },
+    { id: 'ollama',    name: 'Ollama (local)',    docsUrl: 'https://github.com/ollama/ollama',            envKey: null }, // local — no API key
+    { id: 'lmstudio',  name: 'LM Studio (local)', docsUrl: 'https://lmstudio.ai/docs',                    envKey: null }, // local — no API key
+    { id: 'openrouter',name: 'OpenRouter',        docsUrl: 'https://openrouter.ai/docs',                  envKey: 'OPENROUTER_API_KEY' },
+    { id: 'custom',    name: 'Custom (URL)',      docsUrl: null,                                          envKey: null }, // bring-your-own
+];
+
 // ─── SETTINGS STATE ──────────────────────────────────────────
 
 const settingsState = {
     activeCategory: null,
     entries: {},
-    editingEntry: null
+    editingEntry: null,
+    // Expose the provider registry to the rest of the UI without making it
+    // mutable global state. Read-only by convention.
+    llmProviders: LLM_PROVIDERS
 };
 
 // ─── DEFAULT SETTINGS ────────────────────────────────────────
@@ -44,6 +75,9 @@ const DEFAULT_SETTINGS = {
         cursor_metronome: true
     },
     sirkits: [],
+    // `models` entries now follow the provider-aware schema documented above
+    // the LLM_PROVIDERS array. Empty by default — user adds entries via the
+    // EDIT / ADD NEW affordances in the settings panel.
     models: [],
     shells: [],
     keybindings: [],
@@ -335,5 +369,6 @@ window.St8Settings = {
     duplicateEntry: duplicateEntry,
     loadSettings: loadSettings,
     getCategories: function() { return SETTINGS_CATEGORIES; },
-    getDefaults: function() { return DEFAULT_SETTINGS; }
+    getDefaults: function() { return DEFAULT_SETTINGS; },
+    getLLMProviders: function() { return LLM_PROVIDERS; }
 };

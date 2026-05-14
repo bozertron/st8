@@ -51,6 +51,11 @@ const HOOKS = Object.freeze({
   // Lifecycle transitions (bruno+oscar territory)
   LIFECYCLE_TRANSITION: 'lifecycle:transition', // { file, oldPhase, newPhase }
 
+  // Commit recorded — fires after a git post-commit hook POSTs to
+  // /api/record-commit. Distinct from LIFECYCLE_TRANSITION because the
+  // payload is a commit object, not a file-phase change.
+  COMMIT_RECORDED: 'commit:recorded',           // { commit: {hash, shortHash, subject, author, timestamp, branch, filesChanged} }
+
   // PRD generation
   PRD_GENERATE: 'prd:generate',                 // { targetDir, options }
 });
