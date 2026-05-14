@@ -18,7 +18,28 @@ const fs = require('fs');
 const path = require('path');
 
 const MANIFEST_PATH = path.join(__dirname, 'manifest.json');
+const HISTORY_PATH = path.join(__dirname, 'move-history.json');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+function appendBatchToHistory(manifest) {
+  // After every fully-passing verify, record this batch in move-history.json
+  // so future batches' rewriters can find these files at their new locations.
+  // Idempotent: if a batch with the same name is already recorded, skip.
+  let hist = { completedBatches: [] };
+  if (fs.existsSync(HISTORY_PATH)) {
+    hist = JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf8'));
+  }
+  const already = (hist.completedBatches || []).some((b) => b.batch === manifest.batch);
+  if (already) return false;
+  hist.completedBatches = hist.completedBatches || [];
+  hist.completedBatches.push({
+    batch: manifest.batch,
+    completedAt: new Date().toISOString(),
+    moves: manifest.moves,
+  });
+  fs.writeFileSync(HISTORY_PATH, JSON.stringify(hist, null, 2) + '\n');
+  return true;
+}
 
 function exportKeys(mod) {
   if (mod === null || mod === undefined) return [];
@@ -138,6 +159,15 @@ function main() {
 
   console.log(`\nDone: ${ok} ok, ${fail} fail`);
   console.log(`Results written to scripts/migration/results.verify.json`);
+
+  if (fail === 0) {
+    const recorded = appendBatchToHistory(manifest);
+    if (recorded) {
+      console.log(`Batch "${manifest.batch}" recorded in move-history.json`);
+    } else {
+      console.log(`Batch "${manifest.batch}" already in move-history.json — skipped`);
+    }
+  }
 
   process.exit(fail > 0 ? 1 : 0);
 }

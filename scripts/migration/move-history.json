@@ -1,0 +1,48 @@
+{
+  "completedBatches": [
+    {
+      "batch": "shared",
+      "completedAt": "2026-05-14",
+      "moves": [
+        {
+          "from": "lib/utils/safeFs.js",
+          "to": "src/shared/utils/safe-fs.js"
+        },
+        {
+          "from": "lib/utils/ioChan.js",
+          "to": "src/shared/utils/io-chan.js"
+        },
+        {
+          "from": "lib/utils/astParser.js",
+          "to": "src/shared/utils/ast-parser.js"
+        },
+        {
+          "from": "lib/utils/groundPlane.js",
+          "to": "src/shared/utils/ground-plane.js"
+        },
+        {
+          "from": "backend/st8-types.js",
+          "to": "src/shared/types/st8-types.js"
+        },
+        {
+          "from": "lib/commands/integr8/types.js",
+          "to": "src/shared/types/integr8-types.js"
+        }
+      ]
+    },
+    {
+      "batch": "core-database",
+      "completedAt": "2026-05-14T12:44:01.904Z",
+      "moves": [
+        {
+          "from": "backend/persistence.js",
+          "to": "src/core/database/persistence.js"
+        },
+        {
+          "from": "lib/commands/integr8/databasePersister.js",
+          "to": "src/core/database/graph-persister.js"
+        }
+      ]
+    }
+  ]
+}

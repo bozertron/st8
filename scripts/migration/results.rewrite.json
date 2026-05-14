@@ -1,45 +1,32 @@
 {
-  "batch": "shared",
-  "generatedAt": "2026-05-14T12:35:51.389Z",
-  "totalEdits": 1,
+  "batch": "core-database",
+  "generatedAt": "2026-05-14T12:43:22.837Z",
+  "totalEdits": 2,
   "failures": 0,
   "summary": [
     {
-      "status": "ok",
-      "file": "src/shared/utils/safe-fs.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/shared/utils/io-chan.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/shared/utils/ast-parser.js",
-      "edits": []
-    },
-    {
       "status": "edit",
-      "file": "src/shared/utils/ground-plane.js",
+      "file": "src/core/database/persistence.js",
       "edits": [
         {
-          "start": 2662,
-          "end": 2673,
-          "oldSpec": "./safeFs.js",
-          "newSpec": "./safe-fs.js",
-          "line": 56
+          "start": 466,
+          "end": 477,
+          "oldSpec": "./st8-types",
+          "newSpec": "../../shared/types/st8-types",
+          "line": 17
+        },
+        {
+          "start": 13549,
+          "end": 13560,
+          "oldSpec": "./st8-types",
+          "newSpec": "../../shared/types/st8-types",
+          "line": 386
         }
       ]
     },
     {
       "status": "ok",
-      "file": "src/shared/types/st8-types.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/shared/types/integr8-types.js",
+      "file": "src/core/database/graph-persister.js",
       "edits": []
     }
   ]

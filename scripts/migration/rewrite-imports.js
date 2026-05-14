@@ -31,10 +31,22 @@ const path = require('path');
 const parser = require('@babel/parser');
 
 const MANIFEST_PATH = path.join(__dirname, 'manifest.json');
+const HISTORY_PATH = path.join(__dirname, 'move-history.json');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 function readJson(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+function readHistoryMoves() {
+  // Returns the flat list of all moves completed in prior batches.
+  if (!fs.existsSync(HISTORY_PATH)) return [];
+  const hist = readJson(HISTORY_PATH);
+  const out = [];
+  for (const batch of hist.completedBatches || []) {
+    for (const m of batch.moves || []) out.push(m);
+  }
+  return out;
 }
 
 function tryResolve(absWithoutExt) {
@@ -55,8 +67,12 @@ function tryResolve(absWithoutExt) {
 
 function buildMoveMap(manifest) {
   // Map of absolute-OLD-path -> absolute-NEW-path.
+  // Includes both the current batch's moves AND every move from prior batches
+  // recorded in move-history.json, so the rewriter knows where files moved
+  // in earlier batches now live.
   const map = new Map();
-  for (const m of manifest.moves) {
+  const allMoves = [...readHistoryMoves(), ...manifest.moves];
+  for (const m of allMoves) {
     const fromAbs = path.resolve(REPO_ROOT, m.from);
     const toAbs = path.resolve(REPO_ROOT, m.to);
     map.set(fromAbs, toAbs);

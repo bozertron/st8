@@ -1,50 +1,22 @@
 {
-  "batch": "shared",
-  "generatedAt": "2026-05-14T12:36:01.569Z",
-  "ok": 6,
+  "batch": "core-database",
+  "generatedAt": "2026-05-14T12:44:01.903Z",
+  "ok": 2,
   "fail": 0,
   "summary": [
     {
-      "from": "lib/utils/safeFs.js",
-      "to": "src/shared/utils/safe-fs.js",
+      "from": "backend/persistence.js",
+      "to": "src/core/database/persistence.js",
       "status": "ok",
-      "shape": "object{15 keys}",
-      "exportCount": 15
+      "shape": "object{1 keys}",
+      "exportCount": 1
     },
     {
-      "from": "lib/utils/ioChan.js",
-      "to": "src/shared/utils/io-chan.js",
-      "status": "ok",
-      "shape": "object{5 keys}",
-      "exportCount": 5
-    },
-    {
-      "from": "lib/utils/astParser.js",
-      "to": "src/shared/utils/ast-parser.js",
+      "from": "lib/commands/integr8/databasePersister.js",
+      "to": "src/core/database/graph-persister.js",
       "status": "ok",
       "shape": "object{2 keys}",
       "exportCount": 2
-    },
-    {
-      "from": "lib/utils/groundPlane.js",
-      "to": "src/shared/utils/ground-plane.js",
-      "status": "ok",
-      "shape": "object{4 keys}",
-      "exportCount": 4
-    },
-    {
-      "from": "backend/st8-types.js",
-      "to": "src/shared/types/st8-types.js",
-      "status": "ok",
-      "shape": "object{13 keys}",
-      "exportCount": 13
-    },
-    {
-      "from": "lib/commands/integr8/types.js",
-      "to": "src/shared/types/integr8-types.js",
-      "status": "ok",
-      "shape": "object{8 keys}",
-      "exportCount": 8
     }
   ]
 }

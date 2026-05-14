@@ -1699,3 +1699,102 @@ Both scripts are idempotent. Both runnable on a single file or a whole subtree. 
 - File watcher is paused during the batch move (avoids spurious DELETE+CREATE).
 - All moves recorded as RENAME mutations in a single transactional batch.
 - Watcher resumed after move + import rewrite complete + smoke test passes.
+
+---
+
+## Refactor Batch Log — 2026-05-14
+
+A running record of every batch executed by `scripts/migration/*.js`. Each batch's
+manifest lives at `scripts/migration/manifest.json` at the time it runs; on
+successful verify the moves are appended to `scripts/migration/move-history.json`
+so subsequent batches' import-rewriter knows where prior files now live.
+
+### Batch 001 — `shared`
+
+**Goal:** Move leaves of the dependency graph (utilities + types) into `src/shared/`.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `lib/utils/safeFs.js` | `src/shared/utils/safe-fs.js` | 599 | ✅ |
+| `lib/utils/ioChan.js` | `src/shared/utils/io-chan.js` | 396 | ✅ |
+| `lib/utils/astParser.js` | `src/shared/utils/ast-parser.js` | 1066 | ✅ |
+| `lib/utils/groundPlane.js` | `src/shared/utils/ground-plane.js` | 268 | ✅ |
+| `backend/st8-types.js` | `src/shared/types/st8-types.js` | 282 | ✅ |
+| `lib/commands/integr8/types.js` | `src/shared/types/integr8-types.js` | 83 | ✅ |
+
+**Total:** 2,694 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 1
+
+| File | Line | Old | New |
+|------|------|-----|-----|
+| `src/shared/utils/ground-plane.js` | 56 | `'./safeFs.js'` | `'./safe-fs.js'` |
+
+**Verification:** All 6 new files load and export the same surface as originals
+(47 total exports across the batch: 15+5+2+4+13+8). Originals + copies coexist
+in the same Node process.
+
+**Commit:** `ab4d038` — `refactor(shared): migrate leaf utilities and types`
+
+---
+
+### Batch 002 — `core-database`
+
+**Goal:** Move the persistence monolith and the graph persister into `src/core/database/`.
+Keep `persistence.js` whole (not split into per-table query modules yet) so the
+move and the split remain independently revertible.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/persistence.js` | `src/core/database/persistence.js` | 705 | ✅ |
+| `lib/commands/integr8/databasePersister.js` | `src/core/database/graph-persister.js` | 229 | ✅ |
+
+**Total:** 934 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 2 — both caught via history-aware lookup (the rewriter
+knew about Batch 001's moves and adjusted references to `st8-types` accordingly):
+
+| File | Line | Old | New |
+|------|------|-----|-----|
+| `src/core/database/persistence.js` | 17 | `'./st8-types'` | `'../../shared/types/st8-types'` |
+| `src/core/database/persistence.js` | 386 | `'./st8-types'` | `'../../shared/types/st8-types'` |
+
+**Manual hand-patch:** The dynamic lib loader could not be caught by the AST
+rewriter (it joins a path at runtime, not a `require()` literal). After the
+move, `LIB_DIR` was retargeted from `path.join(__dirname, '..', 'lib')` to
+`__dirname` since `graph-persister.js` now lives in the same directory as
+`persistence.js`. The loader's filename argument changed from
+`'commands/integr8/databasePersister.js'` to `'graph-persister.js'`. Loader
+pattern (graceful fallback on missing module) preserved exactly.
+
+**Verification:** Both new files load. Stronger smoke test passed:
+`new St8Persistence(tmpPath)` + `initialize()` + `getAllFiles()` + `close()`
+runs end-to-end on a throwaway SQLite file, schema applies, query returns 0
+rows, cleanup succeeds. The maestro DatabasePersister loader correctly falls
+through to `better-sqlite3` direct (same behavior as the original — the lib
+module exports a named class, not a callable default, so the
+`typeof === 'function'` guard always fails and the fallback path runs).
+
+**Tooling upgrade in this batch:**
+
+- `scripts/migration/rewrite-imports.js` is now history-aware: it reads
+  `scripts/migration/move-history.json` in addition to the current manifest
+  so requires pointing at previously-moved files are rewritten correctly.
+- `scripts/migration/verify.js` now appends the batch to
+  `move-history.json` on a clean pass (idempotent — re-runs are no-ops).
+
+**Pending follow-up (not done in this batch — intentional):**
+
+The 705-line `persistence.js` monolith still lives as a single file. The
+split into `connection.js` + `queries/{file-registry,connections,file-intent,
+mutation-log,activity-log,settings,prd-projects}.js` (per `0_MASTER_INDEX.md`)
+requires a real refactor of the `St8Persistence` class — not a copy-and-trim
+operation. Method bodies currently use `this.db`; the split version will
+either inject `db` per function or wrap query modules in factories. That
+refactor is scheduled for a later batch once consumers (`server.js` in
+particular) are also being moved, since changing the `St8Persistence` shape
+ripples into ~20 require sites in `server.js`.

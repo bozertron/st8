@@ -1,13 +1,12 @@
 {
-  "batch": "shared",
+  "batch": "core-database",
   "generatedAt": "2026-05-14",
-  "description": "First batch: leaves of the dependency graph. Pure file moves with case-style normalization (camelCase filenames -> kebab-case). Originals stay in place until full refactor verified.",
+  "description": "Moves the persistence monolith and the graph persister into src/core/database/. Keeps persistence.js whole (not split into per-table query modules yet) so each step is independently revertible. After this batch lands, a follow-up will carve the class into a connection module + per-table query modules.",
   "moves": [
-    { "from": "lib/utils/safeFs.js",           "to": "src/shared/utils/safe-fs.js" },
-    { "from": "lib/utils/ioChan.js",           "to": "src/shared/utils/io-chan.js" },
-    { "from": "lib/utils/astParser.js",        "to": "src/shared/utils/ast-parser.js" },
-    { "from": "lib/utils/groundPlane.js",      "to": "src/shared/utils/ground-plane.js" },
-    { "from": "backend/st8-types.js",          "to": "src/shared/types/st8-types.js" },
-    { "from": "lib/commands/integr8/types.js", "to": "src/shared/types/integr8-types.js" }
+    { "from": "backend/persistence.js",                          "to": "src/core/database/persistence.js" },
+    { "from": "lib/commands/integr8/databasePersister.js",       "to": "src/core/database/graph-persister.js" }
+  ],
+  "notes": [
+    "persistence.js contains a dynamic lib-loader (path.join(__dirname, '..', 'lib') ...) that the AST rewriter cannot see — that path will be hand-patched after the move to keep the loader pointing at the right place."
   ]
 }
