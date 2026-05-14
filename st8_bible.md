@@ -1598,3 +1598,104 @@ The approach:
 ---
 
 *"You can't integrate what you can't see."*
+
+---
+
+## Refactor Findings — 2026-05-14
+
+### 1. Mutation Type Coverage (Gap vs. Spec)
+
+Spec defines 8 mutation types in `st8-types.js`: CONCEPT, CREATE, EDIT, RENAME, REFACTOR, LOCK, PRODUCTION, PURGE.
+
+| Mutation Type | Status | Notes |
+|---------------|--------|-------|
+| CONCEPT | Defined-but-never-fired | — |
+| CREATE | **Implemented** | Fired from file watcher callback, `backend/index.js` lines ~1290-1338 |
+| EDIT | **Implemented** | Fired from file watcher callback, `backend/index.js` lines ~1290-1338 |
+| RENAME | Defined-but-never-fired | No detection heuristic exists |
+| REFACTOR | Defined-but-never-fired | — |
+| LOCK | Defined-but-never-fired | — |
+| PRODUCTION | Defined-but-never-fired | — |
+| PURGE | Defined-but-never-fired | — |
+
+**Notable:** chokidar emits `unlink` + `add` for a rename — not a `rename` event. There is no heuristic in `backend/fileWatcher.js` to detect rename by matching content hashes across an unlink/add window.
+
+### 2. Schema Card Regeneration on File Move
+
+Schema card filenames are derived from filepath:
+
+```js
+// backend/schemaCardEmitter.js — _cardFilename()
+filepath.replace(/\//g,'_').replace(/\\/g,'_') + '.json'
+```
+
+Therefore every file move requires the old schema card to be deleted and a new one written under the new path.
+
+**Naming collision risk:** if the migration maps two distinct sources to the same target path, the resulting card filename would collide.
+
+### 3. Connection Resolution Is Currently Broken (Independent of Refactor)
+
+- Per `SYNTHESIS.md` line 149: **69% of files are RED** because connection resolution fails.
+- Root cause: fuzzy O(n²) matching in the connection resolver, not the file layout.
+- This is independent of the refactor — the refactor neither helps nor hurts it.
+- Should be tracked as a separate task after the move lands.
+
+### 4. Fingerprint Semantics During Refactor — DECISION: Option A
+
+Spec: fingerprint = `{filepath}:{birthTimestamp}`. By definition any filepath change creates a new fingerprint.
+
+**Decision:** refactor produces new fingerprints.
+
+- For each moved file, the old fingerprint receives a final `RENAME` mutation pointing at the new fingerprint.
+- Mutation history then continues under the new identity.
+- Old fingerprints remain in `file_registry` as historical records (status = `RENAMED` or similar).
+
+### 5. Move + Rewrite Script Pattern (Proposed)
+
+Two-script pattern we plan to use.
+
+**`scripts/move-files.js`** — reads a manifest like:
+
+```json
+{
+  "moves": [
+    { "from": "backend/indexer.js",      "to": "src/features/indexing/indexer.js" },
+    { "from": "lib/utils/astParser.js",  "to": "src/shared/utils/ast-parser.js"   },
+    { "from": "lib/utils/safeFs.js",     "to": "src/shared/utils/safe-fs.js"      }
+  ]
+}
+```
+
+For each entry:
+1. Copy file (originals stay).
+2. Verify SHA-256 of source == dest.
+3. Log a `RENAME` mutation in `file_mutation_log`.
+4. Update `file_registry.filepath`.
+5. Regenerate schema card under new path.
+6. Delete old schema card.
+
+**`scripts/rewrite-imports.js`** — walks the new tree; for each `.js`, parses `require()` / `import` statements with `@babel/parser` and rewrites paths against the manifest.
+
+Example transformation — before (in source file under old layout `backend/indexer.js`):
+
+```js
+const { St8Persistence } = require('./persistence');
+const astParser          = require('../lib/utils/astParser');
+const safeFs             = require('../lib/utils/safeFs');
+```
+
+After (same file, now at `src/features/indexing/indexer.js`):
+
+```js
+const { St8Persistence } = require('../../core/database/connection');
+const astParser          = require('../../shared/utils/ast-parser');
+const safeFs             = require('../../shared/utils/safe-fs');
+```
+
+Both scripts are idempotent. Both runnable on a single file or a whole subtree. Verification step after each subtree: `node start.js <target>` boots without throwing.
+
+### 6. Identity Continuity Strategy
+
+- File watcher is paused during the batch move (avoids spurious DELETE+CREATE).
+- All moves recorded as RENAME mutations in a single transactional batch.
+- Watcher resumed after move + import rewrite complete + smoke test passes.
