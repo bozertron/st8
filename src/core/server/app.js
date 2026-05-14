@@ -151,14 +151,11 @@ class St8Server {
     _serveStaticFile(req, res, url) {
         let filePath = url.pathname;
 
-        // Default to the original st8.html (legacy monolith — still the source
-        // of truth until the new shell is browser-verified).
-        if (filePath === '/') {
-            filePath = '/st8.html';
-        }
-        // `/v2` serves the new slim shell at src/frontend/index.html so it
-        // can be A/B tested against the original during the refactor.
-        else if (filePath === '/v2' || filePath === '/v2/') {
+        // `/` now serves the new slim shell (was: st8.html, which has been
+        // moved to OGB/ — recover with `cp OGB/st8.html.txt st8.html` and
+        // flip this branch back if anything regresses).
+        // `/v2` retained as an alias for explicit reference.
+        if (filePath === '/' || filePath === '/v2' || filePath === '/v2/') {
             filePath = '/src/frontend/index.html';
         }
         

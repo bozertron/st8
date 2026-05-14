@@ -2405,6 +2405,55 @@ $ curl -I /src/frontend/styles/tokens.css  -> 200 OK                       ✅
 
 **Recovery path:** If anything in `OGB/` is needed back, `cp OGB/<path>.txt <path>` (drop the `.txt`). Git also has full history of every deletion in this batch.
 
+**Commit:** `bbfa7cc`
+
+---
+
+### Batch 020 — `flip-default-to-new-shell`
+
+**Goal:** Promote the new slim shell to the default `/` route and retire `st8.html` to OGB. Founder explicitly chose "debug the new thing rather than keep working with the old" — flip-and-fix is faster than wait-and-verify.
+
+**Edits:**
+
+1. `src/core/server/app.js` `_serveStaticFile()` — collapsed the `/` and `/v2` branches into one. Both now serve `src/frontend/index.html`. The `/v2` alias is kept for explicit reference but it's the same content. Old branch `/ -> /st8.html` is gone.
+2. `st8.html` moved from repo root to `OGB/st8.html.txt` (94 KB, the 2587-line monolith preserved verbatim as an inert text snapshot).
+
+**Verification (HTTP boot test, post-flip):**
+
+```
+$ node start.js /tmp/st8-smoke-target
+...full pipeline runs from src/ only...
+[st8:server] Server running on http://localhost:3847
+
+$ curl /  | head -3            -> "<!DOCTYPE html> ... slim shell"   ✅
+$ curl /  | wc -l              -> 142                                 ✅
+$ curl /api/health             -> {"status":"ok",...}                 ✅
+$ curl -o /dev/null -w '%{http_code}' /st8.html  -> 404               ✅
+$ curl -o /dev/null -w '%{http_code}' /src/frontend/styles/tokens.css -> 200  ✅
+$ curl /v2                     -> identical to /                      ✅
+```
+
+**What the founder needs to do next:** open `http://localhost:3847/` in a real browser. Whatever's broken visually, file a bug — at this point the new shell is the only target; we debug that one rather than juggle two parallel UIs.
+
+**Rollback (if needed):**
+
+```bash
+cp OGB/st8.html.txt st8.html
+# then in app.js, change the route back:
+#   if (filePath === '/') { filePath = '/st8.html'; }
+#   else if (filePath === '/v2' || filePath === '/v2/') { filePath = '/src/frontend/index.html'; }
+```
+
+30-second reversal. The OGB safety net is intact.
+
+**State of the repo:**
+
+- `src/` — the entire live application (62 files + 1 index.html + app.js, ~24K lines)
+- `OGB/` — 47 inert `.txt` snapshots (46 from batch 019 + `st8.html.txt` from this batch, ~1.1 MB)
+- `start.js`, `package.json`, `ai-signal.toml`, `st8.code-workspace`, `connection-state.json` — root configs / entry, unchanged
+- `st8_json/`, `.planning/`, `.archive/`, `fonts/`, `docs/` — historical/runtime artifacts, untouched
+- `scripts/migration/`, `st8_bible.md`, `st8-filemap.md` — refactor toolkit + record
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)
