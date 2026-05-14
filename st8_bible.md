@@ -2367,6 +2367,44 @@ Other docs with stale refs (`README.md`, `0_FRONTEND_INDEX.md`, `0_MASTER_INDEX.
 
 **No files moved. No files deleted. No code changed. Only the canonical filemap inventory was reconciled with disk reality.**
 
+**Commit:** `ba12af6`
+
+---
+
+### Batch 019 — `stage-originals-to-OGB`
+
+**Goal:** Move every migrated original out of its old path and into `OGB/<original-path>.txt` so the new `src/` tree is the sole source of executable code. Founder-proposed pattern: stage to `.txt` snapshots in an inert holding directory, then they destroy `OGB/` themselves at their leisure.
+
+**Tooling added:** `scripts/migration/stage-originals.js` — reads `move-history.json`, for each `from` path copies it to `OGB/<from-path>.txt` and deletes the original. Preserves the original directory structure inside `OGB/` so paths remain unambiguous and inspectable. Idempotent (skips already-staged files).
+
+**Result of run:**
+
+- 46 originals staged into `OGB/` (1.0 MB total, all renamed to `.txt`).
+- All 46 originals deleted from their previous locations.
+- `lib/utils/`, `lib/commands/`, `lib/commands/integr8/`, all the `backend/`*.js* files: now empty of `.js` files.
+- Root-level frontend `.js` files (`coordination.js`, `file-explorer.js`, etc.): gone from root, staged to `OGB/`.
+
+**Files held back from OGB intentionally:**
+
+- `st8.html` — still at repo root, still served at `/`. Until the founder runs the browser smoke test on `http://localhost:3847/v2` and confirms parity with `http://localhost:3847/`, the original monolith is the safety net.
+- `backend/SCHEMA-CARD-EMITTER-REPORT.md`, `backend/SECURITY-AUDIT-H1.md`, `backend/package.json` — not in move-history (not source code; these are docs / configs). Left untouched. The founder can decide their fate separately.
+- All of `st8_json/` (43 schema-card JSONs + 20 markdown docs) — never touched throughout the entire refactor. Documentation + runtime artifacts.
+
+**Verification (full HTTP boot test, post-staging):**
+
+```
+$ node start.js /tmp/st8-smoke-target
+... full pipeline runs from src/ only — no fallback to lib/ or backend/ ...
+[st8:server] Server running on http://localhost:3847
+
+$ curl /api/health       -> {"status":"ok","uptime":4.97,...}              ✅
+$ curl /v2 | wc -l       -> 142   (new slim shell)                          ✅
+$ curl /  | wc -l        -> 2587  (st8.html, held back)                     ✅
+$ curl -I /src/frontend/styles/tokens.css  -> 200 OK                       ✅
+```
+
+**Recovery path:** If anything in `OGB/` is needed back, `cp OGB/<path>.txt <path>` (drop the `.txt`). Git also has full history of every deletion in this batch.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)
