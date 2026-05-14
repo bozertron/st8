@@ -1,24 +1,24 @@
 {
-  "batch": "core-database",
-  "generatedAt": "2026-05-14T12:43:22.742Z",
+  "batch": "lifecycle-watcher",
+  "generatedAt": "2026-05-14T12:48:38.909Z",
   "ok": 2,
   "fail": 0,
   "results": [
     {
-      "from": "backend/persistence.js",
-      "to": "src/core/database/persistence.js",
+      "from": "backend/brunoOscar.js",
+      "to": "src/features/lifecycle/bruno-oscar.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "a9dab6ba4e64da205eeea26d4a63bee328756cfe893acc719de789a778d4c541",
-      "lines": 705
+      "sha256": "c3e6e4dc3f69011aaade3e10143bfcbc354ab527ea5a83e106b56abf9e3f3612",
+      "lines": 186
     },
     {
-      "from": "lib/commands/integr8/databasePersister.js",
-      "to": "src/core/database/graph-persister.js",
+      "from": "backend/fileWatcher.js",
+      "to": "src/features/watcher/file-watcher.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "04ae44a9c1e3dbd32ff918f64512885d7867d15c6862c013ffdd84d39f842c66",
-      "lines": 229
+      "sha256": "cc5007dc88248f76ec5c89fa3889c912e6d6931518148a09f02c8b0c9ab9d1ac",
+      "lines": 140
     }
   ]
 }

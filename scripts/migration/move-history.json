@@ -43,6 +43,20 @@
           "to": "src/core/database/graph-persister.js"
         }
       ]
+    },
+    {
+      "batch": "lifecycle-watcher",
+      "completedAt": "2026-05-14T12:48:39.027Z",
+      "moves": [
+        {
+          "from": "backend/brunoOscar.js",
+          "to": "src/features/lifecycle/bruno-oscar.js"
+        },
+        {
+          "from": "backend/fileWatcher.js",
+          "to": "src/features/watcher/file-watcher.js"
+        }
+      ]
     }
   ]
 }

@@ -1798,3 +1798,26 @@ either inject `db` per function or wrap query modules in factories. That
 refactor is scheduled for a later batch once consumers (`server.js` in
 particular) are also being moved, since changing the `St8Persistence` shape
 ripples into ~20 require sites in `server.js`.
+
+---
+
+### Batch 003 — `lifecycle-watcher`
+
+**Goal:** Warmup batch — two small self-contained backend modules.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/brunoOscar.js` | `src/features/lifecycle/bruno-oscar.js` | 186 | ✅ |
+| `backend/fileWatcher.js` | `src/features/watcher/file-watcher.js` | 140 | ✅ |
+
+**Total:** 326 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 0 — both files only `require()` external modules (`fs`, `path`, `chokidar`). The history-aware rewriter correctly reported nothing to do.
+
+**Manual patches:** None.
+
+**Verification:** Both files load. Each exports a single class (`BrunoOscar`, `FileWatcher`) with the same surface as the original.
+
+**Commit:** (filled in below)

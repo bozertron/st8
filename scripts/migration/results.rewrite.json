@@ -1,32 +1,17 @@
 {
-  "batch": "core-database",
-  "generatedAt": "2026-05-14T12:43:22.837Z",
-  "totalEdits": 2,
+  "batch": "lifecycle-watcher",
+  "generatedAt": "2026-05-14T12:48:38.985Z",
+  "totalEdits": 0,
   "failures": 0,
   "summary": [
     {
-      "status": "edit",
-      "file": "src/core/database/persistence.js",
-      "edits": [
-        {
-          "start": 466,
-          "end": 477,
-          "oldSpec": "./st8-types",
-          "newSpec": "../../shared/types/st8-types",
-          "line": 17
-        },
-        {
-          "start": 13549,
-          "end": 13560,
-          "oldSpec": "./st8-types",
-          "newSpec": "../../shared/types/st8-types",
-          "line": 386
-        }
-      ]
+      "status": "ok",
+      "file": "src/features/lifecycle/bruno-oscar.js",
+      "edits": []
     },
     {
       "status": "ok",
-      "file": "src/core/database/graph-persister.js",
+      "file": "src/features/watcher/file-watcher.js",
       "edits": []
     }
   ]

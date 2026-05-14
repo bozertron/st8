@@ -1,12 +1,9 @@
 {
-  "batch": "core-database",
+  "batch": "lifecycle-watcher",
   "generatedAt": "2026-05-14",
-  "description": "Moves the persistence monolith and the graph persister into src/core/database/. Keeps persistence.js whole (not split into per-table query modules yet) so each step is independently revertible. After this batch lands, a follow-up will carve the class into a connection module + per-table query modules.",
+  "description": "Warmup batch: two small, self-contained backend modules with only external (built-in / npm) requires. Should require zero import rewrites.",
   "moves": [
-    { "from": "backend/persistence.js",                          "to": "src/core/database/persistence.js" },
-    { "from": "lib/commands/integr8/databasePersister.js",       "to": "src/core/database/graph-persister.js" }
-  ],
-  "notes": [
-    "persistence.js contains a dynamic lib-loader (path.join(__dirname, '..', 'lib') ...) that the AST rewriter cannot see — that path will be hand-patched after the move to keep the loader pointing at the right place."
+    { "from": "backend/brunoOscar.js",  "to": "src/features/lifecycle/bruno-oscar.js" },
+    { "from": "backend/fileWatcher.js", "to": "src/features/watcher/file-watcher.js" }
   ]
 }

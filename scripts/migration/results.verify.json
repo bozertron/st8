@@ -1,22 +1,22 @@
 {
-  "batch": "core-database",
-  "generatedAt": "2026-05-14T12:44:01.903Z",
+  "batch": "lifecycle-watcher",
+  "generatedAt": "2026-05-14T12:48:39.027Z",
   "ok": 2,
   "fail": 0,
   "summary": [
     {
-      "from": "backend/persistence.js",
-      "to": "src/core/database/persistence.js",
+      "from": "backend/brunoOscar.js",
+      "to": "src/features/lifecycle/bruno-oscar.js",
       "status": "ok",
       "shape": "object{1 keys}",
       "exportCount": 1
     },
     {
-      "from": "lib/commands/integr8/databasePersister.js",
-      "to": "src/core/database/graph-persister.js",
+      "from": "backend/fileWatcher.js",
+      "to": "src/features/watcher/file-watcher.js",
       "status": "ok",
-      "shape": "object{2 keys}",
-      "exportCount": 2
+      "shape": "object{1 keys}",
+      "exportCount": 1
     }
   ]
 }
