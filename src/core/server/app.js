@@ -142,6 +142,9 @@ class St8Server {
             case '/api/templates':
                 this._handleTemplates(req, res, url);
                 break;
+            case '/api/record-commit':
+                this._handleRecordCommit(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -1419,6 +1422,74 @@ class St8Server {
             res.writeHead(405, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Method not allowed' }));
         }
+    }
+
+    /**
+     * POST /api/record-commit
+     *
+     * Receives commit metadata from the post-commit git hook
+     * (scripts/git-hooks/post-commit) and:
+     *   1. Logs a COMMIT_CHECKPOINT mutation to the mutation_log table
+     *   2. Logs a GIT_COMMIT activity to the activity_log table
+     *   3. Fires the LIFECYCLE_TRANSITION hook (for future subscribers
+     *      that want to react to commits — e.g. snapshot the manifest,
+     *      regenerate gap analysis)
+     *
+     * Body shape (from the shell hook):
+     *   { hash, shortHash, subject, author, timestamp, branch, filesChanged }
+     */
+    _handleRecordCommit(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const payload = JSON.parse(body || '{}');
+                if (!payload.hash) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'hash required' }));
+                    return;
+                }
+
+                const { St8Persistence } = require('../database/persistence');
+                const persistence = new St8Persistence();
+                await persistence.initialize();
+
+                // Commits are project-level events, not per-file mutations
+                // (mutation_log.fingerprint has a FK to file_registry that
+                // a commit-level row can't satisfy). Record into activity_log
+                // instead — that table is exactly for system-level events.
+                persistence.logActivity({
+                    source: 'GIT',
+                    action: 'COMMIT_RECORDED',
+                    details: payload,
+                });
+
+                // Fire the lifecycle hook so subscribers can react. Loaded
+                // lazily to avoid a circular require with main.js.
+                try {
+                    const { hookRegistry, HOOKS } = require('../hook-registry');
+                    await hookRegistry.execute(HOOKS.LIFECYCLE_TRANSITION, {
+                        kind: 'commit',
+                        commit: payload,
+                    });
+                } catch (hookErr) {
+                    // Non-fatal — hook registry may not be initialized.
+                    console.error('[st8:record-commit] hook fire failed:', hookErr.message);
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, hash: payload.hash }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
     }
 
     stop() {

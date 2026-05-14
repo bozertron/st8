@@ -2607,4 +2607,125 @@ function isWritable(absPath) {
 
 **Decision logged but not actioned this session.** Louis.py stays at repo root unchanged. Path C is the plan; ready to execute when the founder gives the green light.
 
+**Commit:** `d340af4`
+
+---
+
+### Batch 022 — `intent-seeder-fix-and-gap-analyzer-jsdoc`
+
+Two small fixes flagged by the agents in batch 021's pressure-test:
+
+**1. intent-seeder.js path-resolution bug.**
+
+`intent-seeder.js` had two relative file reads using `path.resolve(filepath)` — which is cwd-relative. `file_registry.filepath` is stored project-relative, and the server's cwd differs from `targetDir` whenever you run `node start.js /some/other/dir`. Result: `ENOENT: no such file or directory` errors during intent seeding for every file.
+
+Fix:
+- Constructor takes an optional `targetDir` parameter (defaults to `process.cwd()` for backward compat).
+- Both file reads at L193 and L385 now use `path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath)`.
+- `main.js:178` and `main.js:384` (the watcher's incremental re-seed) updated to pass `targetDir`.
+
+Verified: smoke test from repo root against `/tmp/st8-smoke-target` previously reported `Seeded 1 files, 1 errors`. After fix: `Seeded 6 files, 0 errors`.
+
+**2. gap-analyzer.js JSDoc @module tag.**
+
+Line 14: `@module backend/gapAnalyzer` → `@module features/analysis/gap-analyzer`. Cosmetic but caught by the agent's audit.
+
+**Commit:** `2ae1769`
+
+---
+
+### Batch 023 — `hook-registry-and-named-hooks`
+
+The big one — implements §8.1 of `HOOK-ARCHITECTURE-RESEARCH.md`. Replaces the inline post-index hook chain that lived in `main.js:154-183` with a named, priority-ordered, async-aware `HookRegistry`.
+
+**New files:**
+
+`src/core/hook-registry.js` (140 lines):
+- `HookRegistry` class extending `EventEmitter`
+- `.register(name, handler, {priority, source})` → returns unregister function
+- `.execute(name, ctx)` — runs handlers in priority order, awaits each, catches per-handler errors so one bad subscriber can't break others (same isolation policy as `notification-bus`)
+- `.listHooks()` for introspection
+- Singleton `hookRegistry` exported for cross-module use
+- `HOOKS` constants — canonical names for the 6 hook points defined in the doc:
+  - `INDEX_START` — `{targetDir, persistence}`
+  - `INDEX_COMPLETE` — `{result, targetDir, persistence, emitter, printer}`
+  - `FILE_INDEXED` — `{file, targetDir, persistence}` — fires per file in Pass-1 upsert loop
+  - `FILE_BEFORE_CHANGE` — `{change, targetDir, persistence}` — watcher hook (no firers yet)
+  - `FILE_AFTER_CHANGE` — `{change, file, mutation, schemaCard, targetDir, persistence}` — watcher hook (no firers yet)
+  - `LIFECYCLE_TRANSITION` — `{file, oldPhase, newPhase}` — fires from `/api/record-commit` with `{kind: 'commit', commit}`
+  - `PRD_GENERATE` — `{targetDir, options}` — extension point
+
+`src/core/hooks/default-subscribers.js` (80 lines):
+- `registerDefaultSubscribers(registry)` registers st8's built-in handlers
+- 4 INDEX_COMPLETE subscribers in priority order (matches the original orchestration sequence):
+  - P=10 manifest-generator (`writeManifests`)
+  - P=20 schema-card-emitter (`emitAllCards` + `printer.printAllFromCards`)
+  - P=30 gap-analyzer (`analyze` + `writeReport`)
+  - P=40 intent-seeder (`seedAll`)
+- Each handler wrapped in its own try/catch so a failure in one doesn't block subsequent subscribers
+- No default subscribers for `FILE_INDEXED` yet — wired and ready for future modules (Louis lock checks, real-time UI updates)
+
+**Changes to existing files:**
+
+`src/core/server/main.js`:
+- Imports `hookRegistry`, `HOOKS`, `registerDefaultSubscribers`
+- Calls `registerDefaultSubscribers(hookRegistry)` once after persistence init
+- Fires `INDEX_START` before Pass-1 (no default subscribers — extension point)
+- Pass-1 upsert loop fires `FILE_INDEXED` per file (extension point for "identification built into indexing" — the founder's original intent for this hook)
+- **29 lines of inline post-index orchestration replaced with one `await hookRegistry.execute(HOOKS.INDEX_COMPLETE, {...})` call**
+- The watcher callback (`onFileChange`, 215 lines) is **NOT** hook-converted in this batch — that's a bigger, riskier refactor. Saved for a focused follow-up.
+
+**Verified:**
+- All 4 default subscribers run in priority order on every indexer pass.
+- Boot output is byte-for-byte identical to pre-hook orchestration:
+  ```
+  [st8] Manifests generated
+  [st8:emitter] Emitted 6 schema cards, 0 errors
+  [st8:printer] Printed 4 cards, 0 errors
+  [st8] Schema cards emitted
+  [gapAnalyzer] Report written to: …/gap-analysis.md
+  [st8:seeder] Seeded 6 files, 0 errors
+  ```
+- `/api/health` returns 200 after the hook chain completes.
+
+**This is the structural fix the HOOK-ARCHITECTURE doc identified:** the chain that was 70% implemented (inline) is now 100% implemented (named hooks). Future modules — Louis, plugins, external integrations — can register additional handlers on any of the 6 hook points without editing `main.js`.
+
+**Commit:** `04f63fb`
+
+---
+
+### Batch 024 — `post-commit-git-hook`
+
+The doc's §8.2 — small follow-up that uses the new registry.
+
+**New files:**
+
+`scripts/git-hooks/post-commit` — shell hook that runs after every commit. Captures commit metadata (hash, subject, author, branch, files changed) and POSTs to `http://localhost:3847/api/record-commit`. **Non-fatal:** if st8 isn't running, the commit still succeeds; if curl is missing, the commit still succeeds. The hook is a courtesy notification, not a gate.
+
+`scripts/git-hooks/install.sh` — one-time installer that symlinks `scripts/git-hooks/post-commit` → `.git/hooks/post-commit`. Tracked in git, so the canonical version lives in the repo.
+
+**New route:**
+
+`POST /api/record-commit` (in `src/core/server/app.js`):
+- Accepts JSON `{hash, shortHash, subject, author, timestamp, branch, filesChanged}`
+- Writes a `COMMIT_RECORDED` row to `activity_log` (table is right place for project-level events — `mutation_log` has a FK to `file_registry` that commits can't satisfy)
+- Fires `HOOKS.LIFECYCLE_TRANSITION` with `{kind: 'commit', commit}` so subscribers can react (regenerate manifests on commit, snapshot gap analysis, etc.)
+- Returns `{ok: true, hash: <commitHash>}` on success
+
+**Verified:**
+```
+$ curl -X POST http://localhost:3847/api/record-commit \
+    -H "Content-Type: application/json" \
+    -d '{"hash":"abc123def456","shortHash":"abc123d",...}'
+{"ok":true,"hash":"abc123def456"}
+HTTP 200
+```
+
+**Installation (one-time, per repo):**
+```
+bash scripts/git-hooks/install.sh
+```
+
+After installation, every `git commit` automatically POSTs to st8 when it's running. The activity_log builds up a commit history queryable through any existing st8 introspection path.
+
 **Commit:** (filled in below)
