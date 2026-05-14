@@ -17,17 +17,20 @@
     z-index: 50;
   }
   .panel-overlay.open { display: flex; }
+  /* Panel frame now reads its accent color from --panel-accent so each
+     panel column (file-explorer = pink, st8 = cyan, phreak = pink) can
+     theme itself independently by overriding the variable. */
   .panel-frame {
     width: min(1100px, 92vw);
     height: min(720px, 86vh);
     background: #0c0c0e;
-    border: 1px solid var(--pink);
+    border: 1px solid var(--panel-accent, var(--pink));
     border-radius: 8px;
     box-shadow:
-      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 0 0 1px rgba(var(--panel-accent-rgb, var(--pink-rgb)), 0.55),
       0 20px 60px rgba(0, 0, 0, 0.7),
-      0 0 40px rgba(201, 116, 143, 0.18),
-      0 0 60px rgba(31, 189, 234, 0.10);
+      0 0 40px rgba(var(--panel-accent-rgb, var(--pink-rgb)), 0.18),
+      0 0 60px rgba(var(--cyan-rgb), 0.10);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -39,16 +42,16 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 var(--space-3);
-    border-bottom: 1px solid var(--pink);
+    border-bottom: 1px solid var(--panel-accent, var(--pink));
     background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
   }
   .panel-title {
-    color: var(--cyan);
+    color: var(--panel-accent, var(--cyan));
     font-family: 'Poiret One', sans-serif;
     font-size: 13px;
     letter-spacing: 4px;
     text-transform: uppercase;
-    -webkit-text-stroke: 0.5px var(--cyan);
+    -webkit-text-stroke: 0.5px var(--panel-accent, var(--cyan));
   }
   .panel-close {
     background: transparent;

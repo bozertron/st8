@@ -58,53 +58,68 @@
 <link rel="stylesheet" href="components/terminal/terminal.css" />
 <link rel="stylesheet" href="components/notifications/toast.css" />
 <link rel="stylesheet" href="components/prd-wizard/prd-wizard.css" />
+<link rel="stylesheet" href="styles/carousel.css" />
 </head>
 <body>
   <!-- Mutation notification toasts (SSE-driven) -->
   <div class="mutation-toast-container" id="mutation-toasts" aria-live="polite" aria-label="Mutation notifications"></div>
 
-  <main class="void" id="void">
-    <div id="stage"></div>
-  </main>
+  <!-- ─── 3-panel carousel ─────────────────────────────────────
+       Three panels live side-by-side inside a 300vw strip. Slide between
+       them via the diamonds in the shelf below (or the outer dock).
+       Mounted ONCE — never torn down — so Three.js / particles.js state
+       in the st8 panel survives slides. -->
+  <div class="panels-viewport">
+    <div class="panels-strip" id="panels-strip" data-active="st8">
 
-  <footer class="dock">
-    <div class="dock-line" aria-hidden="true"></div>
-    <div class="dock-row">
-      <div class="dock-left">
-        <button id="btn-explorer" class="icon-btn" aria-label="Open file explorer" aria-pressed="false" title="File explorer">
-          <svg class="infinity" viewBox="0 0 56 28" aria-hidden="true">
-            <path d="M11 14 C 11 6, 22 6, 28 14 C 34 22, 45 22, 45 14 C 45 6, 34 6, 28 14 C 22 22, 11 22, 11 14 Z"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="st8-mark" aria-label="st8">st8</div>
-      <div class="dock-right">
-        <button id="btn-phreak" class="text-btn" aria-label="Open phreak terminal" aria-pressed="false" title="Phreak terminal">phreak&gt;</button>
-      </div>
+      <!-- ─── LEFT: File Explorer ─── -->
+      <section class="panel-column" data-panel="explorer">
+        <div class="panel-frame">
+          <div class="panel-titlebar">
+            <span class="panel-title">FILE EXPLORER</span>
+            <span aria-hidden="true">&nbsp;</span>
+          </div>
+          <div class="panel-body" id="explorer-host"></div>
+        </div>
+      </section>
+
+      <!-- ─── CENTER: st8 main (the void replacement) ─── -->
+      <section class="panel-column" data-panel="st8">
+        <div class="panel-frame">
+          <div class="panel-titlebar">
+            <span class="panel-title">ST8 — FULL STACK CIRCUIT ANALYZER</span>
+            <span aria-hidden="true">&nbsp;</span>
+          </div>
+          <div class="panel-body" id="stage"></div>
+        </div>
+      </section>
+
+      <!-- ─── RIGHT: phreak> terminal ─── -->
+      <section class="panel-column" data-panel="phreak">
+        <div class="panel-frame">
+          <div class="panel-titlebar">
+            <span class="panel-title">PHREAK&gt;</span>
+            <span aria-hidden="true">&nbsp;</span>
+          </div>
+          <div class="panel-body" id="phreak-host"></div>
+        </div>
+      </section>
+
     </div>
+  </div>
+
+  <!-- ─── Shelf (lower 1/8) ────────────────────────────────────
+       The dock + LLM chat input + contextual content live here.
+       The slide diamonds at left/right are contextual: only the
+       diamonds that lead to an ADJACENT panel are interactive,
+       and only the one in the direction of an adjacent panel is
+       visible. Center (st8) shows both; flanking panels each show
+       the diamond on the side closest to st8. -->
+  <footer class="shelf" id="shelf" data-active="st8">
+    <button class="slide-diamond slide-left" aria-label="Slide left" title="Slide left">◇</button>
+    <div class="shelf-content" id="shelf-content"></div>
+    <button class="slide-diamond slide-right" aria-label="Slide right" title="Slide right">◇</button>
   </footer>
-
-  <!-- Explorer overlay -->
-  <div class="panel-overlay" id="overlay-explorer" data-panel="explorer" role="dialog" aria-modal="true" aria-label="File explorer">
-    <div class="panel-frame">
-      <div class="panel-titlebar">
-        <span class="panel-title"></span>
-        <button class="panel-close" data-close="explorer" aria-label="Close">◇</button>
-      </div>
-      <div class="panel-body" id="explorer-host"></div>
-    </div>
-  </div>
-
-  <!-- Phreak overlay -->
-  <div class="panel-overlay" id="overlay-phreak" data-panel="phreak" role="dialog" aria-modal="true" aria-label="Phreak terminal">
-    <div class="panel-frame">
-      <div class="panel-titlebar">
-        <span class="panel-title"></span>
-        <button class="panel-close" data-close="phreak" aria-label="Close">◇</button>
-      </div>
-      <div class="panel-body" id="phreak-host"></div>
-    </div>
-  </div>
 
   <!-- PRD Project Wizard -->
   <div class="panel-overlay" id="overlay-prd-wizard" data-panel="prd-wizard" role="dialog" aria-modal="true" aria-label="PRD Project Wizard">

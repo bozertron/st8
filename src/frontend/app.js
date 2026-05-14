@@ -28,12 +28,26 @@
 // Extracted from st8.html lines 1797–2584.
 // ──────────────────────────────────────────────────────────────
 
-    // ─── PANEL CONTROLLER ─────────────────────────────────
+    // ─── SLIDE CONTROLLER ─────────────────────────────────
+    // Replaces the old modal panel-overlay open/close pattern. All three
+    // panels now live in a 300vw .panels-strip and slide via translateX.
+    // Each panel is MOUNTED ONCE at boot — never torn down — so Three.js /
+    // particles.js state in the st8 panel survives slides between adjacent
+    // columns.
+    //
+    // The .panels-strip + .shelf both carry `data-active` (one of
+    // "explorer" | "st8" | "phreak"), driving both the transform AND the
+    // contextual diamond visibility in the shelf.
+
+    const SLIDE_TARGETS = ['explorer', 'st8', 'phreak'];
+
     const panels = {
       explorer: {
-        overlay: document.getElementById('overlay-explorer'),
+        // .panel-titlebar now lives inside the static column rather than a
+        // modal overlay, but the selector still works because the column
+        // contains exactly one .panel-frame.
+        column:  document.querySelector('.panel-column[data-panel="explorer"]'),
         host:    document.getElementById('explorer-host'),
-        button:  document.getElementById('btn-explorer'),
         mounted: false,
         mount() {
           if (this.mounted) return;
@@ -43,7 +57,7 @@
             });
             const self = this;
             const hoist = function() {
-              const titlebar = self.overlay.querySelector('.panel-titlebar');
+              const titlebar = self.column.querySelector('.panel-titlebar');
               if (!titlebar) return;
               const fresh = self.host.querySelector('.explorer-error-banner');
               titlebar.querySelectorAll('.explorer-error-banner').forEach(function(n) {
@@ -60,9 +74,8 @@
         },
       },
       phreak: {
-        overlay: document.getElementById('overlay-phreak'),
+        column:  document.querySelector('.panel-column[data-panel="phreak"]'),
         host:    document.getElementById('phreak-host'),
-        button:  document.getElementById('btn-phreak'),
         mounted: false,
         mount() {
           if (this.mounted) return;
@@ -71,14 +84,14 @@
               console.info('[st8] phreak copy:', content);
             });
             const controls = this.host.querySelector('.phreak-header-controls');
-            const titlebar = this.overlay.querySelector('.panel-titlebar');
+            const titlebar = this.column.querySelector('.panel-titlebar');
             if (controls && titlebar) titlebar.appendChild(controls);
             const status = document.createElement('span');
             status.className = 'phreak-status-line';
             status.textContent = 'TYPE "HELP" FOR AVAILABLE COMMANDS';
-            const diamond = titlebar.querySelector('.panel-close');
-            if (diamond && diamond.nextSibling) titlebar.insertBefore(status, diamond.nextSibling);
-            else titlebar.appendChild(status);
+            // titlebar no longer has a .panel-close diamond (those are
+            // shelf-level now), so we just append the status line.
+            titlebar.appendChild(status);
             this.statusEl = status;
             const self = this;
             controls && controls.addEventListener('click', function(e) {
@@ -107,48 +120,65 @@
       },
     };
 
-    function openPanel(name) {
-      const p = panels[name]; if (!p) return;
-      Object.keys(panels).forEach(k => { if (k !== name) closePanel(k); });
-      p.mount();
-      p.overlay.classList.add('open');
-      p.button.setAttribute('aria-pressed', 'true');
-      setTimeout(() => {
-        const input = p.host.querySelector('input, button');
-        if (input) input.focus();
-      }, 50);
-    }
-    function closePanel(name) {
-      const p = panels[name]; if (!p) return;
-      p.overlay.classList.remove('open');
-      p.button.setAttribute('aria-pressed', 'false');
-    }
-    function togglePanel(name) {
-      const p = panels[name]; if (!p) return;
-      if (p.overlay.classList.contains('open')) closePanel(name); else openPanel(name);
+    const strip = document.getElementById('panels-strip');
+    const shelf = document.getElementById('shelf');
+
+    function slideTo(target) {
+      if (!SLIDE_TARGETS.includes(target)) return;
+      if (strip) strip.setAttribute('data-active', target);
+      if (shelf) shelf.setAttribute('data-active', target);
+      // Lazy-mount the visited panel. The st8 panel is mounted by the
+      // particles/Three integration in Phase B/C; explorer + phreak mount
+      // on first visit.
+      if (panels[target] && typeof panels[target].mount === 'function') {
+        panels[target].mount();
+      }
     }
 
-    document.getElementById('btn-explorer').addEventListener('click', () => togglePanel('explorer'));
-    document.getElementById('btn-phreak').addEventListener('click',  () => togglePanel('phreak'));
-    document.querySelectorAll('[data-close]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const name = btn.dataset.close;
-        if (panels[name]) closePanel(name);
-        else {
-          const overlay = document.getElementById('overlay-' + name);
-          if (overlay) overlay.classList.remove('open');
-        }
+    // Expose for the rest of the app (terminal, future hotkeys, etc.).
+    window.St8Slide = { slideTo, current: function() { return strip ? strip.getAttribute('data-active') : null; } };
+
+    // Mount file-explorer + phreak immediately so their state is ready
+    // even before the user slides to them. Center st8 panel mounts when
+    // particles/Three init in Phase B/C.
+    panels.explorer.mount();
+    panels.phreak.mount();
+
+    // Wire the contextual slide diamonds. Each .slide-diamond is either
+    // .slide-left (in the left shelf slot) or .slide-right (right slot).
+    // The target panel is computed from the CURRENT active panel:
+    //   from explorer → only slide-right is visible → goes to st8
+    //   from st8      → slide-left goes to explorer, slide-right to phreak
+    //   from phreak   → only slide-left is visible  → goes to st8
+    // This matches the founder's "diamond on the side closest to st8" rule.
+    function diamondTarget(direction) {
+      const cur = strip ? strip.getAttribute('data-active') : 'st8';
+      if (direction === 'left') {
+        if (cur === 'phreak') return 'st8';
+        if (cur === 'st8') return 'explorer';
+        return null; // explorer — slide-left is hidden anyway
+      }
+      // direction === 'right'
+      if (cur === 'explorer') return 'st8';
+      if (cur === 'st8') return 'phreak';
+      return null;
+    }
+    document.querySelectorAll('.slide-diamond').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const dir = btn.classList.contains('slide-left') ? 'left' : 'right';
+        const target = diamondTarget(dir);
+        if (target) slideTo(target);
       });
     });
-    document.querySelectorAll('.panel-overlay').forEach(ov => {
-      ov.addEventListener('mousedown', e => { if (e.target === ov) closePanel(ov.dataset.panel); });
-    });
-    document.addEventListener('keydown', e => {
+
+    // From any flanking panel, ESC returns to st8 center (matches the
+    // "diamond closest to st8" semantic). Skip when the phreak TUI is
+    // active — it has its own ESC behavior.
+    document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
       if (window.PhreakTerminal && window.PhreakTerminal.getState && window.PhreakTerminal.getState().isTUI) return;
-      Object.keys(panels).forEach(k => {
-        if (panels[k].overlay.classList.contains('open')) closePanel(k);
-      });
+      const current = strip && strip.getAttribute('data-active');
+      if (current && current !== 'st8') slideTo('st8');
     });
 
     // ─── PRD WIZARD ─────────────────────────────────────────

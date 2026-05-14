@@ -1,0 +1,230 @@
+/*
+ * carousel.css — 3-panel slide carousel + 1/8 shelf + contextual slide-diamonds
+ *
+ * Layout model:
+ *
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │                                                         │
+ *   │          .panels-viewport  (87.5vh, overflow: hidden)   │
+ *   │                                                         │
+ *   │   .panels-strip  (300vw wide, transform translateX)    │
+ *   │     ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+ *   │     │ explorer│ │  st8    │ │ phreak> │               │
+ *   │     │  (pink) │ │  (cyan) │ │  (pink) │               │
+ *   │     │         │ │ active  │ │         │               │
+ *   │     │         │ │ <======>│ │         │               │
+ *   │     └─────────┘ └─────────┘ └─────────┘               │
+ *   │                                                         │
+ *   ├─────────────────────────────────────────────────────────┤
+ *   │ [◇]   .shelf  (12.5vh) — contextual content      [◇]  │
+ *   └─────────────────────────────────────────────────────────┘
+ *
+ * Slide controls live in the shelf, NOT inside the panels themselves.
+ * Their visibility is contextual:
+ *   - center (st8) active  →  both diamonds visible
+ *   - left (explorer) active  →  only the right diamond visible
+ *   - right (phreak>) active  →  only the left diamond visible
+ *
+ * The strip uses transform translateX so all 3 panels remain rendered
+ * (mount once, hide via offset). This avoids tear-down/rebuild on
+ * every slide, which would kill Three.js + particles.js state.
+ */
+
+/* ─── VIEWPORT + STRIP ─────────────────────────────────────── */
+
+.panels-viewport {
+  position: relative;
+  width: 100vw;
+  height: calc(100vh - var(--shelf-height));
+  overflow: hidden;
+  background: var(--void);
+}
+
+.panels-strip {
+  display: flex;
+  width: 300vw;
+  height: 100%;
+  transform: translateX(var(--strip-offset, -100vw));
+  transition: transform var(--carousel-slide-ms) var(--carousel-ease);
+  will-change: transform;
+}
+
+/* Slide states — set by JS on .panels-strip via the active panel attr.
+   Three positions only (left / center / right); the variable carries
+   the magic so future panels (4-up, 5-up) are a one-line override. */
+.panels-strip[data-active="explorer"] { --strip-offset:    0;     }
+.panels-strip[data-active="st8"]      { --strip-offset: -100vw;   }
+.panels-strip[data-active="phreak"]   { --strip-offset: -200vw;   }
+
+/* Each panel column fills the viewport. Three columns side-by-side
+   inside a 300vw strip. */
+.panel-column {
+  flex: 0 0 100vw;
+  width: 100vw;
+  height: 100%;
+  padding: var(--space-5);
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* Per-column theming. Each column overrides --panel-accent so its
+   internal .panel-frame, .panel-titlebar, etc. pick up the right color. */
+.panel-column[data-panel="explorer"] {
+  --panel-accent: var(--pink);
+  --panel-accent-rgb: var(--pink-rgb);
+}
+.panel-column[data-panel="st8"] {
+  --panel-accent: var(--cyan);
+  --panel-accent-rgb: var(--cyan-rgb);
+}
+.panel-column[data-panel="phreak"] {
+  --panel-accent: var(--pink);
+  --panel-accent-rgb: var(--pink-rgb);
+}
+
+/* In tiled mode the panel-frame fills its column (no fixed max widths). */
+.panel-column .panel-frame {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+/* Subtle background tint on the center st8 panel — the "blue lines +
+   background fill" the founder called out. Flanking panels keep the
+   #0c0c0e default for the pure line-art look. */
+.panel-column[data-panel="st8"] .panel-frame {
+  background:
+    linear-gradient(to bottom, rgba(var(--cyan-rgb), 0.04), rgba(var(--cyan-rgb), 0.02)),
+    #0c0c0e;
+}
+
+/* ─── SHELF ────────────────────────────────────────────────── */
+
+.shelf {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--shelf-height);
+  background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  border-top: 1px solid var(--panel-accent, var(--pink));
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 0 var(--space-5);
+  gap: var(--space-4);
+  z-index: 10;
+}
+
+/* The shelf inherits the accent from the currently-active panel
+   so its top border matches what's above it. */
+.shelf[data-active="explorer"] {
+  --panel-accent: var(--pink);
+  --panel-accent-rgb: var(--pink-rgb);
+}
+.shelf[data-active="st8"] {
+  --panel-accent: var(--cyan);
+  --panel-accent-rgb: var(--cyan-rgb);
+}
+.shelf[data-active="phreak"] {
+  --panel-accent: var(--pink);
+  --panel-accent-rgb: var(--pink-rgb);
+}
+
+.shelf-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text);
+  font-family: 'Poiret One', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+/* ─── SLIDE DIAMONDS (CONTEXTUAL) ──────────────────────────── */
+
+.slide-diamond {
+  background: transparent;
+  border: none;
+  color: var(--gold);
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  /* Pink emissive fill — text-shadow stack creates the inner-glow that
+     the founder asked for ("just like how it is under the buttons now"). */
+  text-shadow:
+    0 0 4px  rgba(var(--pink-rgb), 0.55),
+    0 0 12px rgba(var(--pink-rgb), 0.35),
+    0 0 22px rgba(var(--pink-rgb), 0.18);
+  transition: text-shadow 200ms ease, transform 200ms ease, opacity 180ms ease;
+}
+.slide-diamond:hover {
+  transform: scale(1.08);
+  text-shadow:
+    0 0 6px  rgba(var(--pink-rgb), 0.85),
+    0 0 16px rgba(var(--pink-rgb), 0.55),
+    0 0 28px rgba(var(--pink-rgb), 0.28);
+}
+.slide-diamond:active {
+  transform: scale(0.96);
+}
+
+/* Visibility per active panel — show ONLY the diamond(s) pointing to
+   adjacent panels. Each flanking panel has one diamond (closest to st8);
+   the center panel has both. Use opacity + pointer-events so the layout
+   doesn't reflow on slide.
+
+   From explorer (left panel): the left slot has nothing to its left → hide
+   the left diamond. The right diamond points to st8.
+
+   From phreak (right panel): mirror — hide the right diamond.
+
+   From st8 (center): both visible. Left points to explorer, right to phreak. */
+.shelf[data-active="explorer"] .slide-diamond.slide-left,
+.shelf[data-active="phreak"]   .slide-diamond.slide-right {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── OUTER DOCK DIAMONDS (always present, redundant shortcuts) ─
+   These are the dock-left and dock-right glyphs in the original
+   .dock-row. The founder asked for them to become diamonds replacing
+   the existing file-explorer icon and "phreak>" text button. They
+   serve the same slide actions as the shelf diamonds — duplicates by
+   design, since the founder's mental model is "always at the edges". */
+
+.dock-diamond {
+  background: transparent;
+  border: none;
+  color: var(--gold);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  text-shadow:
+    0 0 3px  rgba(var(--pink-rgb), 0.45),
+    0 0 10px rgba(var(--pink-rgb), 0.25);
+  transition: text-shadow 200ms ease, transform 200ms ease;
+}
+.dock-diamond:hover {
+  transform: scale(1.08);
+  text-shadow:
+    0 0 5px  rgba(var(--pink-rgb), 0.75),
+    0 0 14px rgba(var(--pink-rgb), 0.45);
+}
+.dock-diamond:active { transform: scale(0.96); }

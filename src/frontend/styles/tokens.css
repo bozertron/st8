@@ -12,6 +12,25 @@
     --cyan:   #1FBDEA;
     --pink:   #C9748F;
 
+    /* RGB triplets for the same hues (used in rgba() to compose
+       translucent borders, glows, fills without re-hardcoding each
+       color). Keep in sync with the hex above. */
+    --gold-rgb: 212, 175, 55;
+    --cyan-rgb: 31, 189, 234;
+    --pink-rgb: 201, 116, 143;
+
+    /* Default panel accent — used by .panel-frame and friends.
+       Each panel column overrides this to set its own theme:
+       flanking panels (file-explorer, phreak) use --pink;
+       the center st8 panel uses --cyan. */
+    --panel-accent: var(--pink);
+    --panel-accent-rgb: var(--pink-rgb);
+
+    /* Carousel + shelf layout. */
+    --shelf-height: 12.5vh;
+    --carousel-slide-ms: 320ms;
+    --carousel-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+
     --space-1:  4px;
     --space-2:  8px;
     --space-3: 12px;
