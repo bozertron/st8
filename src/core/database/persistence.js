@@ -162,6 +162,39 @@ CREATE INDEX IF NOT EXISTS idx_ai_content_reviewed ON ai_content(reviewed);
 CREATE INDEX IF NOT EXISTS idx_file_registry_bruno ON file_registry(brunoStatus);
 CREATE INDEX IF NOT EXISTS idx_file_registry_ai_review ON file_registry(needsAIReview);
 CREATE INDEX IF NOT EXISTS idx_file_registry_unfilled ON file_registry(hasUnfilledVariables);
+
+-- ─── TICKETS ───────────────────────────────────────────────
+-- Human-written notes about a file's bug-juice, ready to be picked up
+-- by an LLM collaborator. Each ticket pins the file's identity at the
+-- moment the ticket was created (fingerprint + sha256 + status) so a
+-- later resolution can verify what changed.
+--
+-- Lifecycle:
+--   created -> [optional: claimed by LLM] -> resolved
+--
+-- The intent is for the LLM colleague (e.g. via the docs/Sonic
+-- shared-disk channel) to read open tickets, post a resolution,
+-- mark resolvedAt. st8's UI shows the count of open tickets as a
+-- badge on the phreak> terminal's "Ticket" button.
+CREATE TABLE IF NOT EXISTS tickets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fingerprint TEXT NOT NULL,                  -- file at moment of ticket creation
+  filepath TEXT NOT NULL,                     -- denormalized for convenience
+  sha256Hash TEXT,                            -- snapshot of file content hash
+  statusAtCreation TEXT,                      -- GREEN/YELLOW/RED at creation
+  userNote TEXT NOT NULL,                     -- the human's words
+  identityBundle TEXT,                        -- JSON: schema card + intent + recent mutations
+  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+  claimedAt TEXT,                             -- when an LLM picked it up
+  claimedBy TEXT,                             -- provider id (anthropic/openai/etc)
+  resolvedAt TEXT,                            -- when human or LLM marked it done
+  resolution TEXT,                            -- LLM's response / human's resolution note
+  FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tickets_filepath ON tickets(filepath);
+CREATE INDEX IF NOT EXISTS idx_tickets_open ON tickets(resolvedAt);
+CREATE INDEX IF NOT EXISTS idx_tickets_fingerprint ON tickets(fingerprint);
 `;
 
 // ─── PERSISTENCE CLASS ───────────────────────────────────────
@@ -301,6 +334,67 @@ class St8Persistence {
         return { prunedCount: prunedFingerprints.length, prunedFingerprints };
     }
     
+    // ─── TICKETS ────────────────────────────────────────────
+
+    /**
+     * Create a new ticket from a user note + file context.
+     * @param {object} t - { fingerprint, filepath, sha256Hash, statusAtCreation, userNote, identityBundle }
+     * @returns {{ id: number, createdAt: string }}
+     */
+    createTicket(t) {
+        const stmt = this.db.prepare(`
+            INSERT INTO tickets (fingerprint, filepath, sha256Hash, statusAtCreation, userNote, identityBundle)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        const result = stmt.run(
+            t.fingerprint,
+            t.filepath,
+            t.sha256Hash || null,
+            t.statusAtCreation || null,
+            t.userNote || '',
+            t.identityBundle ? JSON.stringify(t.identityBundle) : null
+        );
+        const row = this.db.prepare('SELECT id, createdAt FROM tickets WHERE id = ?').get(result.lastInsertRowid);
+        return { id: row.id, createdAt: row.createdAt };
+    }
+
+    /** Open tickets (resolvedAt IS NULL), newest first. */
+    getOpenTickets(limit) {
+        const lim = typeof limit === 'number' ? limit : 200;
+        return this.db.prepare(`
+            SELECT * FROM tickets
+            WHERE resolvedAt IS NULL
+            ORDER BY createdAt DESC
+            LIMIT ?
+        `).all(lim);
+    }
+
+    /** Count of open tickets — for the phreak> TUI badge. */
+    countOpenTickets() {
+        const row = this.db.prepare('SELECT COUNT(*) AS n FROM tickets WHERE resolvedAt IS NULL').get();
+        return row ? row.n : 0;
+    }
+
+    /** Mark a ticket resolved. */
+    resolveTicket(id, resolution) {
+        const stmt = this.db.prepare(`
+            UPDATE tickets
+            SET resolvedAt = CURRENT_TIMESTAMP, resolution = ?
+            WHERE id = ?
+        `);
+        return stmt.run(resolution || '', id);
+    }
+
+    /** Claim a ticket on behalf of an LLM provider. */
+    claimTicket(id, claimedBy) {
+        const stmt = this.db.prepare(`
+            UPDATE tickets
+            SET claimedAt = CURRENT_TIMESTAMP, claimedBy = ?
+            WHERE id = ? AND claimedAt IS NULL
+        `);
+        return stmt.run(claimedBy || 'unknown', id);
+    }
+
     deleteConnectionsForFile(fingerprint) {
         const stmt = this.db.prepare(
             'DELETE FROM connections WHERE sourceFingerprint = ? OR targetFingerprint = ?'

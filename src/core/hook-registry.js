@@ -58,6 +58,10 @@ const HOOKS = Object.freeze({
 
   // PRD generation
   PRD_GENERATE: 'prd:generate',                 // { targetDir, options }
+
+  // Ticket created from a particle click + user note. Subscribers:
+  // future Sonic ticket-indexer; phreak> TUI badge counter; etc.
+  TICKET_CREATED: 'ticket:created',             // { ticket: {id, fingerprint, filepath, userNote, ...} }
 });
 
 class HookRegistry extends EventEmitter {

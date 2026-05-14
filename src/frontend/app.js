@@ -580,11 +580,68 @@
         '<div class="notes-popup-footer">' +
           '<button class="notes-btn notes-btn-cancel" onclick="this.closest(\'.notes-popup-overlay\').remove()">CANCEL</button>' +
           '<button class="notes-btn notes-btn-save" onclick="window.saveFileNotes(\'' + escapeHtml(filepath) + '\')">SAVE</button>' +
+          '<button class="notes-btn notes-btn-ticket" onclick="window.makeTicketFromNotes(\'' + escapeHtml(filepath) + '\')" style="background:transparent;border:1px solid #C9748F;color:#D4AF37;margin-left:8px;text-shadow:0 0 6px rgba(201,116,143,0.5);">MAKE TICKET</button>' +
         '</div>' +
       '</div>';
 
       document.body.appendChild(overlay);
     }
+
+    // ─── MAKE TICKET ─────────────────────────────────────────
+    // Closes the founder's loop: user spots bug-juice in the void →
+    // clicks particle → notes popup → writes a note → clicks Make
+    // Ticket. POSTs to /api/tickets; backend writes the row, fires
+    // HOOKS.TICKET_CREATED, and (once the Sonic indexer is wired) the
+    // LLM colleague picks it up via the shared ground-plane channel.
+    window.makeTicketFromNotes = function(filepath) {
+      const file = (window._st8FileIndex && Object.values(window._st8FileIndex).find(function(f) {
+        return f.filepath === filepath;
+      })) || {};
+      const purposeEl = document.getElementById('notes-purpose');
+      const dependsEl = document.getElementById('notes-depends');
+      const valueEl   = document.getElementById('notes-value');
+      // Compose the user note from whatever they've typed. If they
+      // typed in only one field, that's the note; we don't force them
+      // to fill all three.
+      const parts = [];
+      if (purposeEl && purposeEl.value) parts.push('PURPOSE:\n' + purposeEl.value);
+      if (dependsEl && dependsEl.value) parts.push('DEPENDS ON:\n' + dependsEl.value);
+      if (valueEl   && valueEl.value)   parts.push('VALUE:\n'   + valueEl.value);
+      const userNote = parts.join('\n\n') || '(no note text)';
+
+      fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fingerprint: file.fingerprint,
+          filepath:    file.filepath || filepath,
+          sha256Hash:  file.sha256Hash,
+          status:      file.status,
+          userNote:    userNote,
+          identityBundle: {
+            intent:    file.intent || null,
+            imports:   file.imports || [],
+            importedBy: file.importedBy || [],
+            statusCounts: file.statusCounts || null,
+          },
+        }),
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data && data.ok) {
+          // Visual feedback: toast + close the popup.
+          if (window.showCopyFeedback) {
+            window.showCopyFeedback('Ticket #' + data.id + ' opened — phreak> will see it');
+          } else {
+            console.info('[st8] Ticket #' + data.id + ' created');
+          }
+          const overlay = document.querySelector('.notes-popup-overlay');
+          if (overlay) overlay.remove();
+        } else {
+          alert('Ticket creation failed: ' + (data && data.error));
+        }
+      }).catch(function(err) {
+        alert('Ticket creation failed: ' + err.message);
+      });
+    };
 
     // ─── SAVE FILE NOTES ─────────────────────────────────────
     window.saveFileNotes = function(filepath) {

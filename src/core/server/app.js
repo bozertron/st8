@@ -145,6 +145,12 @@ class St8Server {
             case '/api/record-commit':
                 this._handleRecordCommit(req, res);
                 break;
+            case '/api/tickets':
+                this._handleTickets(req, res, url);
+                break;
+            case '/api/tickets/count':
+                this._handleTicketsCount(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -1485,6 +1491,106 @@ class St8Server {
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ ok: true, hash: payload.hash }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    /**
+     * /api/tickets
+     *   GET  → list open tickets (newest first)
+     *   POST → create a ticket from a user note
+     *     body: { fingerprint, filepath, userNote, sha256Hash?, status?, identityBundle? }
+     *     - Returns { ok, id, createdAt }
+     *     - Fires HOOKS.TICKET_CREATED so phreak / SSE / future LLM
+     *       claim-watchers can react.
+     */
+    _handleTickets(req, res, url) {
+        const { St8Persistence } = require('../database/persistence');
+
+        if (req.method === 'GET') {
+            const persistence = new St8Persistence();
+            persistence.initialize().then(function() {
+                try {
+                    const tickets = persistence.getOpenTickets(200);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ tickets: tickets, count: tickets.length }));
+                } catch (err) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            });
+            return;
+        }
+
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+
+        let body = '';
+        req.on('data', function(chunk) { body += chunk; });
+        req.on('end', async function() {
+            try {
+                const payload = JSON.parse(body || '{}');
+                if (!payload.fingerprint || !payload.filepath) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'fingerprint + filepath required' }));
+                    return;
+                }
+                const persistence = new St8Persistence();
+                await persistence.initialize();
+                const ticket = persistence.createTicket({
+                    fingerprint: payload.fingerprint,
+                    filepath: payload.filepath,
+                    sha256Hash: payload.sha256Hash || null,
+                    statusAtCreation: payload.status || null,
+                    userNote: payload.userNote || '',
+                    identityBundle: payload.identityBundle || null,
+                });
+
+                persistence.logActivity({
+                    source: 'USER_UI',
+                    action: 'TICKET_CREATED',
+                    target_fingerprint: payload.fingerprint,
+                    details: { ticketId: ticket.id, filepath: payload.filepath },
+                });
+
+                // Fire the hook so subscribers (future Sonic indexer,
+                // phreak's badge counter, etc.) can react.
+                try {
+                    const { hookRegistry, HOOKS } = require('../hook-registry');
+                    // Add a TICKET_CREATED hook lazily — we don't add it
+                    // to the canonical HOOKS list since this is a v1
+                    // mechanism that may be reshaped.
+                    await hookRegistry.execute(HOOKS.TICKET_CREATED || 'ticket:created', {
+                        ticket: { id: ticket.id, ...payload, createdAt: ticket.createdAt },
+                    });
+                } catch (hookErr) {
+                    console.error('[st8:tickets] hook fire failed:', hookErr.message);
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, id: ticket.id, createdAt: ticket.createdAt }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    /** GET /api/tickets/count → { count } for the phreak> TUI badge. */
+    _handleTicketsCount(req, res) {
+        const { St8Persistence } = require('../database/persistence');
+        const persistence = new St8Persistence();
+        persistence.initialize().then(function() {
+            try {
+                const count = persistence.countOpenTickets();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ count: count }));
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
