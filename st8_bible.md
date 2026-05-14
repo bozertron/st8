@@ -2161,6 +2161,40 @@ The `<style>` block in `st8.html` spans lines 138-1686 (1549 lines). Extracted l
 
 **`st8.html` not modified.** Its `<style>` block stays inline so the un-migrated UI keeps rendering identically. The slim shell that loads these new `.css` files via `<link rel="stylesheet">` will be built in a follow-up batch alongside the JS extraction and script-src updates.
 
+**Commit:** `de8415c`
+
+---
+
+### Batch 014 — `st8-html-js-extraction`
+
+**Goal:** Pull the inline JavaScript out of `st8.html` into `src/frontend/app.js`. Original `st8.html` stays unmodified.
+
+**Tooling added:** `scripts/migration/extract-js.js` — counterpart to the CSS extractor. Documented line ranges, verbatim slice, no transformation.
+
+**Extracted:**
+
+| Source range | Content | Lines |
+|--------------|---------|-------|
+| `st8.html` 1784-1788 | `window.escapeHtml` utility (was its own `<script>` block) | 5 |
+| `st8.html` 1797-2584 | Main application: panels, PRD wizard, variable editor, workspace change, file list rendering, file action handlers, copy file context, copy feedback, notes popup, save file notes, indexing complete handler, fetch manifest, Bruno & Oscar + AI review toasts, SSE mutation stream | 788 |
+| **Total** | | **793** |
+
+Output: `src/frontend/app.js` (818 lines including header + section separators).
+
+**Intentional omissions (per founder direction):**
+
+- `st8.html` 1762-1779 — the **void-engine loader** (`window.loadVoidEngine`, `window.unloadVoidEngine`). User confirmed earlier: *"Anything that has to do with void-engine can be removed. I've moved that into a different project."*
+- `st8.html` 1790-1794 — the five `<script src="...">` includes for `file-explorer.js`, `phreak-terminal.js`, `graph-visualizer.js`, `settings-ui.js`, `coordination.js`. These will be re-added in the new slim `index.html` shell, pointing at the moved-in-batch-012 `src/frontend/components/` locations.
+
+**Call sites preserved:** Inside the workspace-change handler (extracted from L2016-2069), there are 3 references to `window.loadVoidEngine` / `window.unloadVoidEngine`. They are **guarded** with `if (window.loadVoidEngine)` — so with the loader function removed, the calls become safe no-ops. No code path throws.
+
+**Verification:**
+
+- `node --check src/frontend/app.js` → syntax OK.
+- Function-declaration count: 41 in source slices = 41 in extracted file. No definitions lost.
+- 15 critical `window.*` handlers spot-checked — all present except `loadVoidEngine`/`unloadVoidEngine` (intentionally omitted).
+- True runtime verification will come when the slim `index.html` shell is built (next batch) and the UI is loaded in a browser.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)
