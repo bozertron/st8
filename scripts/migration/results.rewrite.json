@@ -1,29 +1,78 @@
 {
-  "batch": "analysis",
-  "generatedAt": "2026-05-14T12:57:02.577Z",
-  "totalEdits": 1,
+  "batch": "integr8-core",
+  "generatedAt": "2026-05-14T13:04:00.755Z",
+  "totalEdits": 6,
   "failures": 0,
   "summary": [
     {
-      "status": "ok",
-      "file": "src/features/analysis/gap-analyzer.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/features/analysis/intent-seeder.js",
-      "edits": []
+      "status": "edit",
+      "file": "src/features/analysis/relationship-analyzer.js",
+      "edits": [
+        {
+          "start": 469,
+          "end": 479,
+          "oldSpec": "./types.js",
+          "newSpec": "../../shared/types/integr8-types.js",
+          "line": 10
+        }
+      ]
     },
     {
       "status": "edit",
-      "file": "src/features/analysis/insight-store.js",
+      "file": "src/features/analysis/path-generator.js",
       "edits": [
         {
-          "start": 1989,
-          "end": 2019,
-          "oldSpec": "./integr8/databasePersister.js",
-          "newSpec": "../../core/database/graph-persister.js",
-          "line": 46
+          "start": 1818,
+          "end": 1825,
+          "oldSpec": "./types",
+          "newSpec": "../../shared/types/integr8-types",
+          "line": 42
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/analysis/report-generator.js",
+      "edits": [
+        {
+          "start": 292,
+          "end": 302,
+          "oldSpec": "./types.js",
+          "newSpec": "../../shared/types/integr8-types.js",
+          "line": 6
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/integr8/toml-serializer.js",
+      "edits": [
+        {
+          "start": 347,
+          "end": 354,
+          "oldSpec": "./types",
+          "newSpec": "../../shared/types/integr8-types",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "status": "edit",
+      "file": "src/features/integr8/migration-executor.js",
+      "edits": [
+        {
+          "start": 2876,
+          "end": 2883,
+          "oldSpec": "./types",
+          "newSpec": "../../shared/types/integr8-types",
+          "line": 59
+        },
+        {
+          "start": 2921,
+          "end": 2937,
+          "oldSpec": "./tomlSerializer",
+          "newSpec": "./toml-serializer",
+          "line": 60
         }
       ]
     }

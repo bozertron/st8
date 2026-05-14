@@ -14,31 +14,25 @@ const path = require('path');
 const fs = require('fs');
 
 // ─── LIB CODE REFERENCES ─────────────────────────────────────
-// Post-move: this file lives at src/features/schema-cards/. tomlSerializer
-// has NOT moved yet (scheduled for the integr8 batch). For now, LIB_DIR walks
-// back up to the repo's lib/ directory. When the integr8 batch lands and
-// tomlSerializer relocates, this loader will be retargeted at that time.
-
-const LIB_DIR = path.join(__dirname, '..', '..', '..', 'lib');
+// Post-batch-007: tomlSerializer has moved to src/features/integr8/. The
+// dynamic LIB_DIR walk-up from batch 004 is retired in favor of a direct
+// require. The loadLibModule pattern is kept for parity with persistence.js
+// and for the graceful-fallback behavior (returns null on failure).
 
 let _tomlSerializer = null;
 
 function loadLibModule(modulePath) {
     try {
-        const fullPath = path.join(LIB_DIR, modulePath);
-        if (!fs.existsSync(fullPath)) {
-            throw new Error(`Lib module not found: ${fullPath}`);
-        }
-        return require(fullPath);
+        return require(modulePath);
     } catch (err) {
-        console.error(`[st8:manifest] Failed to load lib module: ${modulePath}`, err.message);
+        console.error(`[st8:manifest] Failed to load module: ${modulePath}`, err.message);
         return null;
     }
 }
 
 function getTomlSerializer() {
     if (!_tomlSerializer) {
-        _tomlSerializer = loadLibModule('commands/integr8/tomlSerializer.js');
+        _tomlSerializer = loadLibModule('../integr8/toml-serializer');
     }
     return _tomlSerializer;
 }

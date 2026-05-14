@@ -107,6 +107,32 @@
           "to": "src/features/analysis/insight-store.js"
         }
       ]
+    },
+    {
+      "batch": "integr8-core",
+      "completedAt": "2026-05-14T13:04:00.835Z",
+      "moves": [
+        {
+          "from": "lib/commands/integr8/relationshipAnalyzer.js",
+          "to": "src/features/analysis/relationship-analyzer.js"
+        },
+        {
+          "from": "lib/commands/integr8/pathGenerator.js",
+          "to": "src/features/analysis/path-generator.js"
+        },
+        {
+          "from": "lib/commands/integr8/reportGenerator.js",
+          "to": "src/features/analysis/report-generator.js"
+        },
+        {
+          "from": "lib/commands/integr8/tomlSerializer.js",
+          "to": "src/features/integr8/toml-serializer.js"
+        },
+        {
+          "from": "lib/commands/integr8/migrationExecutor.js",
+          "to": "src/features/integr8/migration-executor.js"
+        }
+      ]
     }
   ]
 }

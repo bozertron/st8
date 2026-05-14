@@ -1908,4 +1908,41 @@ ripples into ~20 require sites in `server.js`.
 
 **Verification:** All 3 new files load with matching export surfaces (`GapAnalyzer`, `IntentSeeder`, and `insight-store` exporting 2 symbols).
 
+**Commit:** `0bc7fe5`
+
+---
+
+### Batch 007 — `integr8-core`
+
+**Goal:** Move 5 of the 7 `lib/commands/integr8/` modules — the ones whose internal dependencies are all already moved (types from batch 001) OR are in this same batch (tomlSerializer is needed by migrationExecutor). The other 2 (`dataIngestion.js`, `integr8/index.js`) are deferred because `dataIngestion` has 6 requires to sibling parser files in `lib/commands/` that haven't moved yet — they'll migrate together with the parser ecosystem in the indexing batch.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `lib/commands/integr8/relationshipAnalyzer.js` | `src/features/analysis/relationship-analyzer.js` | 924 | ✅ |
+| `lib/commands/integr8/pathGenerator.js` | `src/features/analysis/path-generator.js` | 859 | ✅ |
+| `lib/commands/integr8/reportGenerator.js` | `src/features/analysis/report-generator.js` | 284 | ✅ |
+| `lib/commands/integr8/tomlSerializer.js` | `src/features/integr8/toml-serializer.js` | 418 | ✅ |
+| `lib/commands/integr8/migrationExecutor.js` | `src/features/integr8/migration-executor.js` | 1837 | ✅ |
+
+**Total:** 4,322 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 6 — all auto-caught via the history-aware rewriter:
+
+| File | Line | Old | New |
+|------|------|-----|-----|
+| `relationship-analyzer.js` | 10 | `'./types.js'` | `'../../shared/types/integr8-types.js'` |
+| `path-generator.js` | 42 | `'./types'` | `'../../shared/types/integr8-types'` |
+| `report-generator.js` | 6 | `'./types.js'` | `'../../shared/types/integr8-types.js'` |
+| `toml-serializer.js` | 7 | `'./types'` | `'../../shared/types/integr8-types'` |
+| `migration-executor.js` | 59 | `'./types'` | `'../../shared/types/integr8-types'` |
+| `migration-executor.js` | 60 | `'./tomlSerializer'` | `'./toml-serializer'` |
+
+**Follow-up patch (also done in this batch):** `src/features/schema-cards/manifest-generator.js` had a provisional `LIB_DIR` hand-patch from batch 004 (walked up to `/home/user/st8/lib/` to find the un-moved `tomlSerializer`). With `tomlSerializer` now moved, the loader is retargeted: `loadLibModule()` simplified to a thin try/require wrapper (preserves the graceful-fallback shape), and `getTomlSerializer()` now calls `loadLibModule('../integr8/toml-serializer')` — a direct relative require pointing at the new home. Verified: `manifest-generator` loads and `toml-serializer` resolves with all 3 exports (`serializeMigrationPlanToToml`, `serializeGraphMetadataToToml`, `parseMigrationPlanFromToml`).
+
+**Verification:** All 5 new files load with matching export surfaces. Notable: `migration-executor.js` exposes 11 exports — matching exactly the identity card recorded for this file in `st8_json/`. Sophisticated migration infrastructure preserved verbatim.
+
+**Discovery — pre-existing broken require (worth recording):** While inspecting `lib/commands/backgroundIndexer.js` (queued for a later batch) we confirmed it currently throws at module load — `Cannot find module './sonicClient.js'`. The file also references `./multiPassAnalyzer.js`, neither of which exist in `lib/commands/`. This is not a refactor casualty — the file was already broken before this refactor began. Probably from the "stubs and simulators" cleanup the user mentioned earlier (fake-stream removal era). Will be flagged in its batch.
+
 **Commit:** (filled in below)

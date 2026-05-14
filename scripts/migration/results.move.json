@@ -1,32 +1,48 @@
 {
-  "batch": "analysis",
-  "generatedAt": "2026-05-14T12:57:02.465Z",
-  "ok": 3,
+  "batch": "integr8-core",
+  "generatedAt": "2026-05-14T13:04:00.578Z",
+  "ok": 5,
   "fail": 0,
   "results": [
     {
-      "from": "backend/gapAnalyzer.js",
-      "to": "src/features/analysis/gap-analyzer.js",
+      "from": "lib/commands/integr8/relationshipAnalyzer.js",
+      "to": "src/features/analysis/relationship-analyzer.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "07fb89b8be55bbba7e49c124352f250f807efb20d4a61c304d86fd6a439f535e",
-      "lines": 652
+      "sha256": "4e14275bf14537b2bf1d0b851688a4b0f86fe929e34c7556945b668f194e7ede",
+      "lines": 924
     },
     {
-      "from": "backend/intentSeeder.js",
-      "to": "src/features/analysis/intent-seeder.js",
+      "from": "lib/commands/integr8/pathGenerator.js",
+      "to": "src/features/analysis/path-generator.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "df2b92dc2db277fa5dd57adba0623ccdac582e10f64a14b28f9474832f87ed89",
-      "lines": 511
+      "sha256": "e94effb08cc1076889336c2e0875acf4f6bf36a39d8db1a7defacf0bd1ba268e",
+      "lines": 859
     },
     {
-      "from": "lib/commands/insightStore.js",
-      "to": "src/features/analysis/insight-store.js",
+      "from": "lib/commands/integr8/reportGenerator.js",
+      "to": "src/features/analysis/report-generator.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "8b10ebbf0cd0d968cbbae2c702763c077d18d6058a1299bfb80e67eafcc7f005",
-      "lines": 362
+      "sha256": "0463aaf686a6d7e9de57b77a35a6d75caa234f63ea434efb8d47890d740198cd",
+      "lines": 284
+    },
+    {
+      "from": "lib/commands/integr8/tomlSerializer.js",
+      "to": "src/features/integr8/toml-serializer.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "8b88f44eb2e5e8a38b252c76c333dc025a36b95efebccd01b9afbc7b99f06b03",
+      "lines": 418
+    },
+    {
+      "from": "lib/commands/integr8/migrationExecutor.js",
+      "to": "src/features/integr8/migration-executor.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "7d5da68a5bf092ae189a4e63af5cbfd127af1d0f5a2666f65f476a6211b46557",
+      "lines": 1837
     }
   ]
 }
