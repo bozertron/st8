@@ -1,9 +1,10 @@
 {
-  "batch": "prd",
+  "batch": "analysis",
   "generatedAt": "2026-05-14",
-  "description": "PRD generation + template engine. Both files only require external modules (fs/path/os) — should be a clean batch with zero rewrites.",
+  "description": "Analysis suite: gap analyzer, intent seeder, insight store. insightStore.js references databasePersister which moved in batch 002 — history-aware rewriter should catch it.",
   "moves": [
-    { "from": "backend/prdGenerator.js",  "to": "src/features/prd/generator.js" },
-    { "from": "backend/templateEngine.js", "to": "src/features/prd/template-engine.js" }
+    { "from": "backend/gapAnalyzer.js",       "to": "src/features/analysis/gap-analyzer.js" },
+    { "from": "backend/intentSeeder.js",      "to": "src/features/analysis/intent-seeder.js" },
+    { "from": "lib/commands/insightStore.js", "to": "src/features/analysis/insight-store.js" }
   ]
 }

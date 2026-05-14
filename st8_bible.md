@@ -1880,4 +1880,32 @@ ripples into ~20 require sites in `server.js`.
 
 **Verification:** Both files load. `generator.js` exposes 6 exports (PRD generation functions); `template-engine.js` exposes the `TemplateEngine` class.
 
+**Commit:** `48bc786`
+
+---
+
+### Batch 006 — `analysis`
+
+**Goal:** Move the analysis suite into `src/features/analysis/`.
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/gapAnalyzer.js` | `src/features/analysis/gap-analyzer.js` | 652 | ✅ |
+| `backend/intentSeeder.js` | `src/features/analysis/intent-seeder.js` | 511 | ✅ |
+| `lib/commands/insightStore.js` | `src/features/analysis/insight-store.js` | 362 | ✅ |
+
+**Total:** 1,525 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 1 — caught by history-aware lookup against batch 002:
+
+| File | Line | Old | New |
+|------|------|-----|-----|
+| `insight-store.js` | 46 | `'./integr8/databasePersister.js'` | `'../../core/database/graph-persister.js'` |
+
+**Manual patches:** None. No `loadLibModule` / `LIB_DIR` instances in this batch.
+
+**Verification:** All 3 new files load with matching export surfaces (`GapAnalyzer`, `IntentSeeder`, and `insight-store` exporting 2 symbols).
+
 **Commit:** (filled in below)

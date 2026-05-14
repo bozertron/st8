@@ -1,22 +1,29 @@
 {
-  "batch": "prd",
-  "generatedAt": "2026-05-14T12:55:40.646Z",
-  "ok": 2,
+  "batch": "analysis",
+  "generatedAt": "2026-05-14T12:57:02.635Z",
+  "ok": 3,
   "fail": 0,
   "summary": [
     {
-      "from": "backend/prdGenerator.js",
-      "to": "src/features/prd/generator.js",
-      "status": "ok",
-      "shape": "object{6 keys}",
-      "exportCount": 6
-    },
-    {
-      "from": "backend/templateEngine.js",
-      "to": "src/features/prd/template-engine.js",
+      "from": "backend/gapAnalyzer.js",
+      "to": "src/features/analysis/gap-analyzer.js",
       "status": "ok",
       "shape": "object{1 keys}",
       "exportCount": 1
+    },
+    {
+      "from": "backend/intentSeeder.js",
+      "to": "src/features/analysis/intent-seeder.js",
+      "status": "ok",
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "lib/commands/insightStore.js",
+      "to": "src/features/analysis/insight-store.js",
+      "status": "ok",
+      "shape": "object{2 keys}",
+      "exportCount": 2
     }
   ]
 }

@@ -1,24 +1,32 @@
 {
-  "batch": "prd",
-  "generatedAt": "2026-05-14T12:55:40.519Z",
-  "ok": 2,
+  "batch": "analysis",
+  "generatedAt": "2026-05-14T12:57:02.465Z",
+  "ok": 3,
   "fail": 0,
   "results": [
     {
-      "from": "backend/prdGenerator.js",
-      "to": "src/features/prd/generator.js",
+      "from": "backend/gapAnalyzer.js",
+      "to": "src/features/analysis/gap-analyzer.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "ad056b5b0ee931fea98cbb97011df3a6591239898bc134e3525db9574c78ccfb",
-      "lines": 201
+      "sha256": "07fb89b8be55bbba7e49c124352f250f807efb20d4a61c304d86fd6a439f535e",
+      "lines": 652
     },
     {
-      "from": "backend/templateEngine.js",
-      "to": "src/features/prd/template-engine.js",
+      "from": "backend/intentSeeder.js",
+      "to": "src/features/analysis/intent-seeder.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "a2085990e0db87a22ab967e773489bd2965ef5de32ad6231202b9ad01679e57e",
-      "lines": 121
+      "sha256": "df2b92dc2db277fa5dd57adba0623ccdac582e10f64a14b28f9474832f87ed89",
+      "lines": 511
+    },
+    {
+      "from": "lib/commands/insightStore.js",
+      "to": "src/features/analysis/insight-store.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "8b10ebbf0cd0d968cbbae2c702763c077d18d6058a1299bfb80e67eafcc7f005",
+      "lines": 362
     }
   ]
 }

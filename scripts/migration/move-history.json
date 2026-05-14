@@ -89,6 +89,24 @@
           "to": "src/features/prd/template-engine.js"
         }
       ]
+    },
+    {
+      "batch": "analysis",
+      "completedAt": "2026-05-14T12:57:02.636Z",
+      "moves": [
+        {
+          "from": "backend/gapAnalyzer.js",
+          "to": "src/features/analysis/gap-analyzer.js"
+        },
+        {
+          "from": "backend/intentSeeder.js",
+          "to": "src/features/analysis/intent-seeder.js"
+        },
+        {
+          "from": "lib/commands/insightStore.js",
+          "to": "src/features/analysis/insight-store.js"
+        }
+      ]
     }
   ]
 }

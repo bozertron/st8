@@ -1,18 +1,31 @@
 {
-  "batch": "prd",
-  "generatedAt": "2026-05-14T12:55:40.601Z",
-  "totalEdits": 0,
+  "batch": "analysis",
+  "generatedAt": "2026-05-14T12:57:02.577Z",
+  "totalEdits": 1,
   "failures": 0,
   "summary": [
     {
       "status": "ok",
-      "file": "src/features/prd/generator.js",
+      "file": "src/features/analysis/gap-analyzer.js",
       "edits": []
     },
     {
       "status": "ok",
-      "file": "src/features/prd/template-engine.js",
+      "file": "src/features/analysis/intent-seeder.js",
       "edits": []
+    },
+    {
+      "status": "edit",
+      "file": "src/features/analysis/insight-store.js",
+      "edits": [
+        {
+          "start": 1989,
+          "end": 2019,
+          "oldSpec": "./integr8/databasePersister.js",
+          "newSpec": "../../core/database/graph-persister.js",
+          "line": 46
+        }
+      ]
     }
   ]
 }
