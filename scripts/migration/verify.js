@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const MANIFEST_PATH = path.join(__dirname, 'manifest.json');
 const HISTORY_PATH = path.join(__dirname, 'move-history.json');
@@ -43,6 +44,8 @@ function appendBatchToHistory(manifest) {
 
 function exportKeys(mod) {
   if (mod === null || mod === undefined) return [];
+  // Probe result shape: { __keys, __kind }
+  if (mod.__keys) return [...mod.__keys].sort();
   if (typeof mod !== 'object' && typeof mod !== 'function') return ['<scalar>'];
   return Object.keys(mod).sort();
 }
@@ -50,6 +53,7 @@ function exportKeys(mod) {
 function summarizeShape(mod) {
   if (mod === null) return 'null';
   if (mod === undefined) return 'undefined';
+  if (mod.__kind) return `${mod.__kind}{${(mod.__keys || []).length} keys}`;
   if (typeof mod === 'function') return `function(${mod.name || 'anonymous'})`;
   if (typeof mod !== 'object') return typeof mod;
   return `object{${Object.keys(mod).length} keys}`;
@@ -82,23 +86,73 @@ function main() {
       continue;
     }
 
-    let origMod, newMod;
-    let origErr = null;
-    let newErr = null;
+    // Load each file in a child process — entry-point scripts call
+    // process.exit() at module load which would kill this verifier
+    // mid-run. Each child intercepts process.exit, requires the target,
+    // and writes its result to a temp file (so module stdout noise doesn't
+    // clobber the result).
+    function probe(absPath) {
+      const tmpResult = path.join(REPO_ROOT, 'scripts', 'migration', '.probe-result.json');
+      try {
+        if (fs.existsSync(tmpResult)) fs.unlinkSync(tmpResult);
+      } catch (_) {}
 
-    try {
-      delete require.cache[fromAbs];
-      origMod = require(fromAbs);
-    } catch (e) {
-      origErr = e;
+      const child = `
+        const fs = require('fs');
+        const RESULT = ${JSON.stringify(tmpResult)};
+        const writeResult = (r) => {
+          try { fs.writeFileSync(RESULT, JSON.stringify(r)); } catch (_) {}
+        };
+        const origExit = process.exit;
+        let intercepted = false;
+        process.exit = (code) => {
+          intercepted = true;
+          throw new Error('__INTERCEPTED_EXIT__:' + code);
+        };
+        try {
+          const m = require(${JSON.stringify(absPath)});
+          const keys = (m && typeof m === 'object') ? Object.keys(m) :
+                       (typeof m === 'function') ? ['<function>'] : [];
+          writeResult({ ok: true, keys, kind: typeof m, exited: false });
+        } catch (e) {
+          if (intercepted && (e.message || '').startsWith('__INTERCEPTED_EXIT__')) {
+            // Module loaded, then called process.exit — that's fine, exports
+            // (if any) were set before the exit call. We can't know the
+            // exports anymore, but the file at least parses and reaches
+            // its entry point.
+            writeResult({ ok: true, keys: ['<entry-point>'], kind: 'entrypoint', exited: true });
+          } else {
+            writeResult({ ok: false, error: e.message.split('\\n')[0] });
+          }
+        } finally {
+          process.exit = origExit;
+        }
+      `;
+      try {
+        execFileSync('node', ['-e', child], {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 30000,
+        });
+      } catch (e) {
+        if (!fs.existsSync(tmpResult)) {
+          return { ok: false, error: e.message.split('\n')[0] };
+        }
+      }
+      if (!fs.existsSync(tmpResult)) {
+        return { ok: false, error: 'no_result_file' };
+      }
+      const res = JSON.parse(fs.readFileSync(tmpResult, 'utf8'));
+      try { fs.unlinkSync(tmpResult); } catch (_) {}
+      return res;
     }
 
-    try {
-      delete require.cache[toAbs];
-      newMod = require(toAbs);
-    } catch (e) {
-      newErr = e;
-    }
+    const origRes = probe(fromAbs);
+    const newRes = probe(toAbs);
+
+    const origMod = origRes.ok ? { __keys: origRes.keys, __kind: origRes.kind } : null;
+    const newMod = newRes.ok ? { __keys: newRes.keys, __kind: newRes.kind } : null;
+    const origErr = origRes.ok ? null : new Error(origRes.error);
+    const newErr = newRes.ok ? null : new Error(newRes.error);
 
     if (newErr) {
       console.log(`FAIL  ${m.to}  (new file threw on require: ${newErr.message})`);

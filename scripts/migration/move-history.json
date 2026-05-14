@@ -197,6 +197,24 @@
           "to": "src/core/notification-bus.js"
         }
       ]
+    },
+    {
+      "batch": "server-and-entry",
+      "completedAt": "2026-05-14T13:16:11.839Z",
+      "moves": [
+        {
+          "from": "backend/index.js",
+          "to": "src/core/server/main.js"
+        },
+        {
+          "from": "backend/server.js",
+          "to": "src/core/server/app.js"
+        },
+        {
+          "from": "backend/verify-persistence-fixes.js",
+          "to": "src/core/database/verify-persistence-fixes.js"
+        }
+      ]
     }
   ]
 }

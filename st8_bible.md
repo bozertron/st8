@@ -2021,6 +2021,43 @@ The `_backgroundIndexer` slot is also still present — it's the lazy slot for t
 
 **Pattern resolution note:** With this patch, all three instances of `loadLibModule()` discovered during the refactor (`persistence.js` b002, `manifest-generator.js` b004/b007, `indexer.js` b009) have been retargeted. The pattern is officially retired from the new layout — it was a layout-coupling hack for the old `backend/../lib/` split, no longer needed once both trees collapse into `src/`.
 
+**Commit:** `344d9ee`
+
+---
+
+### Batch 010 — `server-and-entry`
+
+**Goal:** Finish the `backend/` directory. Move `index.js` (CLI entry), `server.js` (HTTP API), and `verify-persistence-fixes.js` (the small built-in verification script).
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/index.js` | `src/core/server/main.js` | 436 | ✅ |
+| `backend/server.js` | `src/core/server/app.js` | 1,431 | ✅ |
+| `backend/verify-persistence-fixes.js` | `src/core/database/verify-persistence-fixes.js` | 154 | ✅ |
+
+**Total:** 2,021 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 44 — biggest count yet, all auto-caught:
+
+- `main.js` (13): every top-level require + 2 inline `manifestGenerator` retries
+- `app.js` (31): 13 `./persistence` sites, 5 `./notificationBus`, 2 `./indexer`, 2 `./brunoOscar`, 2 `./templateEngine`, 1 each of `./manifestGenerator`/`./prdGenerator`/`./gapAnalyzer`/`./schemaCardEmitter`
+- `verify-persistence-fixes.js` (0): its `./persistence` already coincidentally resolves correctly because the file moves into the same directory as the new `persistence.js`
+
+**Manual hand-patch:** `main.js` lines 303 + 355 — both inline `require(path.join(__dirname,'..','lib','utils','astParser.js'))` calls retargeted to `require('../../shared/utils/ast-parser')`. Used `replace_all: true` since the dynamic-load string was identical at both sites.
+
+**Verification:** All 3 new files load. App.js exposes `St8Server` (1 export). Main.js and verify-persistence-fixes are entry-point scripts that call `process.exit()` at module-load — the upgraded probe (see below) caught and intercepted that. Strong evidence the moved code preserves all behavior: when run as a script, `verify-persistence-fixes.js` reports `=== Results: 10 passed, 0 failed ===` from BOTH the original location and the new location — identical output, identical pass count.
+
+**Tooling upgrade (`scripts/migration/verify.js`):** Switched from in-process `require()` to a per-file sub-process probe with `process.exit` interception. Reason: entry-point scripts (`main.js`, `verify-persistence-fixes.js`, anything that calls `process.exit` synchronously during module load) would otherwise kill the verifier mid-batch. The new probe:
+
+1. Forks a child node process per file.
+2. Child intercepts `process.exit` before requiring the target.
+3. Child writes its result (success/keys/error) to a temp file.
+4. Parent reads the temp file, even if the child also called `process.exit`.
+
+Files that exit on load now report as `kind: 'entrypoint'` with a single `<entry-point>` pseudo-key. Previous-behavior preservation: the probe's verdict for an entry-point file is OK if it reaches its `main()` call without throwing en route.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)

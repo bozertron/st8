@@ -1,22 +1,29 @@
 {
-  "batch": "indexing-engine",
-  "generatedAt": "2026-05-14T13:11:04.152Z",
-  "ok": 2,
+  "batch": "server-and-entry",
+  "generatedAt": "2026-05-14T13:16:11.838Z",
+  "ok": 3,
   "fail": 0,
   "summary": [
     {
-      "from": "backend/indexer.js",
-      "to": "src/features/indexing/indexer.js",
+      "from": "backend/index.js",
+      "to": "src/core/server/main.js",
       "status": "ok",
-      "shape": "object{7 keys}",
-      "exportCount": 7
+      "shape": "object{0 keys}",
+      "exportCount": 0
     },
     {
-      "from": "backend/notificationBus.js",
-      "to": "src/core/notification-bus.js",
+      "from": "backend/server.js",
+      "to": "src/core/server/app.js",
       "status": "ok",
-      "shape": "object{2 keys}",
-      "exportCount": 2
+      "shape": "object{1 keys}",
+      "exportCount": 1
+    },
+    {
+      "from": "backend/verify-persistence-fixes.js",
+      "to": "src/core/database/verify-persistence-fixes.js",
+      "status": "ok",
+      "shape": "object{0 keys}",
+      "exportCount": 0
     }
   ]
 }

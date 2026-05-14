@@ -1,9 +1,10 @@
 {
-  "batch": "indexing-engine",
+  "batch": "server-and-entry",
   "generatedAt": "2026-05-14",
-  "description": "indexer.js (the file indexing engine) + notificationBus.js (event bus). indexer.js carries the loadLibModule pattern again with 4 dynamic loads — all 4 target files have already moved, so the patch is to retarget each loader at its new home using direct static requires.",
+  "description": "Finishes the backend/ directory. index.js (main entry), server.js (HTTP API), and verify-persistence-fixes.js (verification script). All static requires resolve through history. index.js has 2 inline dynamic astParser loads that need manual patching.",
   "moves": [
-    { "from": "backend/indexer.js",         "to": "src/features/indexing/indexer.js" },
-    { "from": "backend/notificationBus.js", "to": "src/core/notification-bus.js" }
+    { "from": "backend/index.js",                   "to": "src/core/server/main.js" },
+    { "from": "backend/server.js",                  "to": "src/core/server/app.js" },
+    { "from": "backend/verify-persistence-fixes.js", "to": "src/core/database/verify-persistence-fixes.js" }
   ]
 }
