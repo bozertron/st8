@@ -1,0 +1,56 @@
+{
+  "batch": "shared",
+  "generatedAt": "2026-05-14T12:35:24.579Z",
+  "ok": 6,
+  "fail": 0,
+  "results": [
+    {
+      "from": "lib/utils/safeFs.js",
+      "to": "src/shared/utils/safe-fs.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "5914a4d73bca45ac2763fd9e3cd161101b30ca5d7b3db0909af2e778fa20f52d",
+      "lines": 599
+    },
+    {
+      "from": "lib/utils/ioChan.js",
+      "to": "src/shared/utils/io-chan.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "f323839429728a735feaf5c37f803f118ae9b8aec5980a14acc5282baa4b5b8b",
+      "lines": 396
+    },
+    {
+      "from": "lib/utils/astParser.js",
+      "to": "src/shared/utils/ast-parser.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "a9e687253fb86f5de397e20e712d308f227871d9660ba18938916c0b14052070",
+      "lines": 1066
+    },
+    {
+      "from": "lib/utils/groundPlane.js",
+      "to": "src/shared/utils/ground-plane.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "c42a6284a7dcaa40fff2a66ec626d2498ac4dd43e099e91ae4980d40bb173de1",
+      "lines": 268
+    },
+    {
+      "from": "backend/st8-types.js",
+      "to": "src/shared/types/st8-types.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "40149812584b7d849752688e616397dfa0b390a7f60e9c9aa4574de6d52f72c6",
+      "lines": 282
+    },
+    {
+      "from": "lib/commands/integr8/types.js",
+      "to": "src/shared/types/integr8-types.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "24f21d7b8965ac3d7954f32ccc6eb2c6d98ff03c07e93c575c481f0c3519c25f",
+      "lines": 83
+    }
+  ]
+}

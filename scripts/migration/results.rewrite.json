@@ -1,0 +1,46 @@
+{
+  "batch": "shared",
+  "generatedAt": "2026-05-14T12:35:51.389Z",
+  "totalEdits": 1,
+  "failures": 0,
+  "summary": [
+    {
+      "status": "ok",
+      "file": "src/shared/utils/safe-fs.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/shared/utils/io-chan.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/shared/utils/ast-parser.js",
+      "edits": []
+    },
+    {
+      "status": "edit",
+      "file": "src/shared/utils/ground-plane.js",
+      "edits": [
+        {
+          "start": 2662,
+          "end": 2673,
+          "oldSpec": "./safeFs.js",
+          "newSpec": "./safe-fs.js",
+          "line": 56
+        }
+      ]
+    },
+    {
+      "status": "ok",
+      "file": "src/shared/types/st8-types.js",
+      "edits": []
+    },
+    {
+      "status": "ok",
+      "file": "src/shared/types/integr8-types.js",
+      "edits": []
+    }
+  ]
+}
