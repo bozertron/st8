@@ -1,0 +1,283 @@
+/*
+ * File Explorer + Workspace Picker
+ * Extracted from st8.html lines 1012–1226, 1228–1288.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── FILE EXPLORER STYLES ──────────────────────────────── */
+  .explorer-root,
+  .explorer-layout {
+    height: 100%;
+    width: 100%;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    -webkit-text-stroke: 0.5px #E0E0E0;
+  }
+  .explorer-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+  .explorer-sidebar {
+    border-right: 1px solid var(--pink);
+    padding: var(--space-3);
+    background: #0a0a0b;
+  }
+  .explorer-nav { display: flex; flex-direction: column; gap: var(--space-1); }
+  .explorer-nav-item {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    text-align: left;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  .explorer-nav-item:hover { background: rgba(31, 189, 234, 0.18); color: var(--cyan); }
+  .explorer-nav-item.active { background: rgba(31, 189, 234, 0.22); color: var(--cyan); border-color: var(--cyan); }
+  .explorer-nav-item .explorer-nav-icon,
+  .explorer-nav-item.active .explorer-nav-icon,
+  .explorer-nav-item:hover .explorer-nav-icon,
+  .explorer-state-msg > span,
+  .explorer-state-msg .explorer-spin,
+  .explorer-spin { color: #D4AF37 !important; }
+  .explorer-state-msg p { color: var(--cyan); }
+
+  .explorer-main { display: flex; flex-direction: column; min-height: 0; }
+  .explorer-header {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    gap: var(--space-3);
+  }
+  .explorer-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
+  .crumb-btn {
+    background: transparent; border: none; color: var(--text);
+    cursor: pointer; padding: 2px 6px; border-radius: 3px;
+    font-family: inherit; font-size: 13px;
+  }
+  .crumb-btn:hover { color: var(--cyan); }
+  .crumb-btn--last { color: var(--cyan); }
+  .crumb-sep { color: var(--text); }
+
+  .panel-titlebar .explorer-error-banner {
+    margin-left: auto;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    height: 100%;
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    -webkit-text-stroke: 0.5px var(--text);
+  }
+  .panel-titlebar .explorer-error-icon { color: var(--pink); -webkit-text-stroke: 0 transparent; font-size: 14px; }
+  .panel-titlebar .explorer-retry-btn { border-color: var(--pink); }
+
+  .explorer-error-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px;
+    background: rgba(201, 116, 143, 0.12);
+    border-bottom: 1px solid rgba(201, 116, 143, 0.4);
+    color: var(--text);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    -webkit-text-stroke: 0.5px var(--text);
+  }
+  .explorer-error-icon { color: var(--pink); -webkit-text-stroke: 0 transparent; }
+  .explorer-retry-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--text);
+    padding: 3px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+
+  .explorer-content { flex: 1 1 auto; overflow: auto; padding: 0; }
+  .explorer-state-msg {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--cyan);
+    -webkit-text-stroke: 0.5px var(--cyan);
+    gap: 8px;
+    font-size: 13px;
+    letter-spacing: 3px;
+  }
+  .explorer-spin {
+    color: var(--cyan);
+    font-size: 22px;
+    animation: spin 1.4s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .explorer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .explorer-table th {
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--text);
+    font-weight: 400;
+    letter-spacing: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--pink);
+    position: sticky;
+    top: 0;
+    background: #0c0c0e;
+  }
+  .explorer-file-row { cursor: pointer; transition: background 100ms ease; }
+  .explorer-file-row td { padding: 8px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+  .explorer-file-row:hover { background: rgba(31, 189, 234, 0.07); }
+  .explorer-file-row.selected { background: rgba(31, 189, 234, 0.18); color: var(--cyan); }
+  .explorer-col-name { display: flex; gap: 10px; align-items: center; }
+  .explorer-file-icon { width: 18px; }
+  .explorer-col-meta { color: var(--cyan); white-space: nowrap; }
+
+  .explorer-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 10px 16px;
+    border-top: 1px solid var(--pink);
+    font-size: 11px;
+    color: var(--text);
+    letter-spacing: 2px;
+  }
+  .explorer-selection-info { color: var(--cyan); margin-left: auto; }
+  .explorer-add-btn {
+    background: transparent;
+    border: 1px solid var(--pink) !important;
+    color: var(--cyan);
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .explorer-add-btn:disabled {
+    border-color: var(--pink);
+    color: rgba(224, 224, 224, 0.4);
+    cursor: not-allowed;
+  }
+  .explorer-add-btn:not(:disabled):hover { background: var(--cyan); color: #000; }
+  .explorer-index-btn {
+    background: transparent;
+    border: 1px solid var(--gold) !important;
+    color: var(--gold);
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .explorer-index-btn:hover { background: var(--gold); color: var(--void); }
+  .explorer-index-btn.indexing {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .explorer-verify-btn {
+    background: transparent;
+    border: 1px solid var(--cyan) !important;
+    color: var(--cyan);
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .explorer-verify-btn:hover { background: var(--cyan); color: var(--void); }
+  .explorer-verify-btn.verifying {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .explorer-vscroll-container { height: 100%; overflow: auto; }
+
+  /* ─── WORKSPACE PICKER ────────────────────────────────────── */
+  .workspace-picker {
+    padding: var(--space-4);
+  }
+  .workspace-picker-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: var(--space-4);
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .workspace-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .workspace-option:hover {
+    background: rgba(31, 189, 234, 0.07);
+    border-color: var(--cyan);
+  }
+  .workspace-option.active {
+    background: rgba(31, 189, 234, 0.1);
+    border-color: var(--cyan);
+  }
+  .workspace-option-icon {
+    color: var(--gold);
+    font-size: 20px;
+  }
+  .workspace-option-info {
+    flex: 1;
+  }
+  .workspace-option-name {
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+  .workspace-option-desc {
+    color: var(--text);
+    font-size: 12px;
+    opacity: 0.7;
+    letter-spacing: 0.5px;
+  }
+  .workspace-option-badge {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 2px 8px;
+    border: 1px solid var(--cyan);
+    border-radius: 3px;
+  }

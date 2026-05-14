@@ -1,0 +1,219 @@
+/*
+ * Settings Popup
+ * Extracted from st8.html lines 603–815.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── SETTINGS POPUP ──────────────────────────────────────── */
+  .settings-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .settings-popup {
+    width: min(900px, 95vw);
+    height: min(700px, 90vh);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .settings-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .settings-popup-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .settings-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .settings-popup-close:hover { text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .settings-popup-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .settings-layout {
+    display: flex;
+    height: 100%;
+  }
+  .settings-sidebar {
+    width: 200px;
+    border-right: 1px solid var(--pink);
+    padding: var(--space-3);
+    background: #0a0a0b;
+  }
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .settings-nav-item {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    text-align: left;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  .settings-nav-item:hover { background: rgba(31, 189, 234, 0.18); color: var(--cyan); }
+  .settings-nav-item.active { background: rgba(31, 189, 234, 0.22); color: var(--cyan); border-color: var(--cyan); }
+  .settings-nav-icon { color: var(--gold); }
+  .settings-main {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--space-4);
+  }
+  .settings-placeholder {
+    color: var(--text);
+    opacity: 0.5;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: var(--space-7);
+  }
+  .settings-category-header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--pink);
+  }
+  .settings-category-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    margin: 0 0 var(--space-1) 0;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .settings-category-desc {
+    color: var(--text);
+    font-size: 13px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    margin: 0;
+  }
+  .settings-entry-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .settings-entry-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: rgba(31, 189, 234, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(201, 116, 143, 0.2);
+  }
+  .settings-entry-name {
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .settings-entry-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .settings-action-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--cyan);
+    padding: 4px 10px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .settings-action-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+  }
+  .settings-add-btn {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 6px 16px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .settings-add-btn:hover {
+    background: var(--gold);
+    color: var(--void);
+  }
+  .settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .settings-label {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .settings-input {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    padding: var(--space-2);
+    outline: none;
+    transition: border-color 160ms ease;
+  }
+  .settings-input:focus {
+    border-color: var(--cyan);
+  }

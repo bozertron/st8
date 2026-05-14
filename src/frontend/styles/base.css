@@ -1,0 +1,23 @@
+/*
+ * Base Reset + Reduced Motion Overrides
+ * Extracted from st8.html lines 167–179, 1609–1611.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background: var(--void);
+    color: var(--text);
+    font-family: 'Poiret One', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  body { display: flex; flex-direction: column; }
+
+
+  @media (prefers-reduced-motion: reduce) {
+    .explorer-spin, .phreak-executing { animation: none; }
+  }

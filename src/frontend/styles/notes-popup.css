@@ -1,0 +1,124 @@
+/*
+ * Notes Popup
+ * Extracted from st8.html lines 380–497.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── NOTES POPUP ─────────────────────────────────────────── */
+  .notes-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .notes-popup {
+    width: min(500px, 90vw);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .notes-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .notes-popup-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .notes-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .notes-popup-close:hover { text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .notes-popup-body {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .notes-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .notes-field label {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .notes-field textarea {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    padding: var(--space-2);
+    resize: vertical;
+    min-height: 60px;
+    outline: none;
+    transition: border-color 160ms ease;
+  }
+  .notes-field textarea:focus {
+    border-color: var(--cyan);
+  }
+  .notes-popup-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0a0a0b, #0d0d10);
+  }
+  .notes-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--text);
+    padding: 6px 16px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .notes-btn-cancel:hover {
+    color: var(--pink);
+  }
+  .notes-btn-save {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .notes-btn-save:hover {
+    background: var(--gold);
+    color: var(--void);
+  }

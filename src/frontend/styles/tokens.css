@@ -1,0 +1,22 @@
+/*
+ * CSS Custom Properties (:root)
+ * Extracted from st8.html lines 150–165.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── TOKENS ────────────────────────────────────────────── */
+  :root {
+    --void:   #0A0A0B;
+    --text:   #E0E0E0;
+    --gold:   #D4AF37;
+    --cyan:   #1FBDEA;
+    --pink:   #C9748F;
+
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 32px;
+  }

@@ -1,0 +1,36 @@
+/*
+ * Chat Area (left side of split void)
+ * Extracted from st8.html lines 237–266.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── CHAT AREA (left side of split void) ─────────────────── */
+  .chat-area {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: var(--space-4);
+    padding-bottom: 80px;
+  }
+  .chat-line {
+    margin-bottom: var(--space-2);
+    line-height: 1.6;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    -webkit-text-stroke: 0.5px #E0E0E0;
+  }
+  .chat-line.user {
+    padding-left: var(--space-4);
+  }
+  .chat-line.assistant {
+    padding-left: var(--space-4);
+    color: #9bd9ec;
+  }
+  .chat-line.system {
+    color: var(--gold);
+    font-style: italic;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }

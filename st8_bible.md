@@ -2123,6 +2123,44 @@ Files that exit on load now report as `kind: 'entrypoint'` with a single `<entry
 
 **Verification:** All 6 syntax-check clean at both locations. Logic byte-identical (SHA-256). Since these are browser modules, true runtime verification requires loading them in a browser via `st8.html` — that proof comes when the HTML peel-apart batch lands.
 
+**Commit:** `d3d9558`
+
+---
+
+### Batch 013 — `st8-html-css-extraction`
+
+**Goal:** Peel the CSS out of `st8.html` into 15 component-local / global stylesheet files under `src/frontend/`. Match the structure that's already implicit in the source (every CSS section is already named and bracketed by `/* ─── HEADER ─── */` comments). Original `st8.html` is **not modified** — the unmigrated UI still works through the inline CSS.
+
+**Tooling added:** `scripts/migration/extract-css.js` — reads `st8.html`, extracts each section verbatim per a documented line-range spec, writes target files under `src/frontend/`. Reusable for future HTML peel-aparts.
+
+**Extracted (15 files, 1530 lines total):**
+
+| Target file | Source lines | Body lines |
+|-------------|--------------|------------|
+| `src/frontend/styles/fonts.css` | 138-148 | 11 |
+| `src/frontend/styles/tokens.css` | 150-165 | 16 |
+| `src/frontend/styles/base.css` | 167-179, 1609-1611 | 17 |
+| `src/frontend/styles/void.css` | 180-235, 817-855 | 96 |
+| `src/frontend/styles/chat.css` | 237-266 | 30 |
+| `src/frontend/styles/file-list.css` | 268-378 | 111 |
+| `src/frontend/styles/notes-popup.css` | 380-497 | 118 |
+| `src/frontend/styles/dock.css` | 857-941 | 85 |
+| `src/frontend/styles/panels.css` | 943-1010 | 68 |
+| `src/frontend/components/graph-viewer/graph-viewer.css` | 499-601 | 103 |
+| `src/frontend/components/settings/settings.css` | 603-815 | 213 |
+| `src/frontend/components/file-explorer/file-explorer.css` | 1012-1226, 1228-1288 | 277 |
+| `src/frontend/components/terminal/terminal.css` | 1290-1527 | 238 |
+| `src/frontend/components/notifications/toast.css` | 1530-1607, 1613-1623 | 90 |
+| `src/frontend/components/prd-wizard/prd-wizard.css` | 1625-1662, 1664-1686 | 62 |
+
+The `<style>` block in `st8.html` spans lines 138-1686 (1549 lines). Extracted lines: 1530. Diff: **19 lines** — entirely the blank-line separators between named sections. **Every CSS rule is preserved.**
+
+**Verification:** Counted CSS selector openings (rules with `{`) in the source `<style>` block vs the sum across all extracted files. Both: **273 = 273**. No selectors lost in the move.
+
+**Aesthetic preservation:** Verbatim line copies. Indentation, comments, vendor prefixes, custom-property usage — all preserved. Each extracted file gets a small header comment naming its source-of-truth line range for traceability.
+
+**`st8.html` not modified.** Its `<style>` block stays inline so the un-migrated UI keeps rendering identically. The slim shell that loads these new `.css` files via `<link rel="stylesheet">` will be built in a follow-up batch alongside the JS extraction and script-src updates.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)

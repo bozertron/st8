@@ -1,0 +1,191 @@
+{
+  "generatedAt": "2026-05-14T13:23:59.160Z",
+  "totalSourceLinesUsed": 1530,
+  "results": [
+    {
+      "out": "src/frontend/styles/fonts.css",
+      "label": "Fonts (@font-face)",
+      "ranges": [
+        [
+          138,
+          148
+        ]
+      ],
+      "bodyLineCount": 11
+    },
+    {
+      "out": "src/frontend/styles/tokens.css",
+      "label": "CSS Custom Properties (:root)",
+      "ranges": [
+        [
+          150,
+          165
+        ]
+      ],
+      "bodyLineCount": 16
+    },
+    {
+      "out": "src/frontend/styles/base.css",
+      "label": "Base Reset + Reduced Motion Overrides",
+      "ranges": [
+        [
+          167,
+          179
+        ],
+        [
+          1609,
+          1611
+        ]
+      ],
+      "bodyLineCount": 17
+    },
+    {
+      "out": "src/frontend/styles/void.css",
+      "label": "Void / Drift Surface + Cursor / Wave Pulse",
+      "ranges": [
+        [
+          180,
+          235
+        ],
+        [
+          817,
+          855
+        ]
+      ],
+      "bodyLineCount": 96
+    },
+    {
+      "out": "src/frontend/styles/chat.css",
+      "label": "Chat Area (left side of split void)",
+      "ranges": [
+        [
+          237,
+          266
+        ]
+      ],
+      "bodyLineCount": 30
+    },
+    {
+      "out": "src/frontend/styles/file-list.css",
+      "label": "File List (right panel)",
+      "ranges": [
+        [
+          268,
+          378
+        ]
+      ],
+      "bodyLineCount": 111
+    },
+    {
+      "out": "src/frontend/styles/notes-popup.css",
+      "label": "Notes Popup",
+      "ranges": [
+        [
+          380,
+          497
+        ]
+      ],
+      "bodyLineCount": 118
+    },
+    {
+      "out": "src/frontend/styles/dock.css",
+      "label": "Bottom Dock",
+      "ranges": [
+        [
+          857,
+          941
+        ]
+      ],
+      "bodyLineCount": 85
+    },
+    {
+      "out": "src/frontend/styles/panels.css",
+      "label": "Panel Overlay",
+      "ranges": [
+        [
+          943,
+          1010
+        ]
+      ],
+      "bodyLineCount": 68
+    },
+    {
+      "out": "src/frontend/components/graph-viewer/graph-viewer.css",
+      "label": "Graph Popup",
+      "ranges": [
+        [
+          499,
+          601
+        ]
+      ],
+      "bodyLineCount": 103
+    },
+    {
+      "out": "src/frontend/components/settings/settings.css",
+      "label": "Settings Popup",
+      "ranges": [
+        [
+          603,
+          815
+        ]
+      ],
+      "bodyLineCount": 213
+    },
+    {
+      "out": "src/frontend/components/file-explorer/file-explorer.css",
+      "label": "File Explorer + Workspace Picker",
+      "ranges": [
+        [
+          1012,
+          1226
+        ],
+        [
+          1228,
+          1288
+        ]
+      ],
+      "bodyLineCount": 277
+    },
+    {
+      "out": "src/frontend/components/terminal/terminal.css",
+      "label": "Phreak Terminal",
+      "ranges": [
+        [
+          1290,
+          1527
+        ]
+      ],
+      "bodyLineCount": 238
+    },
+    {
+      "out": "src/frontend/components/notifications/toast.css",
+      "label": "Mutation Notifications & Toasts + AI Review Badge",
+      "ranges": [
+        [
+          1530,
+          1607
+        ],
+        [
+          1613,
+          1623
+        ]
+      ],
+      "bodyLineCount": 90
+    },
+    {
+      "out": "src/frontend/components/prd-wizard/prd-wizard.css",
+      "label": "PRD Wizard + Variable Editor",
+      "ranges": [
+        [
+          1625,
+          1662
+        ],
+        [
+          1664,
+          1686
+        ]
+      ],
+      "bodyLineCount": 62
+    }
+  ]
+}

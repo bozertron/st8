@@ -1,0 +1,17 @@
+/*
+ * Fonts (@font-face)
+ * Extracted from st8.html lines 138–148.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── FONTS ─────────────────────────────────────────────── */
+  @font-face {
+    font-family: 'Monoton';
+    src: url('fonts/Monoton-Regular.ttf') format('truetype');
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Poiret One';
+    src: url('fonts/PoiretOne-Regular.ttf') format('truetype');
+    font-display: swap;
+  }
