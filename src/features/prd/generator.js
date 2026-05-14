@@ -1,13 +1,13 @@
 /**
- * prdGenerator.js — PRD generation from schema cards
- * 
+ * generator.js — PRD generation from schema cards
+ *
  * Reads schema cards from .st8/schema-cards/ and generates
  * a comprehensive Product Requirements Document.
- * 
+ *
  * Usage:
- *   node backend/prdGenerator.js [targetDir]
- * 
- * @module backend/prdGenerator
+ *   node src/features/prd/generator.js [targetDir]
+ *
+ * @module features/prd/generator
  */
 
 'use strict';

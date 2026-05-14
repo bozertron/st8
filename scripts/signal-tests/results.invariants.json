@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-05-14T14:36:38.675Z",
+  "target": "/tmp/st8-invariant-target",
+  "results": [
+    {
+      "name": "I1 Manifest valid JSON",
+      "ok": true
+    },
+    {
+      "name": "I2 File count = on-disk count",
+      "ok": true,
+      "detail": "3 files"
+    },
+    {
+      "name": "I3 Required fields present",
+      "ok": false,
+      "detail": "3 files missing required fields",
+      "extra": [
+        {
+          "filepath": "alpha.js",
+          "missing": [
+            "lifecyclePhase",
+            "birthTimestamp"
+          ]
+        },
+        {
+          "filepath": "beta.js",
+          "missing": [
+            "lifecyclePhase",
+            "birthTimestamp"
+          ]
+        },
+        {
+          "filepath": "gamma.js",
+          "missing": [
+            "lifecyclePhase",
+            "birthTimestamp"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "I4 SHA-256 hashes match disk",
+      "ok": true,
+      "detail": "3 hashes verified"
+    },
+    {
+      "name": "I5 Status enum covers all files",
+      "ok": true,
+      "detail": "GREEN 0, YELLOW 0, RED 3 (sum = 3)"
+    },
+    {
+      "name": "I6 Idempotent across 2 runs",
+      "ok": false,
+      "detail": "File count drift: 3 -> 4"
+    },
+    {
+      "name": "I7 Filepaths are relative",
+      "ok": true,
+      "detail": "3 paths, all relative"
+    }
+  ]
+}

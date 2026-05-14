@@ -2454,6 +2454,157 @@ cp OGB/st8.html.txt st8.html
 - `st8_json/`, `.planning/`, `.archive/`, `fonts/`, `docs/` — historical/runtime artifacts, untouched
 - `scripts/migration/`, `st8_bible.md`, `st8-filemap.md` — refactor toolkit + record
 
-**Commit:** (filled in below)
+**Commit:** `1e2418e`
+
+---
+
+### Batch 021 — `post-refactor-cleanup-and-signal-tests`
+
+A consolidated batch covering three related improvements + Louis concept capture.
+
+**Part A — Delete the `0_*` skeleton tree** (founder-approved cleanup)
+
+The prior planning wave dropped 4 stub directories (`src/0_core/`, `src/0_features/`, `src/0_shared/`, `src/0_frontend/`) with 103 empty placeholder files and 35 directories — 138 paths total. None imported anywhere after the real tree was built. Removed in one command:
+
+```
+rm -rf src/0_core src/0_features src/0_shared src/0_frontend
+```
+
+138 zero-prefix findings from `check-conventions.js` → 0.
+
+**Part B — Fix `gap-analyzer.js`'s hardcoded backend paths**
+
+The 3-agent + 1-script gap analysis caught a real bug: `gap-analyzer.js` had a table mapping every API endpoint to the file that implements it — using the OLD `backend/X.js` paths that no longer exist. 22 path strings updated to point at the new `src/<layer>/<feature>/X.js` locations. Plus two doc-comment fixes:
+- `src/features/schema-cards/emitter.js:154` — example transformation
+- `src/features/prd/generator.js:1-11` — usage line + `@module` tag
+
+26 stale OLD-path findings → 0.
+
+**Part C — Signal tests for the graph-visualizer data path**
+
+Two tiers built (founder spec):
+
+**Tier 2 — Pipeline invariants** (`scripts/signal-tests/check-invariants.js`)
+
+Creates a 3-file fixture target (`alpha.js → beta.js → gamma.js`), runs the indexer, asserts 7 invariants on the produced manifest:
+
+| Check | What it catches |
+|---|---|
+| I1 | Manifest is valid JSON |
+| I2 | Manifest file-count = files on disk |
+| I3 | Every entry has required fields |
+| I4 | Every `sha256Hash` matches a freshly-computed SHA-256 of the file |
+| I5 | Status counts sum to total (no enum leakage) |
+| I6 | Rerunning yields identical fingerprints + hashes (idempotency) |
+| I7 | All filepaths are relative |
+
+**First-run result: 5/7 pass.** The 2 fails are genuine signals worth knowing about:
+- **I3** — `lifecyclePhase` + `birthTimestamp` exist in `file_registry` SQLite but aren't serialized into `connection-state.json`. Could be intentional or a manifest-omission bug.
+- **I6** — File count drifts 3→4 on second run because the indexer indexes the manifest it wrote on the first run. Easy fix: exclude `connection-state.json` and `ai-signal.toml` from the discover-files glob.
+
+**Tier 6 — Schema card identity delta** (`scripts/signal-tests/check-identity-delta.js`)
+
+For each of 43 schema cards in `st8_json/schema-cards/`: recover original filepath from card filename, look up current location via `move-history.json`, AST-extract today's exports + imports, compare to saved card. Tolerates known renames (builds a rename map from move-history so `databasePersister` matches `graph-persister`) and basename case-style changes (`safeFs` ≡ `safe-fs`).
+
+**Final result after rename-aware normalization:**
+
+| Bucket | Count |
+|---|---|
+| MATCH (identity preserved) | 37 |
+| DOCUMENTED DRIFT (the hand-patched files: main.js, app.js, emitter.js) | 3 |
+| **UNDOCUMENTED DRIFT** | **0** ✅ |
+| MISSING (fake-stream, void-engine, test/newfile — retired) | 3 |
+| FAILED TO PARSE | 0 |
+
+**The refactor preserved file identity across all 43 schema-card-tracked files. Strongest end-to-end signal that the move-and-rewire didn't accidentally alter a module's external surface.**
+
+**Tier 1 deferred.** Tier 2 + Tier 6 cover most of what Tier 1 would. If a future regression slips past both, that's the moment to add schema-contract validation at internal handoffs.
+
+**Cumulative gap-check tally:** 282 raw findings on first run → 31 after cleanup + path fixes. Remaining 31 = 25 expected boundary violations (core/server orchestrating features — which is correct) + 6 orphan-candidates that need human review (`ground-plane.js`, `integr8/index.js`, `migration-executor.js`, `background-indexer.js`, `graph/builder.js`, `graph/traversal.js` — some are CLI entry points, some are dormant pending sonic restoration).
+
+---
+
+### Louis Concept (captured for future session — not implemented yet)
+
+The founder uploaded `Louis/` (commit `1df677b` on `master`): a 1463-line PyQt6 desktop app called "Lock 'em up Louis" containing three fused tools:
+
+1. **👮 Louis (Warden)** — File locking. `chmod 444` to lock, `chmod 644` to unlock. State in `~/.louis-control/{louis-config.json, protected-files.txt, lock-history.log}`. Optional `.git/hooks/pre-commit` that refuses commits to protected files.
+2. **🎨 Connie** — Database to LLM-friendly format converter.
+3. **📚 Carl** — LLM chat context generator.
+
+**Founder's stated goal:** add a panel below Settings in the st8 UI that allows manual lock/unlock of files. Scope shrinks to just the Warden piece.
+
+**Three integration paths considered:**
+
+| Path | Approach | Recommendation |
+|---|---|---|
+| A. Subprocess wrap | st8 shells out to `python lock_em_up_louis_v2.py --lock <path>` | NO — requires PyQt6 even for headless use, slow per-call. |
+| B. Full Node port (all 1463 lines) | Reimplement Warden + Connie + Carl + GUI | NO — massive rewrite of features st8 doesn't need. |
+| C. Port just the Warden (~140 lines core logic) | Reimplement only the locking logic in Node + new st8 panel UI | ✅ **Recommended.** |
+
+**Path C plan (for future implementation):**
+
+```
+src/features/locks/
+├── lock-manager.js          # port of LouisWarden — fs.chmodSync for
+│                            # lock_file / unlock_file / lock_all / isWritable
+├── lock-state.js            # port of LouisConfig — SQLite-backed
+│                            # (extends existing st8.sqlite, no separate DB)
+└── git-hook-installer.js    # port of install_git_hook()
+
+src/frontend/components/lock-panel/
+├── lock-panel.js            # UI under Settings in the dock
+└── lock-panel.css
+
+# Wire-up:
+- New dock button "🔒" next to "phreak>" in src/frontend/index.html
+- Backend routes added to src/core/server/app.js:
+    POST /api/lock    { path }
+    POST /api/unlock  { path }
+    GET  /api/locks
+- file_registry table gains a `locked BOOLEAN DEFAULT 0` column
+- File explorer shows a lock badge next to each file's status dot
+- SSE "lock-change" event so all open UIs update instantly
+```
+
+**The locking primitive in Node is tiny (~50 lines):**
+
+```js
+// src/features/locks/lock-manager.js
+const fs = require('fs');
+
+function lockFile(absPath) {
+  if (!fs.existsSync(absPath)) return { ok: false, error: 'not found' };
+  try { fs.chmodSync(absPath, 0o444); return { ok: true }; }
+  catch (e) { return { ok: false, error: e.message }; }
+}
+
+function unlockFile(absPath) {
+  if (!fs.existsSync(absPath)) return { ok: false, error: 'not found' };
+  try { fs.chmodSync(absPath, 0o644); return { ok: true }; }
+  catch (e) { return { ok: false, error: e.message }; }
+}
+
+function isWritable(absPath) {
+  try { fs.accessSync(absPath, fs.constants.W_OK); return true; }
+  catch (_) { return false; }
+}
+
+// + lockAll(paths), unlockAll(paths), getState(paths)
+```
+
+**Why Path C fits st8:**
+
+- `file_registry` already tracks files — adding a `locked` column is one schema change.
+- SSE bus already broadcasts mutations — adding a lock-change event is one new event type.
+- File explorer already renders status badges — adding a lock badge is one CSS class.
+- Bruno+Oscar's `lifecyclePhase` (DEVELOPMENT/STAGING/PRODUCTION) is orthogonal — PRODUCTION files could default-lock, but that's a follow-up policy decision.
+- The pre-commit git hook is portable as-is — install during setup, regenerate `~/.louis-control/protected-files.txt` (or equivalent) from `locked = 1` rows on every change.
+
+**Notes on the "couple errors" the founder mentioned:**
+
+`Louis/FIXES_APPLIED.md` documents v1 → v2 fixes: setup-wizard timing, path handling, layout-clearing on None, folder-checkboxes init order. The fixes look applied in v2, but PyQt6 GUI scaffolding has many opportunities for subtle widget lifecycle bugs. If the founder keeps Louis.py standalone (for the Connie + Carl pieces st8 won't absorb), the right place to look for residuals is `LouisTab.__init__`, `ConnieTab.__init__`, `CarlTab.__init__` — race conditions on signal connect and uninitialized widget refs.
+
+**Decision logged but not actioned this session.** Louis.py stays at repo root unchanged. Path C is the plan; ready to execute when the founder gives the green light.
 
 **Commit:** (filled in below)

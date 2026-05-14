@@ -332,7 +332,7 @@ class GapAnalyzer {
 
             // Check each import target
             for (const importEntry of imports) {
-                // Import entries in connections.imports are fingerprints like "backend/server.js||timestamp"
+                // Import entries in connections.imports are fingerprints like "src/core/server/app.js||timestamp"
                 // We need to extract the filepath part
                 const separatorIndex = importEntry.indexOf('||');
                 const importPath = separatorIndex !== -1
@@ -377,22 +377,23 @@ class GapAnalyzer {
      * Check for required endpoints, SSE integration, PRD generation
      */
     _analyzeArchitecture(cards) {
-        // Required API endpoints for ST8 and the module that handles each
+        // Required API endpoints for ST8 and the module that handles each.
+        // Paths updated post-refactor to point at the new src/ tree.
         const endpointModuleMap = {
-            '/api/health': null,                // Self-contained in server
-            '/api/index': 'backend/indexer.js',
-            '/api/file-intent': 'backend/persistence.js',
-            '/api/settings': 'backend/persistence.js',
-            '/api/verify': 'backend/persistence.js',
-            '/api/files': 'backend/indexer.js',
-            '/api/mutations': 'backend/persistence.js',
-            '/api/concept-file': 'backend/persistence.js',
-            '/api/mvp-lock': 'backend/persistence.js',
-            '/api/prd': 'backend/prdGenerator.js',
-            '/api/production-promote': 'backend/persistence.js',
-            '/api/gap-analysis': 'backend/gapAnalyzer.js',
-            '/api/connection-state.json': 'backend/persistence.js',
-            '/api/ai-signal.toml': 'backend/persistence.js'
+            '/api/health': null,                                            // Self-contained in server
+            '/api/index': 'src/features/indexing/indexer.js',
+            '/api/file-intent': 'src/core/database/persistence.js',
+            '/api/settings': 'src/core/database/persistence.js',
+            '/api/verify': 'src/core/database/persistence.js',
+            '/api/files': 'src/features/indexing/indexer.js',
+            '/api/mutations': 'src/core/database/persistence.js',
+            '/api/concept-file': 'src/core/database/persistence.js',
+            '/api/mvp-lock': 'src/core/database/persistence.js',
+            '/api/prd': 'src/features/prd/generator.js',
+            '/api/production-promote': 'src/core/database/persistence.js',
+            '/api/gap-analysis': 'src/features/analysis/gap-analyzer.js',
+            '/api/connection-state.json': 'src/core/database/persistence.js',
+            '/api/ai-signal.toml': 'src/core/database/persistence.js'
         };
 
         const requiredEndpoints = Object.keys(endpointModuleMap);
@@ -420,21 +421,21 @@ class GapAnalyzer {
         }
 
         // Check for SSE integration
-        const hasSSE = cards.some(c => c.filepath === 'backend/notificationBus.js');
+        const hasSSE = cards.some(c => c.filepath === 'src/core/notification-bus.js');
 
         // Check for PRD generation
-        const hasPRD = cards.some(c => c.filepath === 'backend/prdGenerator.js');
+        const hasPRD = cards.some(c => c.filepath === 'src/features/prd/generator.js');
 
         // Check for key architectural components
         const architecturalComponents = {
-            persistence: cards.some(c => c.filepath === 'backend/persistence.js'),
-            indexer: cards.some(c => c.filepath === 'backend/indexer.js'),
-            fileWatcher: cards.some(c => c.filepath === 'backend/fileWatcher.js'),
-            schemaCardEmitter: cards.some(c => c.filepath === 'backend/schemaCardEmitter.js'),
-            notificationBus: cards.some(c => c.filepath === 'backend/notificationBus.js'),
-            server: cards.some(c => c.filepath === 'backend/server.js'),
-            prdGenerator: cards.some(c => c.filepath === 'backend/prdGenerator.js'),
-            manifestGenerator: cards.some(c => c.filepath === 'backend/manifestGenerator.js')
+            persistence: cards.some(c => c.filepath === 'src/core/database/persistence.js'),
+            indexer: cards.some(c => c.filepath === 'src/features/indexing/indexer.js'),
+            fileWatcher: cards.some(c => c.filepath === 'src/features/watcher/file-watcher.js'),
+            schemaCardEmitter: cards.some(c => c.filepath === 'src/features/schema-cards/emitter.js'),
+            notificationBus: cards.some(c => c.filepath === 'src/core/notification-bus.js'),
+            server: cards.some(c => c.filepath === 'src/core/server/app.js'),
+            prdGenerator: cards.some(c => c.filepath === 'src/features/prd/generator.js'),
+            manifestGenerator: cards.some(c => c.filepath === 'src/features/schema-cards/manifest-generator.js')
         };
 
         const componentCount = Object.values(architecturalComponents).filter(Boolean).length;

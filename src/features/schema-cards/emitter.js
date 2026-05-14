@@ -151,7 +151,7 @@ class SchemaCardEmitter {
 
     /**
      * Convert filepath to safe filename for schema card.
-     * e.g., "backend/server.js" → "backend_server.js.json"
+     * e.g., "src/core/server/app.js" → "src_core_server_app.js.json"
      */
     _cardFilename(filepath) {
         return filepath.replace(/\//g, '_').replace(/\\/g, '_') + '.json';
