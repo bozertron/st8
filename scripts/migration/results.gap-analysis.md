@@ -1,0 +1,311 @@
+# Gap Analysis — Deterministic Checks
+
+Generated: 2026-05-14T14:19:21.323Z
+Source: `src/` (166 files, 61 directories)
+
+---
+
+## 1. Naming (camelCase / PascalCase in filenames) — 0 finding(s)
+
+_None._
+
+## 2. Zero-prefix residue (`0_` paths) — 138 finding(s)
+
+- `src/0_shared` (dir)
+- `src/0_shared/0_utils` (dir)
+- `src/0_shared/0_types` (dir)
+- `src/0_shared/0_constants` (dir)
+- `src/0_frontend` (dir)
+- `src/0_frontend/0_styles` (dir)
+- `src/0_frontend/0_services` (dir)
+- `src/0_frontend/0_components` (dir)
+- `src/0_frontend/0_components/0_terminal` (dir)
+- `src/0_frontend/0_components/0_settings` (dir)
+- `src/0_frontend/0_components/0_prd-wizard` (dir)
+- `src/0_frontend/0_components/0_notifications` (dir)
+- `src/0_frontend/0_components/0_graph-viewer` (dir)
+- `src/0_frontend/0_components/0_file-explorer` (dir)
+- `src/0_features` (dir)
+- `src/0_features/0_watcher` (dir)
+- `src/0_features/0_schema-cards` (dir)
+- `src/0_features/0_prd` (dir)
+- `src/0_features/0_prd/0_templates` (dir)
+- `src/0_features/0_lifecycle` (dir)
+- `src/0_features/0_indexing` (dir)
+- `src/0_features/0_graph` (dir)
+- `src/0_features/0_analysis` (dir)
+- `src/0_core` (dir)
+- `src/0_core/0_server` (dir)
+- `src/0_core/0_server/0_routes` (dir)
+- `src/0_core/0_server/0_routes/0_api` (dir)
+- `src/0_core/0_server/0_middleware` (dir)
+- `src/0_core/0_logging` (dir)
+- `src/0_core/0_errors` (dir)
+- `src/0_core/0_database` (dir)
+- `src/0_core/0_database/0_schema` (dir)
+- `src/0_core/0_database/0_queries` (dir)
+- `src/0_core/0_database/0_migrations` (dir)
+- `src/0_core/0_config` (dir)
+- `src/0_shared/0_utils/0_crypto.js` (file)
+- `src/0_shared/0_utils/0_ground-plane.js` (file)
+- `src/0_shared/0_utils/0_index.js` (file)
+- `src/0_shared/0_utils/0_io-chan.js` (file)
+- `src/0_shared/0_utils/0_path.js` (file)
+- `src/0_shared/0_utils/0_safe-fs.js` (file)
+- `src/0_shared/0_types/0_file-entry.js` (file)
+- `src/0_shared/0_types/0_index.js` (file)
+- `src/0_shared/0_types/0_schema-card.js` (file)
+- `src/0_shared/0_types/0_st8-types.js` (file)
+- `src/0_shared/0_constants/0_file-extensions.js` (file)
+- `src/0_shared/0_constants/0_file-status.js` (file)
+- `src/0_shared/0_constants/0_index.js` (file)
+- `src/0_shared/0_constants/0_lifecycle-phases.js` (file)
+- `src/0_shared/0_constants/0_mutation-types.js` (file)
+- `src/0_frontend/0_app.js` (file)
+- `src/0_frontend/0_index.html` (file)
+- `src/0_frontend/0_styles/0_animations.css` (file)
+- `src/0_frontend/0_styles/0_base.css` (file)
+- `src/0_frontend/0_styles/0_index.css` (file)
+- `src/0_frontend/0_styles/0_layout.css` (file)
+- `src/0_frontend/0_styles/0_themes.css` (file)
+- `src/0_frontend/0_services/0_api.js` (file)
+- `src/0_frontend/0_services/0_coordination.js` (file)
+- `src/0_frontend/0_services/0_events.js` (file)
+- `src/0_frontend/0_services/0_state.js` (file)
+- `src/0_frontend/0_services/0_workspace.js` (file)
+- `src/0_frontend/0_components/0_terminal/0_terminal.css` (file)
+- `src/0_frontend/0_components/0_terminal/0_terminal.js` (file)
+- `src/0_frontend/0_components/0_settings/0_settings.css` (file)
+- `src/0_frontend/0_components/0_settings/0_settings.js` (file)
+- `src/0_frontend/0_components/0_prd-wizard/0_prd-wizard.css` (file)
+- `src/0_frontend/0_components/0_prd-wizard/0_prd-wizard.js` (file)
+- `src/0_frontend/0_components/0_notifications/0_toast.css` (file)
+- `src/0_frontend/0_components/0_notifications/0_toast.js` (file)
+- `src/0_frontend/0_components/0_graph-viewer/0_graph-viewer.css` (file)
+- `src/0_frontend/0_components/0_graph-viewer/0_graph-viewer.js` (file)
+- `src/0_frontend/0_components/0_file-explorer/0_file-explorer.css` (file)
+- `src/0_frontend/0_components/0_file-explorer/0_file-explorer.js` (file)
+- `src/0_features/0_watcher/0_debounce.js` (file)
+- `src/0_features/0_watcher/0_file-watcher.js` (file)
+- `src/0_features/0_watcher/0_index.js` (file)
+- `src/0_features/0_schema-cards/0_emitter.js` (file)
+- `src/0_features/0_schema-cards/0_index.js` (file)
+- `src/0_features/0_schema-cards/0_printer.js` (file)
+- `src/0_features/0_prd/0_generator.js` (file)
+- `src/0_features/0_prd/0_index.js` (file)
+- `src/0_features/0_prd/0_templates/0_default.md` (file)
+- `src/0_features/0_prd/0_templates/0_technical.md` (file)
+- `src/0_features/0_lifecycle/0_bruno.js` (file)
+- `src/0_features/0_lifecycle/0_index.js` (file)
+- `src/0_features/0_indexing/0_ast-parser.js` (file)
+- `src/0_features/0_indexing/0_file-scanner.js` (file)
+- `src/0_features/0_indexing/0_fingerprint.js` (file)
+- `src/0_features/0_indexing/0_index.js` (file)
+- `src/0_features/0_indexing/0_indexer.js` (file)
+- `src/0_features/0_graph/0_builder.js` (file)
+- `src/0_features/0_graph/0_index.js` (file)
+- `src/0_features/0_graph/0_traversal.js` (file)
+- `src/0_features/0_graph/0_visualizer.js` (file)
+- `src/0_features/0_analysis/0_gap-analyzer.js` (file)
+- `src/0_features/0_analysis/0_index.js` (file)
+- `src/0_features/0_analysis/0_intent-seeder.js` (file)
+- `src/0_core/0_server/0_app.js` (file)
+- `src/0_core/0_server/0_index.js` (file)
+- `src/0_core/0_server/0_routes/0_index.js` (file)
+- `src/0_core/0_server/0_routes/0_api/0_connections.js` (file)
+- `src/0_core/0_server/0_routes/0_api/0_files.js` (file)
+- `src/0_core/0_server/0_routes/0_api/0_health.js` (file)
+- `src/0_core/0_server/0_routes/0_api/0_schema-cards.js` (file)
+- `src/0_core/0_server/0_routes/0_api/0_settings.js` (file)
+- `src/0_core/0_server/0_routes/0_api/0_sse.js` (file)
+- `src/0_core/0_server/0_middleware/0_cors.js` (file)
+- `src/0_core/0_server/0_middleware/0_error-handler.js` (file)
+- `src/0_core/0_server/0_middleware/0_request-logger.js` (file)
+- `src/0_core/0_logging/0_formatters.js` (file)
+- `src/0_core/0_logging/0_index.js` (file)
+- `src/0_core/0_logging/0_logger.js` (file)
+- `src/0_core/0_errors/0_database-error.js` (file)
+- `src/0_core/0_errors/0_handler.js` (file)
+- `src/0_core/0_errors/0_index.js` (file)
+- `src/0_core/0_errors/0_indexing-error.js` (file)
+- `src/0_core/0_errors/0_st8-error.js` (file)
+- `src/0_core/0_errors/0_validation-error.js` (file)
+- `src/0_core/0_database/0_connection.js` (file)
+- `src/0_core/0_database/0_index.js` (file)
+- `src/0_core/0_database/0_schema/0_001_initial.sql` (file)
+- `src/0_core/0_database/0_schema/0_002_prd_tables.sql` (file)
+- `src/0_core/0_database/0_queries/0_activity-log.js` (file)
+- `src/0_core/0_database/0_queries/0_connections.js` (file)
+- `src/0_core/0_database/0_queries/0_file-intent.js` (file)
+- `src/0_core/0_database/0_queries/0_file-registry.js` (file)
+- `src/0_core/0_database/0_queries/0_mutation-log.js` (file)
+- `src/0_core/0_database/0_queries/0_prd-projects.js` (file)
+- `src/0_core/0_database/0_queries/0_settings.js` (file)
+- `src/0_core/0_database/0_migrations/0_migrations.js` (file)
+- `src/0_core/0_database/0_migrations/0_runner.js` (file)
+- `src/0_core/0_config/0_default.js` (file)
+- `src/0_core/0_config/0_development.js` (file)
+- `src/0_core/0_config/0_index.js` (file)
+- `src/0_core/0_config/0_loader.js` (file)
+- `src/0_core/0_config/0_production.js` (file)
+- `src/0_core/0_config/0_schema.js` (file)
+
+## 3. Empty directories — 0 finding(s)
+
+_None._
+
+## 4. Stale references to OLD paths — 26 finding(s)
+
+- `src/features/schema-cards/emitter.js`:154 — `* e.g., "backend/server.js" → "backend_server.js.json"`
+- `src/features/prd/generator.js`:8 — `*   node backend/prdGenerator.js [targetDir]`
+- `src/features/analysis/gap-analyzer.js`:335 — `// Import entries in connections.imports are fingerprints like "backend/server.js||timestamp"`
+- `src/features/analysis/gap-analyzer.js`:383 — `'/api/index': 'backend/indexer.js',`
+- `src/features/analysis/gap-analyzer.js`:384 — `'/api/file-intent': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:385 — `'/api/settings': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:386 — `'/api/verify': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:387 — `'/api/files': 'backend/indexer.js',`
+- `src/features/analysis/gap-analyzer.js`:388 — `'/api/mutations': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:389 — `'/api/concept-file': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:390 — `'/api/mvp-lock': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:391 — `'/api/prd': 'backend/prdGenerator.js',`
+- `src/features/analysis/gap-analyzer.js`:392 — `'/api/production-promote': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:393 — `'/api/gap-analysis': 'backend/gapAnalyzer.js',`
+- `src/features/analysis/gap-analyzer.js`:394 — `'/api/connection-state.json': 'backend/persistence.js',`
+- `src/features/analysis/gap-analyzer.js`:395 — `'/api/ai-signal.toml': 'backend/persistence.js'`
+- `src/features/analysis/gap-analyzer.js`:423 — `const hasSSE = cards.some(c => c.filepath === 'backend/notificationBus.js');`
+- `src/features/analysis/gap-analyzer.js`:426 — `const hasPRD = cards.some(c => c.filepath === 'backend/prdGenerator.js');`
+- `src/features/analysis/gap-analyzer.js`:430 — `persistence: cards.some(c => c.filepath === 'backend/persistence.js'),`
+- `src/features/analysis/gap-analyzer.js`:431 — `indexer: cards.some(c => c.filepath === 'backend/indexer.js'),`
+- `src/features/analysis/gap-analyzer.js`:432 — `fileWatcher: cards.some(c => c.filepath === 'backend/fileWatcher.js'),`
+- `src/features/analysis/gap-analyzer.js`:433 — `schemaCardEmitter: cards.some(c => c.filepath === 'backend/schemaCardEmitter.js'),`
+- `src/features/analysis/gap-analyzer.js`:434 — `notificationBus: cards.some(c => c.filepath === 'backend/notificationBus.js'),`
+- `src/features/analysis/gap-analyzer.js`:435 — `server: cards.some(c => c.filepath === 'backend/server.js'),`
+- `src/features/analysis/gap-analyzer.js`:436 — `prdGenerator: cards.some(c => c.filepath === 'backend/prdGenerator.js'),`
+- `src/features/analysis/gap-analyzer.js`:437 — `manifestGenerator: cards.some(c => c.filepath === 'backend/manifestGenerator.js')`
+
+## 5. Architecture boundary violations — 25 finding(s)
+
+- `src/features/integr8/index.js`:50 — features/integr8 -> features/indexing (cross-feature) — `../indexing/data-ingestion.js`
+- `src/features/integr8/index.js`:51 — features/integr8 -> features/analysis (cross-feature) — `../analysis/relationship-analyzer.js`
+- `src/features/integr8/index.js`:52 — features/integr8 -> features/analysis (cross-feature) — `../analysis/path-generator.js`
+- `src/features/integr8/index.js`:54 — features/integr8 -> features/analysis (cross-feature) — `../analysis/report-generator.js`
+- `src/features/indexing/background-indexer.js`:64 — features/indexing -> features/analysis (cross-feature) — `../analysis/insight-store.js`
+- `src/features/graph/builder.js`:17 — features/graph -> features/indexing (cross-feature) — `../indexing/data-ingestion.js`
+- `src/core/server/app.js`:289 — core -> features — `../../features/indexing/indexer`
+- `src/core/server/app.js`:290 — core -> features — `../../features/schema-cards/manifest-generator`
+- `src/core/server/app.js`:704 — core -> features — `../../features/indexing/indexer`
+- `src/core/server/app.js`:877 — core -> features — `../../features/schema-cards/emitter`
+- `src/core/server/app.js`:950 — core -> features — `../../features/prd/generator`
+- `src/core/server/app.js`:1045 — core -> features — `../../features/analysis/gap-analyzer`
+- `src/core/server/app.js`:1206 — core -> features — `../../features/lifecycle/bruno-oscar`
+- `src/core/server/app.js`:1261 — core -> features — `../../features/lifecycle/bruno-oscar`
+- `src/core/server/app.js`:1370 — core -> features — `../../features/prd/template-engine`
+- `src/core/server/app.js`:1407 — core -> features — `../../features/prd/template-engine`
+- `src/core/server/main.js`:14 — core -> features — `../../features/indexing/indexer`
+- `src/core/server/main.js`:16 — core -> features — `../../features/schema-cards/manifest-generator`
+- `src/core/server/main.js`:17 — core -> features — `../../features/watcher/file-watcher`
+- `src/core/server/main.js`:20 — core -> features — `../../features/schema-cards/emitter`
+- `src/core/server/main.js`:21 — core -> features — `../../features/schema-cards/printer`
+- `src/core/server/main.js`:23 — core -> features — `../../features/analysis/gap-analyzer`
+- `src/core/server/main.js`:24 — core -> features — `../../features/analysis/intent-seeder`
+- `src/core/server/main.js`:155 — core -> features — `../../features/schema-cards/manifest-generator`
+- `src/core/server/main.js`:377 — core -> features — `../../features/schema-cards/manifest-generator`
+
+## 6. Orphan modules (no consumers in src/) — 93 finding(s)
+
+- `src/shared/utils/ground-plane.js`
+- `src/features/integr8/index.js`
+- `src/features/integr8/migration-executor.js`
+- `src/features/indexing/background-indexer.js`
+- `src/features/graph/builder.js`
+- `src/features/graph/traversal.js`
+- `src/0_shared/0_utils/0_crypto.js`
+- `src/0_shared/0_utils/0_ground-plane.js`
+- `src/0_shared/0_utils/0_index.js`
+- `src/0_shared/0_utils/0_io-chan.js`
+- `src/0_shared/0_utils/0_path.js`
+- `src/0_shared/0_utils/0_safe-fs.js`
+- `src/0_shared/0_types/0_file-entry.js`
+- `src/0_shared/0_types/0_index.js`
+- `src/0_shared/0_types/0_schema-card.js`
+- `src/0_shared/0_types/0_st8-types.js`
+- `src/0_shared/0_constants/0_file-extensions.js`
+- `src/0_shared/0_constants/0_file-status.js`
+- `src/0_shared/0_constants/0_index.js`
+- `src/0_shared/0_constants/0_lifecycle-phases.js`
+- `src/0_shared/0_constants/0_mutation-types.js`
+- `src/0_frontend/0_app.js`
+- `src/0_frontend/0_services/0_api.js`
+- `src/0_frontend/0_services/0_coordination.js`
+- `src/0_frontend/0_services/0_events.js`
+- `src/0_frontend/0_services/0_state.js`
+- `src/0_frontend/0_services/0_workspace.js`
+- `src/0_frontend/0_components/0_terminal/0_terminal.js`
+- `src/0_frontend/0_components/0_settings/0_settings.js`
+- `src/0_frontend/0_components/0_prd-wizard/0_prd-wizard.js`
+- `src/0_frontend/0_components/0_notifications/0_toast.js`
+- `src/0_frontend/0_components/0_graph-viewer/0_graph-viewer.js`
+- `src/0_frontend/0_components/0_file-explorer/0_file-explorer.js`
+- `src/0_features/0_watcher/0_debounce.js`
+- `src/0_features/0_watcher/0_file-watcher.js`
+- `src/0_features/0_watcher/0_index.js`
+- `src/0_features/0_schema-cards/0_emitter.js`
+- `src/0_features/0_schema-cards/0_index.js`
+- `src/0_features/0_schema-cards/0_printer.js`
+- `src/0_features/0_prd/0_generator.js`
+- `src/0_features/0_prd/0_index.js`
+- `src/0_features/0_lifecycle/0_bruno.js`
+- `src/0_features/0_lifecycle/0_index.js`
+- `src/0_features/0_indexing/0_ast-parser.js`
+- `src/0_features/0_indexing/0_file-scanner.js`
+- `src/0_features/0_indexing/0_fingerprint.js`
+- `src/0_features/0_indexing/0_index.js`
+- `src/0_features/0_indexing/0_indexer.js`
+- `src/0_features/0_graph/0_builder.js`
+- `src/0_features/0_graph/0_index.js`
+- `src/0_features/0_graph/0_traversal.js`
+- `src/0_features/0_graph/0_visualizer.js`
+- `src/0_features/0_analysis/0_gap-analyzer.js`
+- `src/0_features/0_analysis/0_index.js`
+- `src/0_features/0_analysis/0_intent-seeder.js`
+- `src/0_core/0_server/0_app.js`
+- `src/0_core/0_server/0_index.js`
+- `src/0_core/0_server/0_routes/0_index.js`
+- `src/0_core/0_server/0_routes/0_api/0_connections.js`
+- `src/0_core/0_server/0_routes/0_api/0_files.js`
+- `src/0_core/0_server/0_routes/0_api/0_health.js`
+- `src/0_core/0_server/0_routes/0_api/0_schema-cards.js`
+- `src/0_core/0_server/0_routes/0_api/0_settings.js`
+- `src/0_core/0_server/0_routes/0_api/0_sse.js`
+- `src/0_core/0_server/0_middleware/0_cors.js`
+- `src/0_core/0_server/0_middleware/0_error-handler.js`
+- `src/0_core/0_server/0_middleware/0_request-logger.js`
+- `src/0_core/0_logging/0_formatters.js`
+- `src/0_core/0_logging/0_index.js`
+- `src/0_core/0_logging/0_logger.js`
+- `src/0_core/0_errors/0_database-error.js`
+- `src/0_core/0_errors/0_handler.js`
+- `src/0_core/0_errors/0_index.js`
+- `src/0_core/0_errors/0_indexing-error.js`
+- `src/0_core/0_errors/0_st8-error.js`
+- `src/0_core/0_errors/0_validation-error.js`
+- `src/0_core/0_database/0_connection.js`
+- `src/0_core/0_database/0_index.js`
+- `src/0_core/0_database/0_queries/0_activity-log.js`
+- `src/0_core/0_database/0_queries/0_connections.js`
+- `src/0_core/0_database/0_queries/0_file-intent.js`
+- `src/0_core/0_database/0_queries/0_file-registry.js`
+- `src/0_core/0_database/0_queries/0_mutation-log.js`
+- `src/0_core/0_database/0_queries/0_prd-projects.js`
+- `src/0_core/0_database/0_queries/0_settings.js`
+- `src/0_core/0_database/0_migrations/0_migrations.js`
+- `src/0_core/0_database/0_migrations/0_runner.js`
+- `src/0_core/0_config/0_default.js`
+- `src/0_core/0_config/0_development.js`
+- `src/0_core/0_config/0_index.js`
+- `src/0_core/0_config/0_loader.js`
+- `src/0_core/0_config/0_production.js`
+- `src/0_core/0_config/0_schema.js`
+
+---
+**Total findings: 282** — 0 naming, 138 zero-prefix, 0 empty, 26 stale paths, 25 boundary, 93 orphans.
