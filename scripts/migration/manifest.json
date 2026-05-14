@@ -1,13 +1,8 @@
 {
-  "batch": "frontend-components",
+  "batch": "background-indexer",
   "generatedAt": "2026-05-14",
-  "description": "Move the 6 root-level frontend JS files into src/frontend/. All are browser-only modules (zero require() calls, reference window/document) — verified via syntax check only. st8.html still loads the originals from root — that's a separate (bigger) task: the st8.html peel-apart.",
+  "description": "Move backgroundIndexer.js to src/features/indexing/. The file currently throws at module load with Cannot find module './sonicClient.js' — references three siblings that were stripped from lib/commands during an earlier cleanup (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js, all originally from maestro-scaffolder-tool). The verify step is expected to report WARN — both old and new throw identically. The 5 other relative requires (databasePersister, dataIngestion, parserPersistence, insightStore, integr8/types) will rewrite cleanly via history. Sonic is https://github.com/valeriansaliou/sonic — backend search engine; the client lib is what's missing.",
   "moves": [
-    { "from": "coordination.js",     "to": "src/frontend/services/coordination.js",                    "client": true },
-    { "from": "settings-reader.js",  "to": "src/frontend/services/state.js",                           "client": true },
-    { "from": "file-explorer.js",    "to": "src/frontend/components/file-explorer/file-explorer.js",   "client": true },
-    { "from": "graph-visualizer.js", "to": "src/frontend/components/graph-viewer/graph-viewer.js",     "client": true },
-    { "from": "phreak-terminal.js",  "to": "src/frontend/components/terminal/terminal.js",             "client": true },
-    { "from": "settings-ui.js",      "to": "src/frontend/components/settings/settings.js",             "client": true }
+    { "from": "lib/commands/backgroundIndexer.js", "to": "src/features/indexing/background-indexer.js" }
   ]
 }

@@ -2297,6 +2297,48 @@ Static-file serving is fully restored AND the new shell is reachable.
 
 **Browser smoke test (still needed — humans only):** open `http://localhost:3847/v2` in a real browser, ideally side-by-side with `http://localhost:3847/`. Visual aesthetics, dock buttons, panel overlays, file list rendering, terminal, settings, toast notifications, SSE mutation stream — everything should match.
 
+**Commit:** `8e3b6cd`
+
+---
+
+### Batch 017 — `background-indexer`
+
+**Goal:** Move the last un-migrated file in `lib/commands/` into the new tree. Preserve its currently-broken state exactly (no attempted fixup).
+
+**Move:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `lib/commands/backgroundIndexer.js` | `src/features/indexing/background-indexer.js` | 812 | ✅ |
+
+**Import rewrites:** 5 — all auto-caught via history-aware lookup:
+
+| Line | Old | New | Batch source |
+|------|-----|-----|--------------|
+| 60 | `'./integr8/databasePersister.js'` | `'../../core/database/graph-persister.js'` | 002 |
+| 61 | `'./integr8/dataIngestion.js'` | `'./data-ingestion.js'` | 008 |
+| 62 | `'./parserPersistence.js'` | `'./parser-persistence.js'` | 008 |
+| 64 | `'./insightStore.js'` | `'../analysis/insight-store.js'` | 006 |
+| 67 | `'./integr8/types.js'` | `'../../shared/types/integr8-types.js'` | 001 |
+
+**3 requires NOT rewritten — targets don't exist on disk anywhere in the repo:**
+
+| Line | Specifier | Status |
+|------|-----------|--------|
+| 63 | `'./sonicClient.js'` | Missing — was originally a 566-line TCP client for the Sonic search engine, copied from `maestro-scaffolder-tool`. Stripped during the pre-refactor "stubs and simulators" cleanup. |
+| 65 | `'./multiPassAnalyzer.js'` | Missing — was originally a 1,021-line "PM-1 Layer 2: 5-pass analysis pipeline" module from maestro. Same fate. |
+| 66 | `'./precisionCapture.js'` | Missing — referenced but never found in maestro inventory docs. May not have a complete source. |
+
+**Verification:** Used the new "both-broken-identically" parity check (added to `verify.js` in this batch). Both the original `lib/commands/backgroundIndexer.js` and the moved `src/features/indexing/background-indexer.js` throw the **identical** module-not-found error: `Cannot find module './sonicClient.js'`. The refactor preserved the broken state exactly — no regression, no improvement. Verify reports **WARN** (parity passed, file is intentionally dormant).
+
+**Tooling upgrade (`scripts/migration/verify.js`):** Added a third branch to the verify-result switch — if both the original AND new file throw at module load, and the error messages match (with quoted paths normalized for comparison), treat as a WARN-pass rather than FAIL. This is the right semantics for files in known-broken upstream states where the refactor's only job is identity preservation, not bug-fixing.
+
+**State after this batch:**
+
+- `lib/commands/` is now fully migrated (originals still in place).
+- `src/features/indexing/background-indexer.js` is the new home; the file is dormant pending restoration of `sonicClient.js`, `multiPassAnalyzer.js`, and `precisionCapture.js` from upstream (maestro) or fresh implementation.
+- Sonic context: https://github.com/valeriansaliou/sonic is the Rust-based search-engine server. The missing `sonicClient.js` was a Node.js client implementing its Channel protocol over TCP. Two paths to restore: copy the source from `maestro-scaffolder-tool` if available, or implement the Sonic Channel protocol fresh from the upstream docs.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)

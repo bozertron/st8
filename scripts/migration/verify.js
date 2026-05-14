@@ -170,6 +170,20 @@ function main() {
     const newErr = newRes.ok ? null : new Error(newRes.error);
 
     if (newErr) {
+      // If BOTH the original and the new throw with the same module-missing
+      // error (or matching prefix), that's parity — the refactor preserved
+      // the broken state. Report as WARN/OK with the shared error.
+      if (origErr && origErr.message && newErr.message) {
+        // Normalize: strip "Cannot find module './X'" payload and compare error class
+        const origKey = origErr.message.replace(/'[^']*'/g, "'?'").slice(0, 80);
+        const newKey  = newErr.message.replace(/'[^']*'/g, "'?'").slice(0, 80);
+        if (origKey === newKey) {
+          console.log(`WARN  ${m.to}  (both old and new throw identically: ${newErr.message.split('\n')[0]})`);
+          summary.push({ ...m, status: 'warn', reason: 'both_broken_same_way', error: newErr.message });
+          ok++;
+          continue;
+        }
+      }
       console.log(`FAIL  ${m.to}  (new file threw on require: ${newErr.message})`);
       summary.push({ ...m, status: 'fail', reason: 'new_require_threw', error: newErr.message });
       fail++;

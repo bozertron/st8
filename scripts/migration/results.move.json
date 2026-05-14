@@ -1,62 +1,16 @@
 {
-  "batch": "frontend-components",
-  "generatedAt": "2026-05-14T13:21:32.593Z",
-  "ok": 6,
+  "batch": "background-indexer",
+  "generatedAt": "2026-05-14T13:40:19.146Z",
+  "ok": 1,
   "fail": 0,
   "results": [
     {
-      "from": "coordination.js",
-      "to": "src/frontend/services/coordination.js",
-      "client": true,
+      "from": "lib/commands/backgroundIndexer.js",
+      "to": "src/features/indexing/background-indexer.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "dbf0430b2bf034facf0afc53910142c8aa12d3c359104e1134a8c10658c1bbee",
-      "lines": 211
-    },
-    {
-      "from": "settings-reader.js",
-      "to": "src/frontend/services/state.js",
-      "client": true,
-      "status": "ok",
-      "action": "copied",
-      "sha256": "0bf9e4597121a7a768b1c496eec60cc74e8d21d7c7e6adbab93068a3e5531377",
-      "lines": 114
-    },
-    {
-      "from": "file-explorer.js",
-      "to": "src/frontend/components/file-explorer/file-explorer.js",
-      "client": true,
-      "status": "ok",
-      "action": "copied",
-      "sha256": "7c824bbb30c52d3d41223079b5a65a48ca34c4608b40d746f902ee7cbb722420",
-      "lines": 749
-    },
-    {
-      "from": "graph-visualizer.js",
-      "to": "src/frontend/components/graph-viewer/graph-viewer.js",
-      "client": true,
-      "status": "ok",
-      "action": "copied",
-      "sha256": "87db68a764a9502f70c002db879e27e2e5eefae53ac0edc29033811fc19c71f1",
-      "lines": 457
-    },
-    {
-      "from": "phreak-terminal.js",
-      "to": "src/frontend/components/terminal/terminal.js",
-      "client": true,
-      "status": "ok",
-      "action": "copied",
-      "sha256": "e837c4f43afb0cfba4de64a75bf4d8ccc70611a6ae035327fdaa858bdb31612c",
-      "lines": 1087
-    },
-    {
-      "from": "settings-ui.js",
-      "to": "src/frontend/components/settings/settings.js",
-      "client": true,
-      "status": "ok",
-      "action": "copied",
-      "sha256": "b57a37df95cf9a08a26ec1988208e7466d33f5fa685106ebc2f17be79ef52aa7",
-      "lines": 340
+      "sha256": "153dfb21e00b81fdea02641499237e82fdcab4e192596bbc69912fe2505cc428",
+      "lines": 812
     }
   ]
 }

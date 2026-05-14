@@ -1,38 +1,49 @@
 {
-  "batch": "frontend-components",
-  "generatedAt": "2026-05-14T13:21:32.723Z",
-  "totalEdits": 0,
+  "batch": "background-indexer",
+  "generatedAt": "2026-05-14T13:40:19.253Z",
+  "totalEdits": 5,
   "failures": 0,
   "summary": [
     {
-      "status": "ok",
-      "file": "src/frontend/services/coordination.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/frontend/services/state.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/frontend/components/file-explorer/file-explorer.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/frontend/components/graph-viewer/graph-viewer.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/frontend/components/terminal/terminal.js",
-      "edits": []
-    },
-    {
-      "status": "ok",
-      "file": "src/frontend/components/settings/settings.js",
-      "edits": []
+      "status": "edit",
+      "file": "src/features/indexing/background-indexer.js",
+      "edits": [
+        {
+          "start": 2932,
+          "end": 2962,
+          "oldSpec": "./integr8/databasePersister.js",
+          "newSpec": "../../core/database/graph-persister.js",
+          "line": 60
+        },
+        {
+          "start": 3002,
+          "end": 3028,
+          "oldSpec": "./integr8/dataIngestion.js",
+          "newSpec": "./data-ingestion.js",
+          "line": 61
+        },
+        {
+          "start": 3072,
+          "end": 3094,
+          "oldSpec": "./parserPersistence.js",
+          "newSpec": "./parser-persistence.js",
+          "line": 62
+        },
+        {
+          "start": 3187,
+          "end": 3204,
+          "oldSpec": "./insightStore.js",
+          "newSpec": "../analysis/insight-store.js",
+          "line": 64
+        },
+        {
+          "start": 3366,
+          "end": 3384,
+          "oldSpec": "./integr8/types.js",
+          "newSpec": "../../shared/types/integr8-types.js",
+          "line": 67
+        }
+      ]
     }
   ]
 }

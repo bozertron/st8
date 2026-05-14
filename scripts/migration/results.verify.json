@@ -1,56 +1,15 @@
 {
-  "batch": "frontend-components",
-  "generatedAt": "2026-05-14T13:21:33.105Z",
-  "ok": 6,
+  "batch": "background-indexer",
+  "generatedAt": "2026-05-14T13:40:19.623Z",
+  "ok": 1,
   "fail": 0,
   "summary": [
     {
-      "from": "coordination.js",
-      "to": "src/frontend/services/coordination.js",
-      "client": true,
-      "status": "ok",
-      "shape": "browser{1 keys}",
-      "exportCount": 1
-    },
-    {
-      "from": "settings-reader.js",
-      "to": "src/frontend/services/state.js",
-      "client": true,
-      "status": "ok",
-      "shape": "browser{1 keys}",
-      "exportCount": 1
-    },
-    {
-      "from": "file-explorer.js",
-      "to": "src/frontend/components/file-explorer/file-explorer.js",
-      "client": true,
-      "status": "ok",
-      "shape": "browser{1 keys}",
-      "exportCount": 1
-    },
-    {
-      "from": "graph-visualizer.js",
-      "to": "src/frontend/components/graph-viewer/graph-viewer.js",
-      "client": true,
-      "status": "ok",
-      "shape": "browser{1 keys}",
-      "exportCount": 1
-    },
-    {
-      "from": "phreak-terminal.js",
-      "to": "src/frontend/components/terminal/terminal.js",
-      "client": true,
-      "status": "ok",
-      "shape": "browser{1 keys}",
-      "exportCount": 1
-    },
-    {
-      "from": "settings-ui.js",
-      "to": "src/frontend/components/settings/settings.js",
-      "client": true,
-      "status": "ok",
-      "shape": "browser{1 keys}",
-      "exportCount": 1
+      "from": "lib/commands/backgroundIndexer.js",
+      "to": "src/features/indexing/background-indexer.js",
+      "status": "warn",
+      "reason": "both_broken_same_way",
+      "error": "Cannot find module './sonicClient.js'"
     }
   ]
 }

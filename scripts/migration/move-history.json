@@ -251,6 +251,16 @@
           "client": true
         }
       ]
+    },
+    {
+      "batch": "background-indexer",
+      "completedAt": "2026-05-14T13:40:19.624Z",
+      "moves": [
+        {
+          "from": "lib/commands/backgroundIndexer.js",
+          "to": "src/features/indexing/background-indexer.js"
+        }
+      ]
     }
   ]
 }
