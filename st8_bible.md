@@ -2195,6 +2195,64 @@ Output: `src/frontend/app.js` (818 lines including header + section separators).
 - 15 critical `window.*` handlers spot-checked — all present except `loadVoidEngine`/`unloadVoidEngine` (intentionally omitted).
 - True runtime verification will come when the slim `index.html` shell is built (next batch) and the UI is loaded in a browser.
 
+**Commit:** `d07ed39`
+
+---
+
+### Batch 015 — `frontend-shell`
+
+**Goal:** Build the slim `src/frontend/index.html` host that loads the extracted CSS + JS — completing the st8.html peel-apart trilogy.
+
+**File built:** `src/frontend/index.html` — **142 lines** (down from the original 2587-line `st8.html`).
+
+| Component of the new shell | Lines |
+|----------------------------|-------|
+| `<!DOCTYPE>` + header comment documenting intentional differences | 30 |
+| `<head>`: meta + 15 `<link rel="stylesheet">` tags in load-order-correct sequence | 25 |
+| `<body>`: HTML structure verbatim from st8.html L1687-1757 (mutation-toasts container, void/#stage, footer dock, 3 panel overlays, PRD wizard) | 75 |
+| `<script>` tags for 5 components + `app.js` | 7 |
+| Closing tags | 5 |
+
+**CSS load order in the shell (intentional):**
+
+1. `fonts.css` — `@font-face` rules must precede anything that references `font-family`
+2. `tokens.css` — CSS custom properties (`--void`, `--text`, `--gold`, `--cyan`, `--pink`, `--space-*`) used by every subsequent rule
+3. `base.css` — universal reset + body + reduced-motion overrides
+4. Layout/shell stylesheets in original order: `void`, `chat`, `file-list`, `notes-popup`, `dock`, `panels`
+5. Component-local stylesheets: `graph-viewer`, `settings`, `file-explorer`, `terminal`, `notifications/toast`, `prd-wizard`
+
+**JS load order in the shell (preserved from original `st8.html`):**
+
+1. `components/file-explorer/file-explorer.js`
+2. `components/terminal/terminal.js`
+3. `components/graph-viewer/graph-viewer.js`
+4. `components/settings/settings.js`
+5. `services/coordination.js`
+6. `app.js` (last — uses globals exposed by the 5 components above)
+
+**Adjacent edit — `src/frontend/styles/fonts.css`:** Updated both `url('fonts/...')` references to `url('../../../fonts/...')`. CSS resolves `url()` relative to the *CSS file's* location, and from `src/frontend/styles/` the repo-root `fonts/` directory sits 3 levels up. Tested mentally for both serving modes:
+
+- `file://` open: `<file>/src/frontend/styles/fonts.css` → `url('../../../fonts/...')` → `<file>/fonts/Monoton-Regular.ttf` ✅
+- Backend serving: `<host>/src/frontend/styles/fonts.css` → `url('../../../fonts/...')` → `<host>/fonts/Monoton-Regular.ttf` → matches existing `/*.ttf` route ✅
+
+**Intentional omissions from the new shell:**
+
+- The original `st8.html`'s 130-line top-of-file ASCII art index — superseded by the structured file layout itself plus the bible's batch log.
+- The void-engine `<script>` block (`st8.html` L1760-1780) — void-engine moved to a separate project per founder direction.
+- The five external script `<script src="...">` includes for the now-moved components are replaced with the new `src/frontend/` paths.
+- `settings-reader.js` (now `services/state.js`) — was never script-loaded by the original `st8.html`, so it's not loaded here either. Available for future wiring.
+
+**Verification:**
+
+- All 15 linked CSS files exist at the expected paths under `src/frontend/`.
+- All 6 linked JS files exist at the expected paths under `src/frontend/`.
+- Total asset line count (sum of all linked files): **5,448 lines** spread across 22 files.
+- Original monolith → slim shell + 21 component/style/JS files. **94% reduction in the shell HTML**, zero loss of CSS rules or JS function definitions.
+
+**True runtime verification is the next step and requires a human:** open `src/frontend/index.html` in a browser, ideally with the backend running (so the SSE stream + `/api/*` calls work). The visual layout, dock buttons, panel overlays, file list, terminal, settings, and toast notifications should all match the original `st8.html` exactly.
+
+**Originals preserved:** `st8.html` at repo root is untouched. The original 6 root-level component `.js` files are untouched. Until the browser smoke test confirms parity, the original UI is the fallback.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)

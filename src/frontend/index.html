@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!--
+ ST8 — Full Stack Logic Analyzer (slim shell)
+
+ This file replaces the 2587-line st8.html monolith with a thin host that
+ loads:
+   - 15 component / global stylesheets from src/frontend/styles/ and
+     src/frontend/components/*/
+   - 5 component JavaScript modules from src/frontend/components/*/
+     and src/frontend/services/
+   - The main application bundle src/frontend/app.js (extracted from
+     st8.html's third inline <script>).
+
+ The original st8.html is preserved at the repo root, unchanged, so the
+ un-migrated UI keeps working until this shell is verified in a browser.
+
+ Differences vs. the original (all intentional):
+   - void-engine loader removed (void-engine moved to a separate project,
+     per founder direction). The window.loadVoidEngine call sites inside
+     app.js remain — they're guarded with if-checks and become safe no-ops.
+   - settings-reader.js was never script-loaded by the original st8.html,
+     so it is NOT included here either. The file lives at
+     src/frontend/services/state.js and can be added later if/when wired up.
+
+ Load order (preserved from original):
+   1. Component scripts (file-explorer, terminal, graph-viewer, settings,
+      coordination) — they expose window.* globals.
+   2. app.js — the main application bundle (uses the globals above).
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>st8</title>
+
+<!-- Fonts must load first (other CSS references font-family by name) -->
+<link rel="stylesheet" href="styles/fonts.css" />
+
+<!-- Design tokens (CSS custom properties) come next; everything below uses them -->
+<link rel="stylesheet" href="styles/tokens.css" />
+
+<!-- Base reset + reduced-motion overrides -->
+<link rel="stylesheet" href="styles/base.css" />
+
+<!-- Layout / shell -->
+<link rel="stylesheet" href="styles/void.css" />
+<link rel="stylesheet" href="styles/chat.css" />
+<link rel="stylesheet" href="styles/file-list.css" />
+<link rel="stylesheet" href="styles/notes-popup.css" />
+<link rel="stylesheet" href="styles/dock.css" />
+<link rel="stylesheet" href="styles/panels.css" />
+
+<!-- Component-local styles -->
+<link rel="stylesheet" href="components/graph-viewer/graph-viewer.css" />
+<link rel="stylesheet" href="components/settings/settings.css" />
+<link rel="stylesheet" href="components/file-explorer/file-explorer.css" />
+<link rel="stylesheet" href="components/terminal/terminal.css" />
+<link rel="stylesheet" href="components/notifications/toast.css" />
+<link rel="stylesheet" href="components/prd-wizard/prd-wizard.css" />
+</head>
+<body>
+  <!-- Mutation notification toasts (SSE-driven) -->
+  <div class="mutation-toast-container" id="mutation-toasts" aria-live="polite" aria-label="Mutation notifications"></div>
+
+  <main class="void" id="void">
+    <div id="stage"></div>
+  </main>
+
+  <footer class="dock">
+    <div class="dock-line" aria-hidden="true"></div>
+    <div class="dock-row">
+      <div class="dock-left">
+        <button id="btn-explorer" class="icon-btn" aria-label="Open file explorer" aria-pressed="false" title="File explorer">
+          <svg class="infinity" viewBox="0 0 56 28" aria-hidden="true">
+            <path d="M11 14 C 11 6, 22 6, 28 14 C 34 22, 45 22, 45 14 C 45 6, 34 6, 28 14 C 22 22, 11 22, 11 14 Z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="st8-mark" aria-label="st8">st8</div>
+      <div class="dock-right">
+        <button id="btn-phreak" class="text-btn" aria-label="Open phreak terminal" aria-pressed="false" title="Phreak terminal">phreak&gt;</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Explorer overlay -->
+  <div class="panel-overlay" id="overlay-explorer" data-panel="explorer" role="dialog" aria-modal="true" aria-label="File explorer">
+    <div class="panel-frame">
+      <div class="panel-titlebar">
+        <span class="panel-title"></span>
+        <button class="panel-close" data-close="explorer" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" id="explorer-host"></div>
+    </div>
+  </div>
+
+  <!-- Phreak overlay -->
+  <div class="panel-overlay" id="overlay-phreak" data-panel="phreak" role="dialog" aria-modal="true" aria-label="Phreak terminal">
+    <div class="panel-frame">
+      <div class="panel-titlebar">
+        <span class="panel-title"></span>
+        <button class="panel-close" data-close="phreak" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" id="phreak-host"></div>
+    </div>
+  </div>
+
+  <!-- PRD Project Wizard -->
+  <div class="panel-overlay" id="overlay-prd-wizard" data-panel="prd-wizard" role="dialog" aria-modal="true" aria-label="PRD Project Wizard">
+    <div class="panel-frame" style="width: min(500px, 92vw); height: min(600px, 86vh);">
+      <div class="panel-titlebar">
+        <span class="panel-title">PRD PROJECT WIZARD</span>
+        <button class="panel-close" data-close="prd-wizard" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" style="padding: 24px;">
+        <div class="prd-field">
+          <label>PROJECT NAME</label>
+          <input type="text" id="prd-name" class="prd-input" placeholder="e.g., st8-launch">
+        </div>
+        <div class="prd-field">
+          <label>TEMPLATE</label>
+          <select id="prd-template" class="prd-select">
+            <option value="">Select template...</option>
+          </select>
+        </div>
+        <div id="prd-variables-container"></div>
+        <button class="prd-btn-create" id="prd-create-btn" onclick="createPRDProject()">CREATE PROJECT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Component modules — each exposes window.* globals consumed by app.js below -->
+  <script src="components/file-explorer/file-explorer.js"></script>
+  <script src="components/terminal/terminal.js"></script>
+  <script src="components/graph-viewer/graph-viewer.js"></script>
+  <script src="components/settings/settings.js"></script>
+  <script src="services/coordination.js"></script>
+
+  <!-- Main application bundle (extracted from st8.html's third inline <script>) -->
+  <script src="app.js"></script>
+</body>
+</html>
