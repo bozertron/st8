@@ -159,13 +159,27 @@
         .then(function(r) { return r.ok ? r.json() : { files: [] }; })
         .then(function(data) {
           const files = (data && Array.isArray(data.files)) ? data.files : [];
+          // Stash the manifest so the click handler can look up full
+          // file context when opening the dive-in.
+          window._st8FileIndex = {};
+          files.forEach(function(f) { window._st8FileIndex[f.fingerprint] = f; });
+
           window.St8Constellation.init({
             targetEl: stage,
             files: files,
             onParticleClick: function(hit) {
-              // The founder's loop: click bug-juice → notes popup → Make Ticket.
-              // We reuse the existing window.handleFileNotes() entry point.
-              if (typeof window.handleFileNotes === 'function' && hit.filepath) {
+              // Founder's loop:
+              //   - RED / YELLOW particle (bug-juice) -> open Three.js dive-in
+              //     showing the file as a Barradeau building. Inside the
+              //     dive-in there's a Notes/Ticket affordance for the
+              //     human <-> LLM collaboration loop.
+              //   - GREEN particle -> straight to notes popup (no need
+              //     to dimensionalize a healthy file).
+              const file = window._st8FileIndex[hit.fingerprint];
+              const isBuggy = file && (file.status === 'RED' || file.status === 'YELLOW');
+              if (isBuggy && window.St8DiveIn && typeof window.St8DiveIn.show === 'function') {
+                window.St8DiveIn.show(file);
+              } else if (typeof window.handleFileNotes === 'function' && hit.filepath) {
                 window.handleFileNotes(hit.filepath);
               }
             },

@@ -158,6 +158,21 @@
   <script src="components/constellation/particles.lib.js"></script>
   <script src="components/constellation/constellation.js"></script>
 
+  <!-- Dive-in (Three.js + Barradeau) — Phase C
+       Vendored Three.js + addons live under components/dive-in/three/.
+       The dive-in module is ESM; we use an importmap so its
+       `import 'three'` and `import 'three/addons/...'` resolve to the
+       local vendored files (no CDN). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./components/dive-in/three/three.module.js",
+      "three/addons/": "./components/dive-in/three/"
+    }
+  }
+  </script>
+  <script type="module" src="components/dive-in/dive-in.js"></script>
+
   <!-- Main application bundle (extracted from st8.html's third inline <script>) -->
   <script src="app.js"></script>
 </body>
