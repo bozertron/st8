@@ -144,6 +144,57 @@
     panels.explorer.mount();
     panels.phreak.mount();
 
+    // ─── CONSTELLATION (Phase B) ──────────────────────────────
+    // Mount the flat file-view in the center st8 panel's #stage.
+    // Particle click → existing notes-popup via window.handleFileNotes.
+    // SSE 'mutation' events live-update individual particle colors.
+    function bootConstellation() {
+      if (!window.St8Constellation || typeof window.St8Constellation.init !== 'function') {
+        console.warn('[st8] constellation.js not loaded — st8 main panel will stay empty');
+        return;
+      }
+      const stage = document.getElementById('stage');
+      if (!stage) return;
+      fetch('/api/connection-state.json')
+        .then(function(r) { return r.ok ? r.json() : { files: [] }; })
+        .then(function(data) {
+          const files = (data && Array.isArray(data.files)) ? data.files : [];
+          window.St8Constellation.init({
+            targetEl: stage,
+            files: files,
+            onParticleClick: function(hit) {
+              // The founder's loop: click bug-juice → notes popup → Make Ticket.
+              // We reuse the existing window.handleFileNotes() entry point.
+              if (typeof window.handleFileNotes === 'function' && hit.filepath) {
+                window.handleFileNotes(hit.filepath);
+              }
+            },
+          });
+        })
+        .catch(function(err) {
+          console.warn('[st8] constellation /api/files failed:', err && err.message);
+        });
+    }
+    bootConstellation();
+
+    // Live updates: when a mutation event arrives on the SSE stream, recolor
+    // the corresponding particle. The existing mutation toast handler already
+    // subscribes to /api/mutations — we piggyback by listening on the same
+    // window event the toast handler emits, but to keep coupling loose we
+    // just poll the manifest periodically too (cheap; 5s).
+    setInterval(function() {
+      if (!window.St8Constellation) return;
+      fetch('/api/connection-state.json')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (!data || !Array.isArray(data.files)) return;
+          data.files.forEach(function(f) {
+            window.St8Constellation.updateFileStatus(f.fingerprint, f.status);
+          });
+        })
+        .catch(function() {});
+    }, 5000);
+
     // Wire the contextual slide diamonds. Each .slide-diamond is either
     // .slide-left (in the left shelf slot) or .slide-right (right slot).
     // The target panel is computed from the CURRENT active panel:

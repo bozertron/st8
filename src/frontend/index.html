@@ -152,6 +152,12 @@
   <script src="components/settings/settings.js"></script>
   <script src="services/coordination.js"></script>
 
+  <!-- Constellation (flat file view) — Phase B
+       particles.lib.js is the unmodified vendored library; constellation.js
+       is our thin st8-specific wrapper that maps files to particles. -->
+  <script src="components/constellation/particles.lib.js"></script>
+  <script src="components/constellation/constellation.js"></script>
+
   <!-- Main application bundle (extracted from st8.html's third inline <script>) -->
   <script src="app.js"></script>
 </body>
