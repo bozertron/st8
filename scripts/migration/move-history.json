@@ -57,6 +57,24 @@
           "to": "src/features/watcher/file-watcher.js"
         }
       ]
+    },
+    {
+      "batch": "schema-cards",
+      "completedAt": "2026-05-14T12:54:05.406Z",
+      "moves": [
+        {
+          "from": "backend/schemaCardEmitter.js",
+          "to": "src/features/schema-cards/emitter.js"
+        },
+        {
+          "from": "backend/schemaCardPrinter.js",
+          "to": "src/features/schema-cards/printer.js"
+        },
+        {
+          "from": "backend/manifestGenerator.js",
+          "to": "src/features/schema-cards/manifest-generator.js"
+        }
+      ]
     }
   ]
 }

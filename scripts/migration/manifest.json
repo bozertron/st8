@@ -1,9 +1,10 @@
 {
-  "batch": "lifecycle-watcher",
+  "batch": "schema-cards",
   "generatedAt": "2026-05-14",
-  "description": "Warmup batch: two small, self-contained backend modules with only external (built-in / npm) requires. Should require zero import rewrites.",
+  "description": "Schema card generation suite: emitter, printer (TXT fallback), manifest generator (connection-state.json + ai-signal.toml). emitter and manifestGenerator both contain dynamic path-joined loads that the AST rewriter can't see — they'll be hand-patched.",
   "moves": [
-    { "from": "backend/brunoOscar.js",  "to": "src/features/lifecycle/bruno-oscar.js" },
-    { "from": "backend/fileWatcher.js", "to": "src/features/watcher/file-watcher.js" }
+    { "from": "backend/schemaCardEmitter.js",  "to": "src/features/schema-cards/emitter.js" },
+    { "from": "backend/schemaCardPrinter.js",  "to": "src/features/schema-cards/printer.js" },
+    { "from": "backend/manifestGenerator.js",  "to": "src/features/schema-cards/manifest-generator.js" }
   ]
 }

@@ -1,24 +1,32 @@
 {
-  "batch": "lifecycle-watcher",
-  "generatedAt": "2026-05-14T12:48:38.909Z",
-  "ok": 2,
+  "batch": "schema-cards",
+  "generatedAt": "2026-05-14T12:53:41.258Z",
+  "ok": 3,
   "fail": 0,
   "results": [
     {
-      "from": "backend/brunoOscar.js",
-      "to": "src/features/lifecycle/bruno-oscar.js",
+      "from": "backend/schemaCardEmitter.js",
+      "to": "src/features/schema-cards/emitter.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "c3e6e4dc3f69011aaade3e10143bfcbc354ab527ea5a83e106b56abf9e3f3612",
-      "lines": 186
+      "sha256": "d7e84127d6a29b780c247910d80cbc3b37ed3fab386bfd1c500e1830bc314e7e",
+      "lines": 210
     },
     {
-      "from": "backend/fileWatcher.js",
-      "to": "src/features/watcher/file-watcher.js",
+      "from": "backend/schemaCardPrinter.js",
+      "to": "src/features/schema-cards/printer.js",
       "status": "ok",
       "action": "copied",
-      "sha256": "cc5007dc88248f76ec5c89fa3889c912e6d6931518148a09f02c8b0c9ab9d1ac",
-      "lines": 140
+      "sha256": "967b3291cb6394d177f2b49ca8c057cd979a3dcdaba146720d0dbaf5fc9eabf6",
+      "lines": 295
+    },
+    {
+      "from": "backend/manifestGenerator.js",
+      "to": "src/features/schema-cards/manifest-generator.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "04150c7487a653f16c0e50cceb01740fcf30c37943429a738ef9f20fc4b88f41",
+      "lines": 173
     }
   ]
 }

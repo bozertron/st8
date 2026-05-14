@@ -1820,4 +1820,41 @@ ripples into ~20 require sites in `server.js`.
 
 **Verification:** Both files load. Each exports a single class (`BrunoOscar`, `FileWatcher`) with the same surface as the original.
 
+**Commit:** `8d1e930`
+
+---
+
+### Batch 004 — `schema-cards`
+
+**Goal:** Move the schema card generation suite into `src/features/schema-cards/` — emitter, printer (TXT fallback), and the manifest generator (writes `connection-state.json` + `ai-signal.toml`).
+
+**Moves:**
+
+| From | To | Lines | SHA-256 verified |
+|------|-----|-------|------------------|
+| `backend/schemaCardEmitter.js` | `src/features/schema-cards/emitter.js` | 210 | ✅ |
+| `backend/schemaCardPrinter.js` | `src/features/schema-cards/printer.js` | 295 | ✅ |
+| `backend/manifestGenerator.js` | `src/features/schema-cards/manifest-generator.js` | 173 | ✅ |
+
+**Total:** 678 lines copied byte-for-byte. Originals untouched.
+
+**Import rewrites:** 2 — both in `emitter.js`, both auto-caught via history-aware lookup:
+
+| File | Line | Old | New |
+|------|------|-----|-----|
+| `emitter.js` | 15 | `'./st8-types'` | `'../../shared/types/st8-types'` |
+| `emitter.js` | 197 | `'./persistence'` | `'../../core/database/persistence'` |
+
+**Manual hand-patches:** 2
+
+1. `emitter.js` L92 — a *runtime* `require(path.join(__dirname,'..','lib','utils','astParser.js'))` inside `emitAllCards()` was invisible to the AST rewriter. Replaced with the static specifier `require('../../shared/utils/ast-parser')` pointing at the moved location (batch 001).
+
+2. `manifest-generator.js` L18 — the dynamic `loadLibModule()` pattern (same shape as in `persistence.js` before batch 002) loads `commands/integr8/tomlSerializer.js`. `tomlSerializer.js` has NOT moved yet — it's queued for the integr8 batch. So `LIB_DIR` was retargeted from `path.join(__dirname, '..', 'lib')` to `path.join(__dirname, '..', '..', '..', 'lib')` to walk back up to the repo's still-existing `lib/` directory. When the integr8 batch lands, this loader will be retargeted again.
+
+**Verification:** All 3 new files load with matching export surfaces (`SchemaCardEmitter`, `SchemaCardPrinter`, and `{generateConnectionState, generateAiSignalToml, writeManifests}`). Stronger smoke test confirmed both dynamic loaders resolve to real files:
+- `emitter.js` → `ast-parser.js` → `extractImportsAndExports` is a function ✅
+- `manifest-generator.js` → `LIB_DIR` resolves to `/home/user/st8/lib` → `commands/integr8/tomlSerializer.js` exists at that path ✅
+
+**Pattern observation (worth recording):** The `loadLibModule()` dynamic loader idiom appears in at least two original files (`persistence.js`, `manifestGenerator.js`). Each instance needs a hand-patch on move because the AST rewriter only sees `require()` *literals*, not `path.join()` expressions evaluated at runtime. There may be more — grep for `loadLibModule` or `LIB_DIR` after each batch.
+
 **Commit:** (filled in below)

@@ -1,22 +1,29 @@
 {
-  "batch": "lifecycle-watcher",
-  "generatedAt": "2026-05-14T12:48:39.027Z",
-  "ok": 2,
+  "batch": "schema-cards",
+  "generatedAt": "2026-05-14T12:54:05.406Z",
+  "ok": 3,
   "fail": 0,
   "summary": [
     {
-      "from": "backend/brunoOscar.js",
-      "to": "src/features/lifecycle/bruno-oscar.js",
+      "from": "backend/schemaCardEmitter.js",
+      "to": "src/features/schema-cards/emitter.js",
       "status": "ok",
       "shape": "object{1 keys}",
       "exportCount": 1
     },
     {
-      "from": "backend/fileWatcher.js",
-      "to": "src/features/watcher/file-watcher.js",
+      "from": "backend/schemaCardPrinter.js",
+      "to": "src/features/schema-cards/printer.js",
       "status": "ok",
       "shape": "object{1 keys}",
       "exportCount": 1
+    },
+    {
+      "from": "backend/manifestGenerator.js",
+      "to": "src/features/schema-cards/manifest-generator.js",
+      "status": "ok",
+      "shape": "object{3 keys}",
+      "exportCount": 3
     }
   ]
 }
