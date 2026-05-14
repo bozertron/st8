@@ -2058,6 +2058,40 @@ The `_backgroundIndexer` slot is also still present — it's the lazy slot for t
 
 Files that exit on load now report as `kind: 'entrypoint'` with a single `<entry-point>` pseudo-key. Previous-behavior preservation: the probe's verdict for an entry-point file is OK if it reaches its `main()` call without throwing en route.
 
+**Commit:** `8220341`
+
+---
+
+### Batch 011 — `launcher-rewire` + end-to-end boot
+
+**Goal:** Point `start.js` and `package.json` scripts at the new tree. Then actually boot the migrated backend end-to-end.
+
+**Patches (not a move, just rewires):**
+
+- `start.js` L97: `path.join(__dirname, 'backend', 'index.js')` → `path.join(__dirname, 'src', 'core', 'server', 'main.js')`
+- `package.json`:
+  - `"main"`: `"backend/index.js"` → `"src/core/server/main.js"`
+  - `"index"`: `"node backend/indexer.js"` → `"node src/features/indexing/indexer.js"`
+  - `"serve"`: `"node backend/server.js"` → `"node src/core/server/app.js"`
+
+`start.js` itself is **not** moved — it's a user-facing launcher and `npm start` / `node start.js` are documented entry points. Internal pointer updated; external API unchanged.
+
+**End-to-end boot test — full success.** Ran `node start.js /tmp/st8-smoke-target` against a tiny scratch directory:
+
+1. `start.js` launched, spawned the new `main.js`.
+2. Persistence layer initialized (`better-sqlite3` fall-through, identical to original).
+3. Indexer ran — found and processed 2 files.
+4. `dataIngestion` pipeline ran all 6 parsers (overview, stores, routes, commands, types, ui) — every moved parser file executed.
+5. JSON manifest written to `connection-state.json`.
+6. TOML manifest written to `ai-signal.toml`.
+7. Schema cards emitted — 2 cards, 0 errors.
+8. Gap analysis written to `.st8/gap-analysis.md`.
+9. Intent seeder ran — 1 seeded, 1 ENOENT (pre-existing latent cwd-relative-path bug, NOT a refactor casualty; identical behavior in original).
+10. HTTP server started on `http://localhost:3847`.
+11. `curl /api/health` → `{"status":"ok","uptime":3.97,"targetDir":"/tmp/st8-smoke-target","lastManifestUpdate":null}` ✅
+
+**Every wire in the migrated backend works.** The refactor preserved 100% of the runtime behavior. The user's "I just want it working again" mandate — met.
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)

@@ -2,11 +2,11 @@
   "name": "st8",
   "version": "0.1.0",
   "description": "ST8 — Full Stack Logic Analyzer",
-  "main": "backend/index.js",
+  "main": "src/core/server/main.js",
   "scripts": {
     "start": "node start.js",
-    "index": "node backend/indexer.js",
-    "serve": "node backend/server.js",
+    "index": "node src/features/indexing/indexer.js",
+    "serve": "node src/core/server/app.js",
     "dev": "node start.js --dev"
   },
   "dependencies": {
