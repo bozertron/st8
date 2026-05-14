@@ -2339,6 +2339,34 @@ Static-file serving is fully restored AND the new shell is reachable.
 - `src/features/indexing/background-indexer.js` is the new home; the file is dormant pending restoration of `sonicClient.js`, `multiPassAnalyzer.js`, and `precisionCapture.js` from upstream (maestro) or fresh implementation.
 - Sonic context: https://github.com/valeriansaliou/sonic is the Rust-based search-engine server. The missing `sonicClient.js` was a Node.js client implementing its Channel protocol over TCP. Two paths to restore: copy the source from `maestro-scaffolder-tool` if available, or implement the Sonic Channel protocol fresh from the upstream docs.
 
+**Commit:** `9cca4b8`
+
+---
+
+### Batch 018 — `void-engine-fake-stream-cleanup`
+
+**Goal:** Sweep stale references to files the founder removed before the refactor began. No code changes, only metadata reconciliation.
+
+**Discovery:** the three files flagged for cleanup (`void-engine.js`, `void-engine.html`, `fake-stream.js`) **already do not exist on disk** in the repo. They had been deleted in an earlier "stubs and simulators" cleanup before this refactor session started, but several documentation files still listed them as if they were present.
+
+**Functional reference audit in the new `src/frontend/` tree:**
+
+- `src/frontend/app.js` lines 270-301 contain `if (window.loadVoidEngine) ...` / `if (window.unloadVoidEngine) ...` guards inside the workspace-change handler. With the loader function no longer defined, these become safe no-ops. **Left intact** — they faithfully preserve the original behavior, and the pretext-dev workspace branch isn't broken, just visually inactive.
+- `src/frontend/styles/void.css` has comments referencing "void-engine line element" and "host for void-engine #stage". The **CSS rules themselves** (`.void`, `#stage`, `.void-cursor`, etc.) are the structural shell of the whole UI — the dark canvas background — and stay. The comments are historical documentation.
+- `src/frontend/index.html` line 18 has a documentation comment recording the intentional omission. Left as-is.
+- Zero `fake-stream` / `fakeStream` references anywhere in `src/frontend/`.
+
+**Edits made (purely metadata):**
+
+`st8-filemap.md` was the "current inventory" doc claiming all three files still existed. Updated:
+
+1. Removed three rows from the Root Level Files table (`fake-stream.js` / `void-engine.html` / `void-engine.js`) plus added a small footnote explaining what was removed and why.
+2. Reworded the Workspace Type Handling row: `pretext-dev` was documented as "void-engine.js would activate" → now reads "safe no-op (void-engine removed from this project)".
+
+Other docs with stale refs (`README.md`, `0_FRONTEND_INDEX.md`, `0_MASTER_INDEX.md`, `0_LINE_COUNT_REPORT.md`, `connection-state.json`, etc.) intentionally left as-is — those are historical analysis snapshots from the prior LLM's wave, not living docs. They'll get rewritten in a later README-refresh pass.
+
+**No files moved. No files deleted. No code changed. Only the canonical filemap inventory was reconciled with disk reality.**
+
 **Commit:** (filled in below)
 
 **Commit:** (filled in below)
