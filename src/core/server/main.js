@@ -26,6 +26,118 @@ const { hookRegistry, HOOKS } = require('../hook-registry');
 const { registerDefaultSubscribers } = require('../hooks/default-subscribers');
 const { registerForceChecks } = require('../hooks/force-checks');
 
+// ─── WATCHER — APPLY FILE CHANGE ─────────────────────────────
+// Performs the must-be-inline portion of a file-watcher change: detect
+// (hash / read / diff), update the in-memory result.files array, write
+// to persistence, and log the mutation. Returns { file, mutation } for
+// FILE_AFTER_CHANGE subscribers, or null on a no-op (unlink of unknown,
+// change with unchanged hash, read failure).
+//
+// Lives at module scope (not inside main()) so it can be unit-tested and
+// so the watcher orchestrator inside main() stays small. Pure orchestration
+// — does NOT emit schema cards, broadcast SSE, or run gap analysis: those
+// belong to FILE_AFTER_CHANGE subscribers and the post-batch step.
+//
+// @param {{path: string, type: 'add'|'change'|'unlink'}} change
+// @param {{targetDir: string, persistence: object, resultFiles: object[]}} ctx
+// @returns {{file: object, mutation: object} | null}
+function _applyFileChange(change, ctx) {
+    const { targetDir, persistence, resultFiles } = ctx;
+    const relativePath = path.relative(targetDir, change.path);
+
+    try {
+        if (change.type === 'unlink') {
+            const idx = resultFiles.findIndex(f => f.filepath === relativePath);
+            if (idx === -1) return null;  // unknown unlink — silently drop
+
+            const removed = resultFiles[idx];
+            resultFiles.splice(idx, 1);
+
+            const mutation = {
+                fingerprint: removed.fingerprint,
+                sha256Hash: removed.sha256Hash,
+                mutationType: 'DELETE',
+                changedFields: JSON.stringify({ filepath: [removed.filepath, null] }),
+                actor: ActorType.WATCHER,
+                metadata: '{}',
+            };
+            persistence.logMutation(mutation);
+            persistence.deleteFile(removed.filepath);
+            console.log(`[st8] Removed deleted file: ${removed.filepath}`);
+            return { file: removed, mutation };
+        }
+
+        if (change.type === 'add') {
+            const fs = require('fs');
+            const crypto = require('crypto');
+            const content = fs.readFileSync(change.path);
+            const hash = crypto.createHash('sha256').update(content).digest('hex');
+            const stat = fs.statSync(change.path);
+            const birthTimestamp = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
+            const fingerprint = generateFingerprint(relativePath, birthTimestamp);
+
+            const newFile = {
+                fingerprint,
+                filepath: relativePath,
+                filename: path.basename(change.path),
+                sha256Hash: hash,
+                fileSizeBytes: stat.size,
+                lastModified: stat.mtime.toISOString(),
+                birthTimestamp,
+                imports: [],
+                importedBy: [],
+                status: 'RED',
+                reachabilityScore: 0.0,
+                impactRadius: 0,
+                lifecyclePhase: 'DEVELOPMENT',
+                isEntryPoint: false,
+            };
+
+            resultFiles.push(newFile);
+            persistence.upsertFile(newFile);
+
+            const mutation = {
+                fingerprint,
+                sha256Hash: hash,
+                mutationType: MutationType.CREATE,
+                changedFields: '{}',
+                actor: ActorType.WATCHER,
+                metadata: '{}',
+            };
+            persistence.logMutation(mutation);
+            return { file: newFile, mutation };
+        }
+
+        // change.type === 'change'
+        const changedFile = resultFiles.find(f => f.filepath === relativePath);
+        if (!changedFile) return null;  // watcher saw a change for an unknown file
+
+        const fs = require('fs');
+        const crypto = require('crypto');
+        const newHash = crypto.createHash('sha256').update(fs.readFileSync(change.path)).digest('hex');
+        if (newHash === changedFile.sha256Hash) return null;  // no real change
+
+        const oldHash = changedFile.sha256Hash;
+        changedFile.sha256Hash = newHash;
+        changedFile.lastModified = new Date().toISOString();
+        persistence.upsertFile(changedFile);
+
+        const mutation = {
+            fingerprint: changedFile.fingerprint,
+            sha256Hash: newHash,
+            mutationType: MutationType.EDIT,
+            changedFields: JSON.stringify({ sha256Hash: [oldHash, newHash] }),
+            actor: ActorType.WATCHER,
+            metadata: '{}',
+        };
+        persistence.logMutation(mutation);
+        return { file: changedFile, mutation };
+    } catch (err) {
+        console.error(`[st8] _applyFileChange failed for ${relativePath} (${change.type}):`, err.message);
+        return null;
+    }
+}
+
 // ─── GLOBAL ERROR HANDLERS ───────────────────────────────────
 // Prevent process crash from unhandled rejections
 
@@ -208,195 +320,64 @@ async function main() {
         console.log('[st8] Starting file watcher...');
         watcher = new FileWatcher(targetDir, {
             debounceMs: 500,
+            // Thin orchestrator — fires FILE_BEFORE_CHANGE + FILE_AFTER_CHANGE
+            // per code change, runs the must-be-inline persistence write
+            // between them, then runs the post-batch manifest/intent/gap
+            // regen once (the latter three are batch-shaped, not per-change,
+            // so they don't fit FILE_AFTER_CHANGE subscribers cleanly — kept
+            // inline by design, documented in residualConcerns).
             onFileChange: async (changes) => {
-                // Filter to only process code files
-                const codeChanges = changes.filter(c => {
-                    const ext = path.extname(c.path).toLowerCase();
-                    return CODE_EXTENSIONS.has(ext);
-                });
-                
+                const codeChanges = changes.filter(c => CODE_EXTENSIONS.has(path.extname(c.path).toLowerCase()));
                 if (codeChanges.length === 0) return;
-                
                 console.log(`[st8] Code files changed: ${codeChanges.length}`);
-                
+
                 let anyChanged = false;
-                
                 for (const change of codeChanges) {
-                    const relativePath = path.relative(targetDir, change.path);
-                    
-                    if (change.type === 'unlink') {
-                        // DELETE PATH — remove from array and DB without reading file
-                        try {
-                            const idx = result.files.findIndex(f => f.filepath === relativePath);
-                            if (idx !== -1) {
-                                const removed = result.files[idx];
-                                result.files.splice(idx, 1);
+                    // Hook 1: FILE_BEFORE_CHANGE — fired before any inline
+                    // work. Subscribers can read change.path/type/etc. but
+                    // cannot yet see the resolved file row (it may not
+                    // exist or its hash may be pre-edit).
+                    await hookRegistry.execute(HOOKS.FILE_BEFORE_CHANGE, { change, targetDir, persistence });
 
-                                // Log DELETE mutation before removing from DB
-                                persistence.logMutation({
-                                    fingerprint: removed.fingerprint,
-                                    sha256Hash: removed.sha256Hash,
-                                    mutationType: 'DELETE',
-                                    changedFields: JSON.stringify({ filepath: [removed.filepath, null] }),
-                                    actor: ActorType.WATCHER,
-                                    metadata: '{}'
-                                });
+                    // Must-be-inline work: detect → mutate result.files →
+                    // persistence write → mutation log. Encapsulated as a
+                    // helper so the orchestrator stays small. Returns
+                    // { file, mutation } when the change has effect, or
+                    // null on no-op (unlink of unknown / change w/ same
+                    // hash / read failure). On no-op, FILE_AFTER_CHANGE
+                    // still fires with file:null so subscribers can
+                    // observe attempted-but-skipped changes.
+                    const applied = _applyFileChange(change, {
+                        targetDir, persistence, resultFiles: result.files,
+                    });
 
-                                // Publish SSE notification for deletion
-                                notificationBus.publish({
-                                    fingerprint: removed.fingerprint,
-                                    filepath: removed.filepath,
-                                    mutationType: 'DELETE',
-                                    actor: ActorType.WATCHER,
-                                    sha256Hash: removed.sha256Hash
-                                });
+                    if (applied) anyChanged = true;
 
-                                // Delete stale schema card from disk
-                                try {
-                                    const cardPath = path.join(targetDir, '.st8', 'schema-cards', removed.filepath.replace(/\//g, '_').replace(/\\/g, '_') + '.json');
-                                    if (require('fs').existsSync(cardPath)) {
-                                        require('fs').unlinkSync(cardPath);
-                                    }
-                                } catch (cardErr) {
-                                    console.error(`[st8] Failed to delete schema card for ${removed.filepath}:`, cardErr.message);
-                                }
-
-                                persistence.deleteFile(removed.filepath);
-                                anyChanged = true;
-                                console.log(`[st8] Removed deleted file: ${removed.filepath}`);
-                            }
-                        } catch (err) {
-                            console.error(`[st8] Failed to remove file ${relativePath}:`, err.message);
-                        }
-                    } else if (change.type === 'add') {
-                        try {
-                            const content = require('fs').readFileSync(change.path);
-                            const hash = require('crypto').createHash('sha256').update(content).digest('hex');
-                            const stat = require('fs').statSync(change.path);
-                            const birthTimestamp = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
-                            const fingerprint = generateFingerprint(relativePath, birthTimestamp);
-
-                            const newFile = {
-                                fingerprint: fingerprint,
-                                filepath: relativePath,
-                                filename: path.basename(change.path),
-                                sha256Hash: hash,
-                                fileSizeBytes: stat.size,
-                                lastModified: stat.mtime.toISOString(),
-                                birthTimestamp: birthTimestamp,
-                                imports: [],
-                                importedBy: [],
-                                status: 'RED',
-                                reachabilityScore: 0.0,
-                                impactRadius: 0,
-                                lifecyclePhase: 'DEVELOPMENT',
-                                isEntryPoint: false
-                            };
-
-                            result.files.push(newFile);
-                            persistence.upsertFile(newFile);
-
-                            persistence.logMutation({
-                                fingerprint: fingerprint,
-                                sha256Hash: hash,
-                                mutationType: MutationType.CREATE,
-                                changedFields: '{}',
-                                actor: ActorType.WATCHER,
-                                metadata: '{}'
-                            });
-
-                            notificationBus.publish({
-                                fingerprint: fingerprint,
-                                filepath: relativePath,
-                                mutationType: MutationType.CREATE,
-                                actor: ActorType.WATCHER,
-                                sha256Hash: hash
-                            });
-
-                            // Emit schema card for new file (parity with 'change' handler)
-                            try {
-                                const fullPath = path.join(targetDir, relativePath);
-                                let astResult = { imports: [], exports: [] };
-                                try {
-                                    const { extractImportsAndExports } = require('../../shared/utils/ast-parser');
-                                    astResult = extractImportsAndExports(fullPath);
-                                } catch (e) { /* AST parse failed - use empty */ }
-
-                                const lastMutation = persistence.getLastMutation(fingerprint);
-                                emitter.emitCard(newFile, astResult,
-                                    { importedBy: [], imports: [] }, null,
-                                    { count: persistence.getMutationCount(fingerprint),
-                                      lastMutation: lastMutation ? { type: lastMutation.mutationType, actor: lastMutation.actor, timestamp: lastMutation.timestamp } : { type: '', actor: '', timestamp: '' } });
-                            } catch (cardErr) {
-                                console.error(`[st8] Failed to emit schema card for new file ${relativePath}:`, cardErr.message);
-                            }
-
-                            anyChanged = true;
-                        } catch (err) {
-                            console.error(`[st8] Failed to index new file ${relativePath}:`, err.message);
-                        }
-                    } else {
-                        const changedFile = result.files.find(f => f.filepath === relativePath);
-                        if (changedFile) {
-                            try {
-                                const newHash = require('crypto')
-                                    .createHash('sha256')
-                                    .update(require('fs').readFileSync(change.path))
-                                    .digest('hex');
-                                if (newHash !== changedFile.sha256Hash) {
-                                    const oldHash = changedFile.sha256Hash;
-                                    changedFile.sha256Hash = newHash;
-                                    changedFile.lastModified = new Date().toISOString();
-                                    persistence.upsertFile(changedFile);
-
-                                    persistence.logMutation({
-                                        fingerprint: changedFile.fingerprint,
-                                        sha256Hash: newHash,
-                                        mutationType: MutationType.EDIT,
-                                        changedFields: JSON.stringify({ sha256Hash: [oldHash, newHash] }),
-                                        actor: ActorType.WATCHER,
-                                        metadata: '{}'
-                                    });
-
-                                    notificationBus.publish({
-                                        fingerprint: changedFile.fingerprint,
-                                        filepath: relativePath,
-                                        mutationType: MutationType.EDIT,
-                                        actor: ActorType.WATCHER,
-                                        sha256Hash: newHash
-                                    });
-
-                                    // Extract AST before emitting schema card
-                                    const fullPath = path.join(targetDir, changedFile.filepath);
-                                    let astResult = { imports: [], exports: [] };
-                                    try {
-                                        const { extractImportsAndExports } = require('../../shared/utils/ast-parser');
-                                        astResult = extractImportsAndExports(fullPath);
-                                    } catch (e) { /* AST parse failed - use empty */ }
-
-                                    // Emit updated schema card
-                                    const lastMutation = persistence.getLastMutation(changedFile.fingerprint);
-                                    const card = emitter.emitCard(changedFile, astResult,
-                                        { importedBy: [], imports: [] }, null,
-                                        { count: persistence.getMutationCount(changedFile.fingerprint),
-                                          lastMutation: lastMutation ? { type: lastMutation.mutationType, actor: lastMutation.actor, timestamp: lastMutation.timestamp } : { type: '', actor: '', timestamp: '' } });
-
-                                    anyChanged = true;
-                                }
-                            } catch (err) {
-                                console.error(`[st8] Failed to hash ${relativePath}:`, err.message);
-                            }
-                        }
-                    }
+                    // Hook 2: FILE_AFTER_CHANGE — fired after the persistence
+                    // write commits. Default subscribers handle schema-card
+                    // emission (P=20) and SSE broadcast (P=30) — see
+                    // src/core/hooks/default-subscribers.js.
+                    await hookRegistry.execute(HOOKS.FILE_AFTER_CHANGE, {
+                        change,
+                        file: applied ? applied.file : null,
+                        mutation: applied ? applied.mutation : null,
+                        schemaCard: null,           // emitted by P=20 subscriber, not pre-populated
+                        targetDir,
+                        persistence,
+                        emitter,                    // P=20 needs the emitter handle
+                    });
                 }
-                
-                // Only regenerate manifest if something actually changed
+
+                // Batch post-loop: manifest + intent-seeding + gap-analysis.
+                // These are batch-shaped (idempotent over the full file set)
+                // — running them per FILE_AFTER_CHANGE would re-process the
+                // entire project N times for an N-file change batch. Kept
+                // inline by design; see residualConcerns on ticket 6 for the
+                // tradeoff and the future batched-hook option.
                 if (anyChanged) {
-                    const { writeManifests } = require('../../features/schema-cards/manifest-generator');
                     writeManifests(result.files, targetDir);
                     console.log('[st8] Incremental re-index complete');
 
-                    // Re-run intent seeding for new/changed files
                     try {
                         const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
                         const seeder = new IntentSeeder(persistence, schemaCardsDir, targetDir);
@@ -405,7 +386,6 @@ async function main() {
                         console.error('[st8] Incremental intent seeding failed:', err.message);
                     }
 
-                    // Re-run gap analysis to reflect current state
                     try {
                         const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
                         const analyzer = new GapAnalyzer(schemaCardsDir, persistence);

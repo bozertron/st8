@@ -153,6 +153,85 @@ function registerDefaultSubscribers(registry) {
   //   registry.register(HOOKS.FILE_INDEXED, async (ctx) => {
   //     await locks.checkAndApply(ctx.file);
   //   }, { source: 'louis-locks' });
+
+  // ─── FILE_AFTER_CHANGE chain ────────────────────────────────
+  // Fires once per file-watcher change AFTER the persistence write +
+  // mutation_log row commit. Two default subscribers preserve the
+  // pre-decomp visible ordering: schema-card-emitter runs first (P=20)
+  // so a downstream notification consumer can read the freshly-written
+  // card; SSE broadcast (P=30) follows.
+  //
+  // ctx shape: { change, file, mutation, schemaCard, targetDir, persistence, emitter }
+  // file/mutation may be null when _applyFileChange short-circuits
+  // (unknown unlink, unchanged hash, read failure); subscribers guard.
+
+  // P=20 — schema-card emission. For CREATE/EDIT, emit a fresh card via
+  // the shared emitter (parses AST, joins last-mutation, writes JSON).
+  // For DELETE, remove the stale card on disk so it doesn't haunt
+  // gap-analyzer's next pass.
+  registry.register(HOOKS.FILE_AFTER_CHANGE, async (ctx) => {
+    const { change, file, mutation, targetDir, persistence, emitter } = ctx;
+    if (!file || !mutation) return;  // no-op apply, nothing to emit
+
+    if (mutation.mutationType === 'DELETE') {
+      // Delete stale schema card from disk.
+      try {
+        const fs = require('fs');
+        const cardPath = path.join(
+          targetDir,
+          '.st8', 'schema-cards',
+          file.filepath.replace(/\//g, '_').replace(/\\/g, '_') + '.json'
+        );
+        if (fs.existsSync(cardPath)) fs.unlinkSync(cardPath);
+      } catch (cardErr) {
+        console.error(`[st8] Failed to delete schema card for ${file.filepath}:`, cardErr.message);
+      }
+      return;
+    }
+
+    // CREATE / EDIT — emit a fresh card.
+    if (!emitter) return;  // defensive: nothing to do without the shared emitter handle
+    try {
+      const fullPath = path.join(targetDir, file.filepath);
+      let astResult = { imports: [], exports: [] };
+      try {
+        const { extractImportsAndExports } = require('../../shared/utils/ast-parser');
+        astResult = extractImportsAndExports(fullPath);
+      } catch (_) { /* AST parse failed — emit with empty imports/exports */ }
+
+      const lastMutation = persistence.getLastMutation(file.fingerprint);
+      emitter.emitCard(
+        file,
+        astResult,
+        { importedBy: [], imports: [] },
+        null,
+        {
+          count: persistence.getMutationCount(file.fingerprint),
+          lastMutation: lastMutation
+            ? { type: lastMutation.mutationType, actor: lastMutation.actor, timestamp: lastMutation.timestamp }
+            : { type: '', actor: '', timestamp: '' },
+        }
+      );
+    } catch (cardErr) {
+      console.error(`[st8] Failed to emit schema card for ${file.filepath} (${change.type}):`, cardErr.message);
+    }
+  }, { priority: 20, source: 'file-after-change/schema-card-emitter' });
+
+  // P=30 — SSE broadcast via notification-bus. Runs after the card is
+  // written so any consumer reading the bus event has the new card on
+  // disk if it wants to load it.
+  registry.register(HOOKS.FILE_AFTER_CHANGE, async (ctx) => {
+    const { file, mutation } = ctx;
+    if (!file || !mutation) return;
+    const { notificationBus } = require('../notification-bus');
+    notificationBus.publish({
+      fingerprint: file.fingerprint,
+      filepath: file.filepath,
+      mutationType: mutation.mutationType,
+      actor: mutation.actor,
+      sha256Hash: mutation.sha256Hash,
+    });
+  }, { priority: 30, source: 'file-after-change/sse-broadcaster' });
 }
 
 module.exports = { registerDefaultSubscribers };
