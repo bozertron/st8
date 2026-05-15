@@ -310,6 +310,15 @@ class St8Server {
             case '/api/auth-token':
                 this._handleAuthToken(req, res);
                 break;
+            case '/api/signal-path':
+                this._handleSignalPath(req, res, url);
+                break;
+            case '/api/generate-report':
+                this._handleGenerateReport(req, res);
+                break;
+            case '/api/insights':
+                this._handleInsights(req, res, url);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -1310,6 +1319,236 @@ class St8Server {
             if (persistence) persistence.close();
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    /**
+     * POST /api/signal-path  body: { filepath: 'src/foo.js' }
+     * GET  /api/signal-path?filepath=src/foo.js
+     *
+     * Returns the signal path (topologically-ordered upstream dependency
+     * chain) for the given file. Backed by signal-path-adapter, which
+     * wraps path-generator over a SemanticGraph built from
+     * file_registry + connections. Wave 3B founder-priority wire-up.
+     *
+     * Body / query: { filepath: string, targetDir?: string }
+     * Response: { ok: true, plan, outcome, reasons, pathSummary }
+     *        or { ok: false, error }
+     *
+     * Frontend integration (dive-in panel visualization) is roadmap
+     * P1.1 / Wave 7. Backend probed via curl is the milestone here.
+     */
+    _handleSignalPath(req, res, url) {
+        const handle = (filepath, targetDirOverride) => {
+            let persistence;
+            try {
+                if (!filepath || typeof filepath !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'filepath (string) required' }));
+                    return;
+                }
+                const { computeSignalPath } = require('../../features/analysis/signal-path-adapter');
+                const { St8Persistence } = require('../database/persistence');
+                persistence = new St8Persistence();
+                persistence.initialize().then(() => {
+                    try {
+                        const result = computeSignalPath({
+                            persistence,
+                            targetFilepath: filepath,
+                            targetDir: targetDirOverride || this.targetDir || '.',
+                        });
+                        res.writeHead(result.ok ? 200 : 404, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(result, null, 2));
+                    } catch (err) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: false, error: err.message }));
+                    } finally {
+                        if (persistence) persistence.close();
+                    }
+                }).catch((err) => {
+                    if (persistence) persistence.close();
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: err.message }));
+                });
+            } catch (err) {
+                if (persistence) persistence.close();
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: err.message }));
+            }
+        };
+
+        if (req.method === 'GET') {
+            const filepath = url.searchParams.get('filepath');
+            const targetDir = url.searchParams.get('targetDir');
+            handle(filepath, targetDir);
+            return;
+        }
+        if (req.method === 'POST') {
+            const MAX = 4096;
+            let body = '';
+            let over = false;
+            req.on('data', (chunk) => {
+                if (over) return;
+                body += chunk;
+                if (body.length > MAX) {
+                    over = true;
+                    body = '';
+                    req.destroy();
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Request body too large (max 4KB)' }));
+                }
+            });
+            req.on('end', () => {
+                if (over) return;
+                try {
+                    const payload = JSON.parse(body || '{}');
+                    handle(payload.filepath, payload.targetDir);
+                } catch (err) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Invalid JSON body' }));
+                }
+            });
+            return;
+        }
+        res.writeHead(405, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Method not allowed. Use GET or POST.' }));
+    }
+
+    /**
+     * POST /api/generate-report  body: { filepath: 'src/foo.js' }
+     *
+     * Computes the signal path for `filepath`, feeds the resulting
+     * Integr8Output-shaped object into report-generator's
+     * generateMigrationReport(), and returns Markdown. Sits downstream
+     * of /api/signal-path. Wave 3B ticket 5 wire-up.
+     *
+     * Accept negotiation: text/markdown → raw markdown; otherwise
+     * returns JSON envelope with the markdown in `report`.
+     */
+    _handleGenerateReport(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Method not allowed. Use POST.' }));
+            return;
+        }
+        const MAX = 4096;
+        let body = '';
+        let over = false;
+        req.on('data', (chunk) => {
+            if (over) return;
+            body += chunk;
+            if (body.length > MAX) {
+                over = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: 'Request body too large (max 4KB)' }));
+            }
+        });
+        req.on('end', () => {
+            if (over) return;
+            let persistence;
+            try {
+                const payload = JSON.parse(body || '{}');
+                const filepath = payload.filepath;
+                if (!filepath || typeof filepath !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'filepath (string) required' }));
+                    return;
+                }
+                const { computeSignalPath } = require('../../features/analysis/signal-path-adapter');
+                const { generateMigrationReport } = require('../../features/analysis/report-generator');
+                const { St8Persistence } = require('../database/persistence');
+                persistence = new St8Persistence();
+                persistence.initialize().then(() => {
+                    try {
+                        const sp = computeSignalPath({
+                            persistence,
+                            targetFilepath: filepath,
+                            targetDir: payload.targetDir || this.targetDir || '.',
+                        });
+                        if (!sp.ok) {
+                            res.writeHead(404, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify(sp));
+                            return;
+                        }
+                        // Synthesize an Integr8Output for report-generator.
+                        // The report-generator inspects: migrationPlan,
+                        // semanticGraph, outcome, reasons. We build a
+                        // minimal but real envelope from the signal-path
+                        // adapter output — no stub fields.
+                        const integr8Output = {
+                            migrationPlan: sp.plan,
+                            migrationReport: '',
+                            semanticGraph: {
+                                nodes: [], // not consumed by report-generator's surface; safe to elide
+                                edges: [],
+                                properties: sp.pathSummary.graphProperties,
+                            },
+                            outcome: sp.outcome,
+                            reasons: sp.reasons,
+                        };
+                        const markdown = generateMigrationReport(integr8Output);
+                        const accept = req.headers.accept || '';
+                        if (accept.includes('text/markdown')) {
+                            res.writeHead(200, { 'Content-Type': 'text/markdown' });
+                            res.end(markdown);
+                        } else {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, report: markdown, pathSummary: sp.pathSummary }, null, 2));
+                        }
+                    } catch (err) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: false, error: err.message }));
+                    } finally {
+                        if (persistence) persistence.close();
+                    }
+                }).catch((err) => {
+                    if (persistence) persistence.close();
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: err.message }));
+                });
+            } catch (err) {
+                if (persistence) persistence.close();
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: err.message }));
+            }
+        });
+    }
+
+    /**
+     * GET /api/insights[?filepath=<path>]
+     *
+     * Returns insight records for a file (or all files when filepath is
+     * omitted). Insights are produced by the INDEX_COMPLETE subscriber
+     * that walks file_registry and writes to InsightRecords. Wave 3B
+     * ticket 7 wire-up.
+     */
+    _handleInsights(req, res, url) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+        let store;
+        try {
+            const { getInsightStore } = require('../../features/analysis/insight-store');
+            store = getInsightStore();
+            const filepath = url.searchParams.get('filepath');
+            const projectId = url.searchParams.get('projectId') || 'st8';
+            if (filepath) {
+                const insights = store.getInsightsForFile(projectId, filepath);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, filepath, projectId, insights, count: insights.length }, null, 2));
+            } else {
+                const summary = store.getCategorySummary(projectId);
+                const recent = store.getRecentInsights(projectId, 50);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, projectId, categorySummary: summary, recent, recentCount: recent.length }, null, 2));
+            }
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: err.message }));
         }
     }
 
