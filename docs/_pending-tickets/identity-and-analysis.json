@@ -3,79 +3,203 @@
     "filepath": "src/features/analysis/intent-seeder.js",
     "userNote": "FILENAME_PURPOSE_MAP is ~70 regex patterns with first-match-wins semantics; pattern order is load-bearing and undocumented. A new pattern inserted near the top can silently steal matches from later patterns. Example: /index/i (line 38) matches before /background/i (line 65) would, so background-indexer.js gets purpose 'Module entry point' instead of 'Background processing'. Document the ordering policy or move to a structured priority table.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "Two-part fix: documentation + executable regression-lock.\n\n1. src/features/analysis/intent-seeder.js — added a multi-paragraph JSDoc block directly above the FILENAME_PURPOSE_MAP declaration that names the three ordering principles encoded in the current sequence:\n  (i) SPECIFIC > GENERIC — /persistence/ precedes /db/, /schema[-_]?card/ precedes /emitter/, /graph[-_]?builder/ precedes /graph[-_]?traversal/, etc.\n  (ii) NAMED-ROLE > FRAMEWORK — /indexer/ precedes /index/ so background-indexer.js, file-indexer.js, etc. get 'Codebase indexing and analysis' rather than 'Module entry point'. (The userNote's example was slightly off — actual flow: /indexer/ at index 3 wins for background-indexer.js, not /index/ — but the load-bearing-order point is correct.)\n  (iii) CODE-MODULE > DOC-ARTEFACT — source-code role patterns precede PRD/changelog/readme/decision-log patterns at the tail of the array.\nThe block ends with a four-step add-a-pattern checklist that names the test file as the executable lock.\n\n2. tests/features/analysis/intent-seeder-ordering.test.js — 14 pinned filename→purpose mappings covering every ordering principle. background-indexer.js → 'Codebase indexing and analysis' (not 'Module entry point') is the canonical regression-guard probe. database-persister.js → 'Database persistence operations' (verifies /database[-_]?persister/ wins over the alias). schema-card-emitter.js → 'Schema card emission' (verifies the schema-card pattern wins over /emitter/). gap-analyzer.js → 'Gap analysis' (verifies /gap[-_]?analy/ wins over /analy/). Plus 10 more.\n\nIf a future contributor reorders the map, every pinned mapping that breaks shows the file path + expected-vs-got purpose with a message naming the JSDoc block they need to update in lockstep.",
+    "filesChanged": [
+      "src/features/analysis/intent-seeder.js",
+      "tests/features/analysis/intent-seeder-ordering.test.js"
+    ],
+    "commitHash": "255330f1205838596e9158c1697143bff6b02de5",
+    "residualConcerns": "P3.1 in docs/_pending-roadmap/identity-and-analysis.md still calls for replacing the pattern matcher with AST-driven heuristics. The ordering lock added here makes that future refactor safer (the pin file becomes the regression suite the refactor must pass) but does NOT address the underlying fragility — a 70-row regex table is the wrong data structure for this job. Out of scope for ticket 0.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/intent-seeder.js",
     "userNote": "Each file is read from disk TWICE per seedFile() call: L189 _parseFileContent (which itself does the regex pass) and L195 contentForDetection (the @@@ symbol scan). For a 500-file project that's 1000 fs.readFileSync calls. Should consolidate into a single read pass.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "Refactored seedFile() to read each source file from disk AT MOST ONCE per call.\n\nNew _readSourceOnce(filepath) helper resolves the abs path via the existing path.isAbsolute / path.resolve(this.targetDir) idiom and reads once, returning {content, absPath}. Returns content='' when the file is missing (the registry row may outlive the file's lifetime — that case must not throw). Read errors are logged and the empty result returned.\n\nseedFile() now calls _readSourceOnce ONCE per call. The resulting content is then handed to BOTH the imports/exports parse (new optional preReadContent arg on _parseFileContent) and the @@@ AI-review detection regex. _parseFileContent retains its legacy single-arg shape — if preReadContent is undefined, it falls back to a fresh read so any direct external caller still works.\n\nVerified end-to-end via tests/features/analysis/intent-seeder.test.js — the probe spies on fs.readFileSync and asserts that targetReads.length === 1 per seedFile call. Three companion probes confirm @@@ detection still fires exactly once, intent upsert still produces INFERRED authoredBy with the trailing ??? marker, and a missing-file path returns success with the 'Source module at ...' fallback purpose.",
+    "filesChanged": [
+      "src/features/analysis/intent-seeder.js",
+      "tests/features/analysis/intent-seeder.test.js"
+    ],
+    "commitHash": "883f435d5349cf5f34b62a7c287d1f35ffcda03d",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/gap-analyzer.js",
     "userNote": "Zero unit tests for the 6 dimensions. D1-D6 each compute summary metrics that the gap-analysis.md report depends on, but there's no fixture-driven test that asserts e.g. 'a card with empty intent.purpose AND non-empty intent.valueStatement counts as unauthored'. The intent-coverage percentage that drives D3 is silently sensitive to the '(not set)' sentinel check on line 217.",
     "severity": "medium",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/relationship-analyzer.js",
     "userNote": "DEAD CODE — 924 lines, only required by src/features/integr8/index.js which itself has no live consumers. Decide: mark deprecated, delete, or wire as INDEX_COMPLETE subscriber per batch 025 roadmap. The roadmap leans toward wiring.",
     "severity": "medium",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/path-generator.js",
     "userNote": "DEAD CODE — 858 lines, FOUNDER PRIORITY #1 per batch 025. No /api/signal-path route, no terminal command, no visualization layer. This is the highest-value dead module — wiring it gets the user from 'file is yellow' to 'here's the signal path'.",
     "severity": "high",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/report-generator.js",
     "userNote": "DEAD CODE — 283 lines. Only path-generator output can drive it. Wire behind a `report` terminal command once path-generator is live.",
     "severity": "low",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/graph/traversal.js",
     "userNote": "DEAD CODE — 827 lines, 13 exports (findPaths, computeImpactChain, findImportsOf, findExportsOf, etc.). Reads from GraphNodes/GraphEdges tables that background-indexer populates — neither is live. Should be resurrected for impact-chain queries powering path-generator.",
     "severity": "medium",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/insight-store.js",
     "userNote": "DEAD CODE — 361 lines. Schema is created on first construction but no live code path calls addInsight(). The only consumer is background-indexer.js, which itself is dormant. This is the data layer for 'why is this file RED' — without it the UI has nothing to surface beyond the GREEN/YELLOW/RED enum.",
     "severity": "high",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/schema-cards/manifest-generator.js",
     "userNote": "connection-state.json intentionally omits lifecyclePhase and birthTimestamp per batch 025 deep dive (identity-internal, not consumer-facing). This is a load-bearing schema decision but is NOT documented in src/shared/types/st8-types.js or in the manifest-generator file itself. A future developer adding lifecyclePhase to the manifest would silently break the contract.",
     "severity": "medium",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/schema-cards/emitter.js",
     "userNote": "Card-prune logic added in batch 026 (lines 153-164) — sweeps stale .json files from .st8/schema-cards/ that no longer have a file_registry row. No CI/regression test ensures stale cards aren't accumulated again. Force-check FC2 covers this at runtime but only on the indexer's own target, not in CI.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "Audit + fix + tests.\n\nAUDIT FINDING: the prune sweep itself (unlink any *.json in outputDir not in validFilenames) is correct for the simple case. But a real defect surfaced when probing the multi-fingerprint-per-filepath scenario:\n\n  - file_registry permits MULTIPLE rows per filepath (different birthTimestamp → different fingerprint, e.g. from deletion-then-restoration or birthtime drift). Both rows survive in the registry.\n  - Schema cards are keyed by FILEPATH on disk (_cardFilename(filepath) flattens / to _ and appends .json). Two registry rows for the same filepath produce the SAME card filename.\n  - emitAllCards' loop iterated getAllFiles() and called emitCard for each row in sequence — so for a 2-fingerprint filepath, BOTH writes targeted the same file and the second clobbered the first. Which 'second' was non-deterministic (getAllFiles ORDERs by filepath only; same-filepath rows return in storage order).\n  - Net effect: a card on disk represented a non-deterministic fingerprint, and gap-analyzer (which reads cards) saw inconsistent data across runs.\n\nFIX: emitAllCards() now builds a Map<filepath, file> from getAllFiles() and keeps only the row with the newest birthTimestamp per filepath. The 'current' identity wins; older identities still live on in mutation_log + file_registry for history. The prune sweep below uses the same deduplicated key set, so the contract stays consistent.\n\nA 22-line JSDoc block above emitAllCards documents the contract + the multi-fingerprint rationale.\n\nTESTS — tests/features/schema-cards/emitter-prune.test.js, 8 probes:\n  - PASS: cards match registry → no prune.\n  - STALE: a leftover card with no registry row is unlinked.\n  - MULTI-FINGERPRINT (ticket-9 core): two rows for the same filepath in BOTH orderings → newest birthTimestamp wins, single card on disk carries the newer sha256Hash.\n  - MIXED: 3 cards on disk, 2 stale + 1 live → exactly 1 remains.\n  - JSON-ONLY FILTER: non-.json files (README.txt, .lock) are NOT pruned.\n  - PATH-FLATTENING: nested filepaths produce predictable card names (src_features_foo.js.json).\n  - NEW-OUTPUT-DIR: clean dir + two files → both cards, zero prune.\n\nThis is the CI regression coverage the userNote asked for: a fixture-driven probe that runs in node --test on every push.\n\nCROSS-CLUSTER OBSERVATION (live FC3): force-check on the live st8.sqlite still flags 16 files as STALE_ACCUMULATION_DETECTED — that's pre-existing historical multi-fingerprint accumulation from the days before ticket-15's birthTimestamp reuse landed in the same wave. The emitter fix prevents NEW accumulation; historical drift needs a one-off cleanup pass (out of scope for ticket 9).",
+    "filesChanged": [
+      "src/features/schema-cards/emitter.js",
+      "tests/features/schema-cards/emitter-prune.test.js"
+    ],
+    "commitHash": "eed1bd229d1cc74328d50f12cb936a2eb0db3604",
+    "residualConcerns": "FC3 force-check still flags multi-fingerprint stale accumulation in the live st8.sqlite — these are historical rows from runs that predate Wave 3A's birthTimestamp reuse. The emitter fix here prevents NEW accumulation; clearing the historical residue requires a one-off pruneFilesNotIn variant that operates per-fingerprint or per-stale-birthTimestamp. Flagged for the lifecycle cluster's next wave or for a Wave 3C reviewer-led cleanup.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/indexing/store-parser.js",
     "userNote": "The seven parsers (overview, store, route, command, type, ui, parser-persistence) have no per-parser docs. Each parser's input contract (what file extensions / globs it accepts) and output contract (the shape of the report object it returns) is buried in 250-1100 line compiled-TS files. Need at minimum a one-paragraph header per parser.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "Added a multi-paragraph JSDoc header to each of the seven parsers (overview, store, route, command, type, ui, parser-persistence). Each header carries five sections:\n\n  - INPUT CONTRACT — accepted targetPath shapes (directory vs single file), scanned subdirectory constants (DEFAULT_STORE_DIR / DEFAULT_ROUTER_FILE_REL_PATH / DEFAULT_TYPES_DIR / DEFAULT_COMPONENTS_DIR / etc.), any options the parser honours (e.g. ui-parser's options.uiPattern for non-NaiveUI projects).\n  - OUTPUT CONTRACT — exact return shape. Calls out that store/route/command/type/ui parsers all emit human-readable TEXT (NOT JSON) which data-ingestion.js then parses via regex inside parseXxxText() helpers to produce SemanticGraph node types — a load-bearing fact that's not obvious from reading any one parser in isolation.\n  - CONSUMERS — where the parser is invoked from (data-ingestion.js exact line refs from the live tree, parser-persistence sink for SQLite materialization).\n  - KNOWN LIMITATIONS — explicit stack/framework assumptions (Vue-only routes, Tauri-only commands, NaiveUI-only default UI probe, TypeScript-only stores, etc.) so contributors see what each parser WON'T catch.\n  - ORIGIN — names the maestro-scaffolder-tool source file each parser was compiled from. Aligns with the linguist-generated=true marker the persistence cluster's ticket 11 set on graph-persister.js (separate file but same provenance hygiene).\n\nPure documentation pass — zero code-path changes. Verified all seven parsers still require cleanly via a smoke require() at the top of each file, and the full 175-test suite still passes.",
+    "filesChanged": [
+      "src/features/indexing/overview.js",
+      "src/features/indexing/store-parser.js",
+      "src/features/indexing/route-parser.js",
+      "src/features/indexing/command-parser.js",
+      "src/features/indexing/type-parser.js",
+      "src/features/indexing/ui-parser.js",
+      "src/features/indexing/parser-persistence.js"
+    ],
+    "commitHash": "b0de3f45fedbdbd5924d5dd42eb794eae9880d3f",
+    "residualConcerns": "All seven parsers are still compiled-from-TS artifacts (the __createBinding / __importStar boilerplate at top + the trailing source-map footer are the tell-tales). If the upstream maestro-scaffolder-tool re-vendors them, the JSDoc headers will be overwritten unless the re-vendor process includes a header-preservation step. Recommended follow-up: add the parsers' filepaths to .gitattributes as linguist-generated=true (matches the graph-persister.js handling) AND document the re-vendor recipe in the upstream's README. Not in this ticket's scope.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/shared/utils/ast-parser.js",
     "userNote": "extractImportsAndExports handles 11+ specifier types (default, named, namespace, side-effect, dynamic, require, module.exports = X, module.exports = { ... }, exports.foo, export *, re-export chains, <script> blocks in .vue) but the coverage matrix is undocumented. A consumer wanting to know 'will this catch my require(`./foo${suffix}`)?' has to read the source. Add a coverage table to the file header.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "Two-part fix: documented matrix in the file header + executable matrix in tests.\n\n1. src/shared/utils/ast-parser.js — added a 45-line comment block at the top of the file (immediately after the existing 'Fixes: I-02 I-03 I-10 I-12' comment) carrying the full SPECIFIER COVERAGE MATRIX:\n\n  IMPORTS (6 shapes):\n    1. default — import X from 'mod' — parseImportDeclaration\n    2. named — import { a, b } from 'mod' — parseImportDeclaration\n    3. namespace — import * as X from 'mod' — parseImportDeclaration\n    4. side-effect — import 'mod' — parseImportDeclaration\n    5. dynamic — import('mod') — extractDynamicImportsFromAST + extractDynamicImportsViaRegex fallback\n    6. require — require('mod') — extractRequireStatements (regex)\n\n  EXPORTS (7 shapes):\n    7. module.exports = X (identifier) — extractCommonJSExportsFromAST\n    8. module.exports = { a, b } (object) — extractCommonJSExportsFromAST\n    9. exports.foo = ... (property) — extractCommonJSExportsFromAST\n   10. export { a, b } (ES named, no source) — main loop\n   11. export const x = ... (declaration) — parseExportDeclaration\n   12. export default ... — parseDefaultExport\n   13. export * from './m' (star re-export) — resolveExportStar + traceReexportChain\n\n  SOURCE EXTRACTION (1 shape):\n   14. <script> block in .vue — extractScriptFromVue\n\n  KNOWN LIMITATIONS (probes documented in the test file):\n    - require(`./foo${suffix}`) — template-literal require: best-effort\n    - import(variable) — dynamic import with variable source: not resolvable\n    - export = X — TS export-assignment: only one probe in extractor (TSExportAssignment)\n\nThe block ends with a consumer-audit reminder: this matrix is the contract that schema-cards/emitter.js, indexer.js (Pass-1 imports), intent-seeder.js, and data-ingestion.js rely on; if a new shape is added, add a row to the table AND a probe to the test file in the SAME PR.\n\n2. tests/shared/utils/ast-parser-coverage.test.js — 17 probes (one per shape + 3 known-limitation + 1 meta-probe). Each probe writes a minimal source file to a tmp dir and asserts on the relevant fields of extractImportsAndExports() output. The KNOWN-LIMITATION probe for template-literal require asserts 'must not crash' so the matrix is honest about gaps rather than papering over them.\n\nThe header comment names the test file by relative path so a future contributor adding a shape sees the documented contract explicitly: 'add a row to this table AND a probe to the test file in the same PR' — making the docs+tests lockstep policy machine-discoverable.",
+    "filesChanged": [
+      "src/shared/utils/ast-parser.js",
+      "tests/shared/utils/ast-parser-coverage.test.js"
+    ],
+    "commitHash": "72e481162589a667405e5d8d73a804611427d3d0",
+    "residualConcerns": "ast-parser.js is itself a compiled-from-TS artifact (witnessed by the __createBinding boilerplate at top and the trailing void-* exports pattern). If the file is re-vendored from upstream, the new SPECIFIER COVERAGE MATRIX header will be overwritten unless re-vendoring preserves the block. Same provenance concern as the parsers in ticket 10. Recommendation: add ast-parser.js to .gitattributes as linguist-generated=true and document the header-preservation expectation in the upstream's vendor-out process.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/frontend/components/dive-in/dive-in.js",
     "userNote": "CODE_CITY_BARRADEAU_BUILDER.md references a red lock indicator above locked file buildings. dive-in.js has a comment mentioning it (line 21: 'Locked files get a red lock indicator above the building') but the rendering code is not present — Louis (the PyQt6 lock-em-up app the founder uploaded) is not wired to the web UI. The indicator promised by docs is unimplemented.",
     "severity": "medium",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/analysis/intent-seeder.js",
@@ -87,18 +211,50 @@
     "filepath": "st8.sqlite",
     "userNote": "No schema migration framework. ST8_SCHEMA is a single string constant in indexer.js (lines 75-152) with CREATE TABLE IF NOT EXISTS statements. Adding a column requires manual ALTER TABLE statements scattered across the codebase. needsAIReview + tripleAtCount were added to file_registry via post-hoc ALTER (visible in persistence.js:71) — no versioning, no rollback. Future schema changes risk drift between code expectations and on-disk reality.",
     "severity": "high",
-    "status": "open"
+    "status": "open",
+    "executedAt": null,
+    "executedBy": null,
+    "actionsTaken": null,
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/indexing/indexer.js",
     "userNote": "birthTimestamp falls back to mtime when stat.birthtime is unavailable (line 380). This is a quiet identity-mutation risk: a file whose mtime drifts (touch, git checkout to an older commit, rsync without -p) will get a new fingerprint, which silently invalidates the entire history chain (mutation_log, intent, connections). Should at minimum log a warning when the fallback is used.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "OPTION CHOSEN: hybrid of (a) persistence-backed reuse + (b) loud warning. This is the deepest ticket-15 decision — picked the option that ACTUALLY preserves identity going forward instead of just describing the risk.\n\nRATIONALE — why this option:\n\n  - Option (a) on its own (persist first-observed birth, never re-derive) requires a new column OR boot-time refusal-to-reindex, both of which need the schema-migration framework that's been deferred at the persistence cluster level. Half-implementing it would create a worse problem than the current bug.\n  - Option (b) on its own (warn-on-fallback) makes the failure mode visible but does not stop the fingerprint from drifting. Loud bug is better than quiet bug, but actually preserving the identity is better than either.\n  - The hybrid uses what's already in the persistence layer: getFileByPath() already returns the most-recent row per filepath (ordered by birthTimestamp DESC since Wave 1A's ticket 12 fix). When we derive a birthTimestamp at indexer time and getFileByPath returns a prior row for the same filepath, we REUSE that row's birthTimestamp. First observation wins; the identity thread (mutation_log, intent, connections, tickets) survives. When persistence has no prior row AND stat.birthtime is unreliable, we fall back to mtime AND log loudly AND record the event in the per-pass fallbackReporter.\n\nIMPLEMENTATION:\n\n  - New module src/shared/utils/birth-timestamp.js (~125 lines):\n      - isUnreliableBirthtime(stat) — detects epoch / pre-1980 sentinel (the 1980 cutoff catches FUSE filesystems that return a 1970-ish sentinel instead of true epoch).\n      - deriveBirthTimestamp({stat, filepath, persistence, reporter, silent}) — returns {birthTimestamp, origin} where origin is 'stat-birthtime' | 'mtime-fallback' | 'reused-persisted'.\n      - createFallbackReporter() — accumulator with summary() returning {count, filepaths, records}.\n      - 60-line file header documenting the bug, the contract, the rationale, and the resolution order.\n\n  - src/features/indexing/indexer.js: indexDirectory now accepts options.persistence and threads it + a per-pass fallbackReporter through deriveBirthTimestamp. After indexing completes, the reporter's summary is surfaced: if count > 0, a single [st8:identity-risk] warning line names the count and points at a freshly-written .st8/identity-risk.json artifact; if count === 0 the stale artifact (if any) is removed so consumers don't read out-of-date data.\n\n  - src/core/server/main.js: passes the shared persistence singleton into indexDirectory. The watcher's onFileChange 'add' branch (main.js:106 equivalent) also imports + calls deriveBirthTimestamp with persistence, so a deleted-and-recreated file inside the same st8 session keeps its identity.\n\nNOTE ABOUT THE ORIGINAL CODE: the userNote describes the ternary `stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString()` as a 'mtime fallback when stat.birthtime is unavailable'. The actual bug is even worse: stat.birthtime is ALWAYS a Date object on Node (never falsy), so the ternary fallback was DEAD CODE. On filesystems that don't record birthtime (ext3, some FUSE/NFS), Node returns the Unix epoch as a Date — truthy — so the original code cheerfully fingerprinted every such file with `||1970-01-01T00:00:00.000Z`. The new isUnreliableBirthtime() catches this explicitly.\n\nTESTS — tests/shared/utils/birth-timestamp.test.js, 13 probes:\n  - isUnreliableBirthtime: undefined / epoch / pre-1980 / real / cutoff-boundary\n  - deriveBirthTimestamp: stat-birthtime origin / mtime-fallback origin / reporter records only fallback / persisted reuse beats fresh stat / persisted reuse RESCUES the mtime-fallback case (the exact ticket-15 scenario) / persistence-throw degrades to stat path\n  - createFallbackReporter: records snapshot is not a live ref\n  - END-TO-END probe with real fs: write a file, derive, mutate the file (mtime moves), derive again with persistence-from-pass-1, assert birthTimestamp is unchanged across the two passes — this is the test the executor brief asked for ('verify the persisted fingerprint is stable across two indexer passes').\n\nAll 13 ticket-15 probes pass under node --test. The full suite went 108 → 121 with this commit. node start.js . indexes 295 files cleanly. verify-persistence-fixes 10/10.",
+    "filesChanged": [
+      "src/shared/utils/birth-timestamp.js",
+      "src/features/indexing/indexer.js",
+      "src/core/server/main.js",
+      "tests/shared/utils/birth-timestamp.test.js"
+    ],
+    "commitHash": "260cb805c3ab37b32090da1d420dbbe1739cd899",
+    "residualConcerns": "(1) Historical multi-fingerprint stale rows in the live st8.sqlite (visible in FC3 force-check output) are NOT cleaned up by this ticket. Wave 3A's ticket 15 prevents NEW drift; clearing the historical residue requires a one-off cleanup pass (per-fingerprint pruneFilesNotIn variant or a manual ALTER). Flagged for the lifecycle cluster or a Wave 3C reviewer.\n\n(2) The 1980 cutoff for isUnreliableBirthtime is a heuristic. If a real file genuinely has a 1979 birthtime (vintage archive, manually-set mtime via touch -t), it will be flagged as unreliable and fall back to mtime. This is a strictly safer mistake than the alternative (treating epoch as a real birth), but worth knowing.\n\n(3) The fallback reporter writes .st8/identity-risk.json synchronously inside indexDirectory. If the target dir is read-only or .st8/ is mounted as a separate filesystem with permissions issues, the write will console.error and continue — no behavioural regression from pre-fix, but the artifact won't surface the risk. The console.warn still fires regardless.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/features/indexing/data-ingestion.js",
     "userNote": "Circuit-breaker + adaptive-retry config (CIRCUIT_BREAKER_CONFIG, ADAPTIVE_RETRY_CONFIG) is module-private constants at lines 64-81. Not configurable per-project, not tunable at runtime. failureThreshold=3 / resetTimeoutMs=30000 may be wrong for slow/large codebases.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3a-executor",
+    "actionsTaken": "Exposed both configs via three new module exports: configureDataIngestion / getDataIngestionConfig / resetDataIngestionConfig. Also exports DATA_INGESTION_DEFAULTS as a frozen snapshot of factory values.\n\nIMPLEMENTATION:\n\n  - const → let on CIRCUIT_BREAKER_CONFIG and ADAPTIVE_RETRY_CONFIG so the configure entry point can mutate. Default values preserved exactly — any existing caller that doesn't invoke the new entry points gets identical behaviour.\n  - configureDataIngestion({circuitBreaker?, adaptiveRetry?}) accepts partial updates. Each field is validated:\n      failureThreshold: ≥ 1 (RangeError on 0 or negative)\n      resetTimeoutMs: ≥ 0 (RangeError on negative)\n      halfOpenMaxAttempts: ≥ 1 (RangeError)\n      maxRetries: ≥ 0 (RangeError; 0 = attempt once, no retry)\n      baseDelayMs: ≥ 0 (RangeError)\n      errorDelayMap: typeof object (TypeError otherwise)\n      skipErrors: Array.isArray (TypeError otherwise)\n    Loud RangeError/TypeError beats quiet silent-accept (matches the logActivity / claimTicket validator pattern Wave 1A established).\n  - getDataIngestionConfig() returns a deep copy so callers can mutate the snapshot without poisoning module state — verified by a dedicated test probe.\n  - resetDataIngestionConfig() restores DATA_INGESTION_DEFAULTS — used by tests' afterEach and by operators undoing a tuning experiment.\n\nThe configs sit above a 17-line comment block that names the (a) testability rationale (shrink failureThreshold + maxRetries to make circuit-breaker behaviour observable in a single test pass without sleeping 30 s), (b) runtime rationale (operators on slow/large codebases where parsers take longer than 30 s to settle), and (c) the safe-tune bounds the validators enforce.\n\nTESTS — tests/features/indexing/data-ingestion-config.test.js, 11 probes:\n  - default config matches DATA_INGESTION_DEFAULTS\n  - partial circuit-breaker tune (failureThreshold=7) leaves resetTimeoutMs and halfOpenMaxAttempts intact\n  - partial adaptive-retry tune (maxRetries=0) leaves baseDelayMs intact\n  - errorDelayMap and skipErrors are replaceable as wholes\n  - validators throw on failureThreshold < 1\n  - validators throw on resetTimeoutMs < 0\n  - validators throw on maxRetries < 0\n  - validators throw on wrong-type errorDelayMap (string) and skipErrors (string)\n  - getDataIngestionConfig deep-copies — mutating the result does NOT change module state\n  - resetDataIngestionConfig restores ALL fields after a maximal tune\n  - configureDataIngestion returns the resulting effective config\n\nAll 11 pass. verify-persistence-fixes 10/10. The suite went 164 → 175 with this commit.",
+    "filesChanged": [
+      "src/features/indexing/data-ingestion.js",
+      "tests/features/indexing/data-ingestion-config.test.js"
+    ],
+    "commitHash": "fffa53f50b422dc55d904fa98a6c75ed2ea8ff42",
+    "residualConcerns": "The configs are exposed but NOT yet driven by st8_settings ('parserHealth' category). A future ticket may want to wire boot-time persistence-backed reads — call getSetting('parserHealth', 'failureThreshold') etc. on startup and configureDataIngestion() with the result. The shape is in place to support that; the wiring is the only missing piece. Out of scope for the userNote's 'expose for testability / runtime tuning' brief.",
+    "verdict": null,
+    "reviewNote": null
   }
 ]
