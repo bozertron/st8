@@ -185,16 +185,24 @@ class IntentSeeder {
                 return { success: false, error: `File not found: ${fingerprint}` };
             }
 
-            // Parse file content for imports/exports heuristics
-            const { imports, exports, comments } = this._parseFileContent(file.filepath);
+            // SINGLE READ PASS (ticket 1): the disk file is read at most
+            // once per seedFile call. _readSourceOnce returns the content
+            // (or '' if the file doesn't exist) and the resolved absolute
+            // path. _parseFileContent uses the cached content; the @@@
+            // detection scan uses the same content. Previously _parseFile
+            // and the detection block each called fs.readFileSync, so a
+            // 500-file project did 1000 reads.
+            const { content, absPath } = this._readSourceOnce(file.filepath);
 
-            // Detect @@@ symbols in file content. Resolve relative to targetDir
-            // (file_registry.filepath is project-relative, not cwd-relative).
+            // Parse file content for imports/exports heuristics
+            const { imports, exports, comments } = this._parseFileContent(file.filepath, content);
+
+            // Detect @@@ symbols in the already-read content.
             const TRIPLE_AT_PATTERN = /(?:^|\s)@@@(?:\s|$)|<!--\s*@@@\s*-->|@@@AI_REVIEW/gm;
-            const detectionPath = path.isAbsolute(file.filepath) ? file.filepath : path.resolve(this.targetDir, file.filepath);
-            const contentForDetection = fs.existsSync(detectionPath) ? fs.readFileSync(detectionPath, 'utf-8') : '';
-            const tripleAtMatches = contentForDetection.match(TRIPLE_AT_PATTERN) || [];
+            const tripleAtMatches = content ? (content.match(TRIPLE_AT_PATTERN) || []) : [];
             const tripleAtCount = tripleAtMatches.length;
+            // absPath retained for future call sites that need the resolved path.
+            void absPath;
 
             if (tripleAtCount > 0 && this.persistence) {
                 this.persistence.flagForAIReview(file.filepath, tripleAtCount);
@@ -353,10 +361,38 @@ class IntentSeeder {
     }
 
     /**
+     * Read the source file at most once and return its content + resolved
+     * absolute path. Returns content='' if the file doesn't exist on disk
+     * (e.g. registry row for a now-deleted file). Used by seedFile() so a
+     * single fs.readFileSync call services BOTH the imports/exports parse
+     * and the @@@ AI-review detection scan (ticket 1).
+     *
+     * @private
+     * @param {string} filepath - relative or absolute filepath
+     * @returns {{ content: string, absPath: string }}
+     */
+    _readSourceOnce(filepath) {
+        const absPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
+        if (!fs.existsSync(absPath)) {
+            return { content: '', absPath };
+        }
+        try {
+            return { content: fs.readFileSync(absPath, 'utf-8'), absPath };
+        } catch (err) {
+            console.error(`[st8:seeder] Failed to read ${absPath}:`, err.message);
+            return { content: '', absPath };
+        }
+    }
+
+    /**
      * Parse file content to extract imports, exports, and comments using regex.
      * @private
+     * @param {string} filepath - relative or absolute filepath, used for card lookup
+     * @param {string} [preReadContent] - if provided, skip the on-disk re-read
+     *     (ticket 1 single-read optimisation). Caller resolves the filepath
+     *     once via _readSourceOnce and passes the content here.
      */
-    _parseFileContent(filepath) {
+    _parseFileContent(filepath, preReadContent) {
         const imports = [];
         const exports = [];
         const comments = [];
@@ -379,16 +415,23 @@ class IntentSeeder {
                 }
             }
 
-            // Fallback: read the actual file and parse with regex. Resolve
-            // relative to this.targetDir, NOT cwd — file_registry.filepath is
-            // stored relative to the indexed project root and is unreliable
-            // against cwd when the server's cwd differs.
-            const fullPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
-            if (!fs.existsSync(fullPath)) {
+            // Use pre-read content if the caller already paid the read cost.
+            // Otherwise fall back to a fresh read (preserves the legacy
+            // callable shape — _parseFileContent is exported in module.exports
+            // implicitly via the class export, so a future direct caller
+            // still works).
+            let content = preReadContent;
+            if (content === undefined) {
+                const fullPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
+                if (!fs.existsSync(fullPath)) {
+                    return { imports, exports, comments };
+                }
+                content = fs.readFileSync(fullPath, 'utf-8');
+            } else if (content === '') {
+                // Empty content means the file didn't exist (per _readSourceOnce).
                 return { imports, exports, comments };
             }
 
-            const content = fs.readFileSync(fullPath, 'utf-8');
             const lines = content.split('\n');
 
             let inModuleExports = false;
