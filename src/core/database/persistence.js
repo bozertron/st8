@@ -118,6 +118,28 @@ CREATE TABLE IF NOT EXISTS st8_settings (
   PRIMARY KEY (category, key)
 );
 
+-- ─── PRD_PROJECTS ──────────────────────────────────────────
+-- LIVE TABLE — wired end-to-end as of 2026-05-15.
+--
+-- Audit trail (ticket 11, Wave 1B): the table is not dormant.
+--   * Frontend: src/frontend/index.html exposes a "CREATE PROJECT"
+--     button (#prd-create-btn) that calls window.createPRDProject()
+--     in src/frontend/app.js:277.
+--   * API: src/core/server/app.js:1086 _handlePrdProjects services
+--     GET /api/prd-projects (list), GET /api/prd-projects/:name
+--     (single), and POST /api/prd-projects (create). The handler
+--     calls getAllPRDProjects / getPRDProject / createPRDProject
+--     directly against this table.
+--   * DB methods: createPRDProject / getPRDProject /
+--     getAllPRDProjects / updatePRDProject / deletePRDProject are
+--     all defined in this file. updatePRDProject and deletePRDProject
+--     do not yet have HTTP routes wired — that's PRD-system UI work,
+--     not a persistence concern. The methods are kept so the PRD
+--     feature can grow without re-touching this file.
+--
+-- Cross-reference: the PRD generator at src/features/prd/ uses
+-- prd_projects to track scaffolded projects. If a future refactor
+-- consolidates PRD storage elsewhere, revisit this comment.
 CREATE TABLE IF NOT EXISTS prd_projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
