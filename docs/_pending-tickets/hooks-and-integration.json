@@ -3,19 +3,43 @@
     "filepath": "src/core/server/app.js",
     "userNote": "BUG: _handleTickets logs activity with `target_fingerprint` (snake_case) at line 1558, but persistence.logActivity() reads `activity.targetFingerprint` (camelCase). The fingerprint never lands in the DB column for TICKET_CREATED activity rows — it is silently nulled. Fix: rename the key to `targetFingerprint`. Compare with main.js:376 which uses the correct camelCase form.",
     "severity": "med",
-    "status": "RED"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Resolved upstream by Wave 1A — see persistence ticket 3 (commit bec7145). The persistence cluster reviewer cross-flagged this as the cross-cluster duplicate and chose the better fix: not only did Wave 1A rename `target_fingerprint` → `targetFingerprint` at src/core/server/app.js:1558, but it also added an unknown-key validator on St8Persistence.logActivity so the snake_case shape now THROWS instead of silently nulling the column.\n\nVerification at start of Wave 2A: `grep -n target_fingerprint src/core/server/app.js` returns nothing — the offending key is gone. The persistence-and-database.for-review.json ticket 3 ack note shows the validator probe (camelCase passes, snake_case throws with the descriptive `[st8:persistence] logActivity: unknown key(s) [target_fingerprint]. activity_log columns are camelCase — did you mean targetFingerprint?`).\n\nNo Wave 2A code change required. The fix already in main is the better fix because it makes the bug pattern impossible to recur silently — a future writer reflexively typing snake_case will hit a loud RangeError at the persistence layer rather than getting a quiet NULL.",
+    "filesChanged": [],
+    "commitHash": "bec7145",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/server/app.js",
     "userNote": "STALE DOC: _handleRecordCommit's JSDoc block (lines 1434-1446) still claims it fires HOOKS.LIFECYCLE_TRANSITION. Batch 025 changed the implementation to fire HOOKS.COMMIT_RECORDED but the docstring was not updated. Update the JSDoc to match the code.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Rewrote the JSDoc block above _handleRecordCommit in src/core/server/app.js to match the actual implementation:\n  - Removed the stale '1. Logs a COMMIT_CHECKPOINT mutation to the mutation_log table' line (this is wrong — commits go to activity_log, not mutation_log, because mutation_log.fingerprint has a FK to file_registry that a commit-level row can't satisfy).\n  - Removed '2. Logs a GIT_COMMIT activity to the activity_log table' (the actual action string is COMMIT_RECORDED, not GIT_COMMIT).\n  - Removed '3. Fires the LIFECYCLE_TRANSITION hook' (batch 025 corrected this to COMMIT_RECORDED with a dedicated payload contract).\n  - Replaced with a two-step description: (1) logs COMMIT_RECORDED to activity_log with the activity_log vs mutation_log rationale inline; (2) fires HOOKS.COMMIT_RECORDED, with a cross-reference to batch 025's correction.\n\nNo code-path change — comment-only edit. Verified server still loads: `node -e \"require('./src/core/server/app.js')\"` returns the St8Server function.",
+    "filesChanged": ["src/core/server/app.js"],
+    "commitHash": "008afbc",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/server/app.js",
     "userNote": "DEAD CODE: `HOOKS.TICKET_CREATED || 'ticket:created'` at line 1569 — the constant has been in the canonical HOOKS map since the hook was added. The string fallback can never fire. Safe to simplify to `HOOKS.TICKET_CREATED`.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Simplified the hook fire in _handleTickets (src/core/server/app.js) from `hookRegistry.execute(HOOKS.TICKET_CREATED || 'ticket:created', ...)` to `hookRegistry.execute(HOOKS.TICKET_CREATED, ...)`. Confirmed HOOKS.TICKET_CREATED exists in src/core/hook-registry.js (line 64) — `HOOKS.TICKET_CREATED: 'ticket:created'` — so the fallback never fires.\n\nAlso updated the surrounding comment: removed 'Add a TICKET_CREATED hook lazily — we don't add it to the canonical HOOKS list since this is a v1 mechanism that may be reshaped' (stale — the hook IS in the canonical list and has been for a while). Replaced with a single accurate line: 'HOOKS.TICKET_CREATED is part of the canonical map.'\n\nVerified server still loads.",
+    "filesChanged": ["src/core/server/app.js"],
+    "commitHash": "05cc3e4",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/hooks/force-checks.js",
@@ -51,25 +75,57 @@
     "filepath": "scripts/git-hooks/post-commit",
     "userNote": "ST8_PORT default is hardcoded to 3847. If the user runs st8 on a non-default port, the shell hook needs ST8_PORT in its env — and git invokes hooks with a minimal env, so the user has to globally export it. Consider reading the port from .st8/config or a .st8/port file written by the server on startup, so the hook auto-targets the actual running instance.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Implemented the roadmap P2 'auto-detect server port' design exactly as docs/_pending-roadmap/hooks-and-integration.md:26 sketches.\n\nTwo-side fix:\n\n1. src/core/server/app.js — added St8Server._writePortFile(), called from start()'s listen callback. Writes <targetDir>/.st8/server.port containing the live port (creates .st8/ if missing). St8Server.stop() now removes the file too, so SIGINT (wired in main.js:436) cleans up. Both operations are best-effort: a write failure logs a warning and continues; a missing-on-unlink is silently ignored.\n\n2. scripts/git-hooks/post-commit — new ST8_PORT resolution order:\n  - explicit env wins (export ST8_PORT=… still works for one-off overrides)\n  - else read .st8/server.port via `git rev-parse --show-toplevel`, whitespace-strip via `tr -d ' \\t\\r\\n'`, validate as positive integer (`[ \"$c\" -eq \"$c\" ] && [ \"$c\" -gt 0 ]`)\n  - else fall back to 3847\nA garbage or empty port file silently falls through to the default — the hook never errors on a bad port file.\n\nVerified six scenarios in /tmp throwaway repo (with a curl-shim that captures invocations):\n  - no port file, no env -> http://localhost:3847/...\n  - .st8/server.port=9999 -> http://localhost:9999/...\n  - env ST8_PORT=7777 + file=9999 -> http://localhost:7777/... (env wins)\n  - garbage in file -> 3847\n  - whitespace-only file -> 3847\n  - file '  4242  \\n' (trailing whitespace) -> 4242 (correctly stripped)\n\nLive server boot also verified: starting `node start.js .` writes /home/user/st8/.st8/server.port = '3847\\n' on listen-callback; the file is removed on Ctrl+C (SIGINT calls stop() via main.js:436).",
+    "filesChanged": ["src/core/server/app.js", "scripts/git-hooks/post-commit"],
+    "commitHash": "50276d4",
+    "residualConcerns": "Two related lifecycle observations surfaced during verification, both pre-existing and outside Wave 2A's scope:\n  (1) The server only wires SIGINT to stop() in main.js — SIGTERM does not call stop(), so a `kill <pid>` of the st8 server leaves the port file stale.\n  (2) start.js spawns the backend via `spawn('node', ..., { shell: true })`, and SIGINT to start.js does NOT consistently propagate through the shell wrapper to the actual node child — so even SIGINT-to-start.js can leave the port file behind in some shells. This affects more than just port-file cleanup (the sonic-daemon child can also fail to wind down).\nBoth are roadmap-shaped process-lifecycle issues that belong in main.js / start.js, not this cluster. The hook tolerates stale port files in the sense that it will POST to a port that doesn't accept connections — curl times out per ST8_TIMEOUT_S and the hook returns 0 by design. No data loss, just a slightly slower no-op when the server is down. Wave 2D's broader audit pass may want to file these.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "scripts/git-hooks/post-commit",
     "userNote": "The escape_json sed pipeline only handles backslash, double-quote, tab, CR, and LF. A commit subject containing a literal control character (0x00-0x1F other than \\t/\\r/\\n) will produce invalid JSON and curl will fail silently. Either widen the escaping (use jq if available, fall back to sed) or strip control chars before substitution.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Replaced the sed-only escaper with a two-tier strategy in scripts/git-hooks/post-commit:\n\n1. PREFERRED PATH (`command -v jq` succeeds): build the entire JSON payload via `jq -n --arg hash \"$COMMIT_HASH\" --arg subject \"$SUBJECT\" ... '{hash:$hash, ...}'`. jq is the reference JSON tool — it correctly escapes every U+0000..U+001F control character per RFC 8259 §7 (BEL → \\u0007, BS → \\b, VT → \\u000b, FF → \\f, etc.), handles the two structural characters (\\ and \"), and emits valid UTF-8 throughout. `filesChanged` is passed via --argjson so it stays a number.\n\n2. FALLBACK PATH (jq missing): an awk-based escape_json that builds a lookup table for every U+0000..U+001F char, using the short form when JSON specifies one (\\b\\t\\n\\f\\r) and \\uXXXX otherwise. Then escapes \\ and \". The original heredoc payload construction is kept under this branch for parity.\n\nVerified in /tmp throwaway repo, both paths covered:\n  - Subject `subject<BEL>with-bel<FF>and-ff<VT>vt-too` (raw bytes 0x07/0x0c/0x0b verified via od -c on `git log -1 --pretty=%s`): jq emits `\"subject\\u0007with-bel\\fand-ff\\u000bvt-too\"`; awk-fallback (tested via env -i + PATH containing only minimal coreutils, no jq) emits identical output. Both round-trip through python's json.loads to the exact same byte sequence.\n  - Subject with `\"broken\"` quotes plus single+double backslash: both paths emit `\"fix: \\\"broken\\\" stuff with \\\\backslash and \\\\\\\\double\"` and round-trip correctly.\n\nLimitation noted in commit message: bash command substitution `$(...)` strips embedded NUL bytes one layer earlier, before either escaper sees the input — `git log -1 --pretty=%s` containing a literal NUL would be sanitized by bash itself. The escapers would handle NUL if it arrived (jq → `\\u0000`; awk fallback's table includes i=0 → `\\u0000`). bash emits a `command substitution: ignored null byte in input` warning on stderr in that case, which is the right loud signal.",
+    "filesChanged": ["scripts/git-hooks/post-commit"],
+    "commitHash": "153f993",
+    "residualConcerns": "The awk fallback's escape_json reads a single line at a time from awk's default record mode. `git log -1 --pretty=%s` is single-line by spec (the %s subject placeholder is just the first line of the commit message), so this is fine. If someone re-uses escape_json for a multi-line field in the future — e.g. `--pretty=%B` (full message body) — the awk function as written only escapes within each record. Documented inside the function with a `Preserve trailing newlines between input records` comment.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "scripts/git-hooks/post-commit",
     "userNote": "SUBJECT is truncated at 200 bytes via `head -c 200`. If the cut lands inside a multi-byte UTF-8 codepoint, the resulting string has a malformed trailing byte that will break the JSON parse. Either truncate by codepoint (awk/perl) or post-validate the truncation.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Pipe the truncated bytes through `iconv -c -f UTF-8 -t UTF-8`, which silently drops any incomplete trailing UTF-8 codepoint (the `-c` flag means 'omit invalid characters in output'). This is the safest portable approach — iconv is in coreutils on every real POSIX system (Linux, macOS, BSDs) and behaves identically across them.\n\nDetail that surfaced during testing: iconv exits with status 1 on the very split it's repairing ('incomplete character or shift sequence at end of buffer'), and the original `SUBJECT=$(...) || exit 0` propagation would have bailed out of the hook silently. Wrapped the pipeline in `\\${ ... ; } || true` so iconv's expected non-zero is swallowed without killing the hook. stderr is also redirected to /dev/null so the warning text doesn't leak.\n\nFinal form: `SUBJECT=$( { git log -1 --pretty=%s 2>/dev/null | head -c 200 | iconv -c -f UTF-8 -t UTF-8 2>/dev/null; } || true )`.\n\nVerified three subjects in /tmp throwaway repo (with curl-shim that captures payloads to a file, then python -c 'json.load' round-trips):\n  - `'X' * 199 + '你你你你'` (199 ASCII + 4 × 3-byte Chinese, total 211 bytes): head -c 200 would have produced 200 bytes with the last byte mid-codepoint. After iconv -c: 199 bytes, valid UTF-8, last char is 'X' (the incomplete '你' was dropped). Round-trips through json.loads.\n  - `'short subject'` (ASCII): unchanged, 13 bytes.\n  - `'X' * 250` (all ASCII): 200 bytes after truncation, valid.\nAll three produce JSON that python.loads accepts cleanly.",
+    "filesChanged": ["scripts/git-hooks/post-commit"],
+    "commitHash": "5b582a5",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "scripts/git-hooks/install.sh",
     "userNote": "Installer overwrites .git/hooks/post-commit unconditionally with `ln -sf`. If a user already has a custom post-commit (e.g. a chained hook runner, husky, lefthook), it is silently clobbered. Detect a pre-existing non-symlink and either chain it or warn loudly.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Rewrote the install loop in scripts/git-hooks/install.sh to detect pre-existing hooks and refuse to clobber them without explicit user consent.\n\nNew behavior:\n  - If the destination is missing or is a symlink already pointing at `../../scripts/git-hooks/$hook`: re-create the symlink (idempotent no-op for safe re-runs).\n  - If the destination is a regular file (custom hook, husky, lefthook): REFUSE. Print a chained-hook recipe to stderr (rename existing to .user, re-run, edit the new hook to also call .user) and exit 3.\n  - If the destination is a symlink pointing somewhere else (a different tool's symlink, a stale link, etc.): REFUSE with the same recipe.\n  - When invoked with --force/-f: overwrite anyway, emit `warn: overwriting existing $dst (--force given)` to stderr.\n\nNew arg parsing rejects unknown flags with exit 2.\n\nThe installer's exit code is now meaningful for CI/automation:\n  - 0: every hook installed (or already correct).\n  - 2: unknown command-line flag.\n  - 3: at least one hook was skipped because it pre-existed.\n\nVerified six scenarios in /tmp/st8-hook-test (fresh git init, scripts dir symlinked to /home/user/st8/scripts):\n  1. Clean install on virgin repo: 'Installed: post-commit' (exit 0).\n  2. Re-run on already-correct symlink: idempotent (exit 0).\n  3. Pre-existing regular file: refused with full chained-hook recipe shown (exit 3); the existing file is verified intact post-refuse (`cat .git/hooks/post-commit` still shows the user's content).\n  4. --force re-run after (3): overwrites, prints warning, exit 0.\n  5. Pre-existing symlink pointing at /tmp/some-other-target: refused, target preserved.\n  6. --bogus argument: 'ERROR: unknown argument: --bogus' (exit 2).\n\nUpdated the header comment with the --force flag and the safe vs. force semantics.",
+    "filesChanged": ["scripts/git-hooks/install.sh"],
+    "commitHash": "55d1f63",
+    "residualConcerns": "The chained-hook recipe printed on refuse tells the user to manually edit the new hook to call their .user hook. A more polished approach would be to ship a dispatcher script that auto-calls every `post-commit.*` sibling — that's a roadmap item, not a Wave-2A-shaped fix (it changes the surface area of what 'installed' means).",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/hooks/default-subscribers.js",
@@ -123,31 +179,71 @@
     "filepath": "src/core/server/app.js",
     "userNote": "_handleRecordCommit's hook fire is non-fatal (catches and logs). _handleTickets's hook fire is also non-fatal. Good. But the lazy require inside the catch happens AFTER the persistence write — if the require itself throws (unlikely but possible during a circular-require shakeout), the ticket/commit is already in the DB while the hook never fires. Subscribers expect at-least-once delivery for these events; in practice they get at-most-once. Document or add a retry queue.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "OBSERVATION-ONLY ticket. The userNote is correct that _handleRecordCommit and _handleTickets each persist to SQLite BEFORE attempting the lazy `require('../hook-registry')` + hookRegistry.execute, and each wraps the hook fire in try/catch with `console.error('[st8:record-commit] hook fire failed:', ...)` / `console.error('[st8:tickets] hook fire failed:', ...)` on failure. The persistence write commits regardless; the hook is best-effort.\n\nNo change required. This is the correct design:\n  - The persistence write is the canonical record. The activity_log row is the audit trail; it's queryable by anyone who needs to know about the event after the fact.\n  - The hook is a courtesy notification. Subscribers that need at-least-once delivery should drive their backfill from activity_log (the roadmap P3 item `Persistence-backed activity_log → hook replay tool` is exactly this).\n  - Making the hook a transactional gate on the persistence write would invert this — a buggy subscriber could then prevent a ticket from being created, which is the wrong failure mode for a user-facing path.\n\nObservation confirmed: this is correct design. The roadmap item for the replay tool (docs/_pending-roadmap/hooks-and-integration.md:56) closes the at-most-once delivery gap properly without compromising the persistence-first contract.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "The roadmap P3 'activity_log → hook replay tool' is the durable answer to subscribers that need at-least-once delivery. Until it ships, subscribers added today see at-most-once delivery for TICKET_CREATED and COMMIT_RECORDED. Document on per-subscriber basis whether they're tolerant of missed events.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/server/app.js",
     "userNote": "TICKET_CREATED hook payload spreads the full request payload: `{ ticket: { id, ...payload, createdAt } }`. The payload may include unexpected client-supplied fields. Lock the shape down: explicitly enumerate { id, fingerprint, filepath, userNote, sha256Hash, statusAtCreation, identityBundle, createdAt } so subscribers can rely on a stable contract.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Locked down the TICKET_CREATED payload to an explicit 8-field shape, matching what hooks-and-integration.md:61 documents as the contract.\n\nChanges to src/core/server/app.js _handleTickets POST path:\n  - Replaced `ticket: { id: ticket.id, ...payload, createdAt: ticket.createdAt }` (which spread the raw request body) with an explicit builder:\n    ```\n    const ticketPayload = {\n      id: ticket.id,\n      fingerprint: payload.fingerprint,\n      filepath: payload.filepath,\n      userNote: payload.userNote || '',\n      sha256Hash: payload.sha256Hash || null,\n      statusAtCreation: payload.status || null,\n      identityBundle: payload.identityBundle || null,\n      createdAt: ticket.createdAt,\n    };\n    await hookRegistry.execute(HOOKS.TICKET_CREATED, { ticket: ticketPayload });\n    ```\n  - The eight fields match the canonical contract in hooks-and-integration.md, with one naming reconciliation: the doc uses `statusAtCreation` but the request body uses `status` (matching createTicket's `statusAtCreation` parameter) — so the hook payload uses `statusAtCreation` and reads from `payload.status` for the source value. This is the right shape because the hook is the subscriber-facing API; the request-body shape is a transport detail.\n  - Added an in-code comment explaining WHY the explicit shape: 'clients can post arbitrary extra fields that would silently land in the hook context and confuse subscribers expecting a fixed contract.'\n\nChanges to src/core/hook-registry.js:\n  - Updated the HOOKS.TICKET_CREATED inline payload-shape comment to enumerate the full eight fields: `{ id, fingerprint, filepath, userNote, sha256Hash, statusAtCreation, identityBundle, createdAt }`. The previous comment ended with `...` which underspecified the contract.\n\nVerified server still loads. Behavioral note: this is technically a payload-narrowing change — if a client was previously posting an extra field and a subscriber was reading it from `ctx.ticket.<field>`, that subscriber would break. There are zero TICKET_CREATED subscribers in the codebase today (`grep -rn 'register.*TICKET_CREATED' src/` returns only the constant definition), so the change has no live blast radius.",
+    "filesChanged": ["src/core/server/app.js", "src/core/hook-registry.js"],
+    "commitHash": "4154733",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/server/app.js",
     "userNote": "_handleTicketsCount and _handleTickets GET path do not fire any hook. Fine today, but if a future subscriber needs 'someone read tickets' (e.g. to mark a phreak> session as 'aware'), there is no observable event. Consider TICKET_READ as a future extension point.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Added a one-line comment at each GET site annotating the design decision and the future extension point. NO new HOOKS constant added — per the brief, the constant should only be added when a real subscriber drives the contract, otherwise it's premature.\n\nChanges to src/core/server/app.js:\n  - _handleTickets GET path (top of the if-method=GET branch): comment block 'No hook fired here by design — queries are read-only and have no subscribers today. If a future subscriber needs to observe ticket reads (e.g. a phreak> session marking itself \"aware\"), fire a TICKETS_QUERIED hook here. Don't add the constant prematurely — wait for a real subscriber to drive the contract.'\n  - _handleTicketsCount (just inside the method): 'No hook fired here by design — see the matching note in _handleTickets GET. Fire TICKETS_QUERIED here if query subscribers are introduced.'\n\nThe TICKETS_QUERIED name (chosen by the brief) is plural to distinguish from the per-record TICKET_CREATED — these endpoints return lists/counts, not single tickets. Future implementer can adjust the name when they wire the actual hook.\n\nVerified server still loads.",
+    "filesChanged": ["src/core/server/app.js"],
+    "commitHash": "93b3673",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/hook-registry.js",
     "userNote": "listHooks() returns only registered hooks — hooks declared in HOOKS but with zero subscribers are absent from the introspection output. A debugging tool would want to see the full canonical map plus subscriber counts (including zero). Add a HOOKS export passthrough or a listAllHooks() that joins HOOKS keys with registered counts.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Added a new `listAllHooks()` method on HookRegistry (src/core/hook-registry.js). Implementation:\n  - Seeds a Map<name, entry> from Object.values(HOOKS), every canonical name gets `{ name, count: 0, sources: [] }`.\n  - Overlays the output of listHooks() so any registered hooks (canonical or otherwise) supersede the zero-subscriber seed.\n  - Returns sorted by name. Same entry shape as listHooks() so existing dashboard consumers can switch between the two without reshape.\n\nlistHooks() is unchanged — kept as the focused 'what's actually wired' view per the userNote's explicit instruction ('Don't replace listHooks — extend.').\n\nVerified in a fresh HookRegistry probe:\n  - Empty registry: listHooks() returns []; listAllHooks() returns 9 entries (every HOOKS constant: index:start, index:complete, file:indexed, file:before-change, file:after-change, lifecycle:transition, commit:recorded, prd:generate, ticket:created), each with count:0 and sources:[].\n  - After registering 5 INDEX_COMPLETE subscribers: listHooks() returns the single index:complete entry; listAllHooks() returns 9 entries with index:complete's count=5 and the other 8 entries still at count:0.\n  - Updated the JSDoc on listHooks() to cross-reference listAllHooks() for the zero-subscriber view.",
+    "filesChanged": ["src/core/hook-registry.js"],
+    "commitHash": "04cee9b",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/hook-registry.js",
     "userNote": "There is no way to introspect the order in which subscribers will run from outside the registry. listHooks() returns sources unsorted within a hook entry (it preserves registration order, not priority order). Consumers reading listHooks output cannot tell at a glance which subscriber goes first. Sort the inner sources by priority before returning.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-2a-executor",
+    "actionsTaken": "Two-part fix in src/core/hook-registry.js:\n\n1. Extended listHooks() entry shape — each entry's `sources` array is now sorted by priority ascending (matching execute()'s for-loop order), and a new `runOrder` field holds just the source names in the same order. listAllHooks() inherits both improvements via its listHooks() overlay; zero-subscriber canonical hooks get `runOrder: []`. Updated the JSDoc to spell out the priority-sorted invariant and what runOrder represents.\n\n2. Added a dedicated `introspectExecuteOrder(name)` method that returns just the run-order source names for a single hook. Cheaper than calling listHooks() and filtering when a caller only needs one hook's order; returns [] for unknown hooks (matches execute()'s no-subscriber behavior).\n\nVerified with a probe that registers handlers out of priority order (P=40, P=10, P=90):\n  - listHooks()[0].sources priorities: [10, 40, 90] (sorted ascending, the registration order [40, 10, 90] is gone).\n  - listHooks()[0].runOrder: ['manifest', 'intent', 'force-checks'] (matches sources order).\n  - introspectExecuteOrder('index:complete'): same array.\n  - introspectExecuteOrder('does-not-exist'): [].\n  - listAllHooks() zero-sub entries (e.g. prd:generate): { count: 0, sources: [], runOrder: [] } — runOrder field is present even when empty.\n\nThe execute() loop's own sort (entries are pushed to the array then `arr.sort((a, b) => a.priority - b.priority)` on every register) was already priority-correct, so this commit only changes the introspection output — execute() behavior is unchanged.",
+    "filesChanged": ["src/core/hook-registry.js"],
+    "commitHash": "4e3f040",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/server/main.js",
