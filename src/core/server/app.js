@@ -1555,7 +1555,7 @@ class St8Server {
                 persistence.logActivity({
                     source: 'USER_UI',
                     action: 'TICKET_CREATED',
-                    target_fingerprint: payload.fingerprint,
+                    targetFingerprint: payload.fingerprint,
                     details: { ticketId: ticket.id, filepath: payload.filepath },
                 });
 

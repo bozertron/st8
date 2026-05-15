@@ -686,8 +686,28 @@ class St8Persistence {
     // ─── ACTIVITY LOG ───────────────────────────────────────
     
     logActivity(activity) {
+        // Guard against the camelCase / snake_case drift that produced
+        // silent NULL targetFingerprint rows for every TICKET_CREATED
+        // activity (see persistence-and-database.md §8.3). The activity_log
+        // schema uses camelCase column names; an upstream writer passing
+        // `target_fingerprint` would previously be silently nulled.
+        // Now we throw — loud bug beats quiet bug.
+        const ALLOWED_KEYS = new Set([
+            'source',
+            'action',
+            'targetFingerprint',
+            'details',
+        ]);
+        const unknown = Object.keys(activity || {}).filter(k => !ALLOWED_KEYS.has(k));
+        if (unknown.length > 0) {
+            throw new Error(
+                `[st8:persistence] logActivity: unknown key(s) [${unknown.join(', ')}]. ` +
+                `activity_log columns are camelCase — did you mean targetFingerprint? ` +
+                `Allowed keys: ${Array.from(ALLOWED_KEYS).join(', ')}.`
+            );
+        }
         const stmt = this.db.prepare(`
-            INSERT INTO activity_log 
+            INSERT INTO activity_log
             (source, action, targetFingerprint, details)
             VALUES (?, ?, ?, ?)
         `);
