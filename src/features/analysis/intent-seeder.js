@@ -17,7 +17,40 @@ const fs = require('fs');
 
 /**
  * Maps filename patterns to human-readable purpose descriptions.
- * Order matters — first match wins.
+ *
+ * ─── ORDERING POLICY (identity-and-analysis ticket 0) ────────────
+ *
+ * First-match-wins. Order IS load-bearing. The current ordering encodes
+ * three principles, listed from highest to lowest priority:
+ *
+ *   1. SPECIFIC > GENERIC. More-specific module-role patterns precede
+ *      generic ones. Examples:
+ *        - /persistence/   (line ~25)  before  /db/        (~50)
+ *        - /schema[-_]?card/  (~31)    before  /emitter/   (~32)
+ *        - /graph[-_]?builder/(~45)    before  /graph[-_]?traversal/
+ *        - /database[-_]?persister/    before  /persistence/ (alias)
+ *
+ *   2. NAMED-ROLE > FRAMEWORK. Module-purpose patterns precede
+ *      framework-tooling patterns. /indexer/ precedes /index/ so
+ *      background-indexer.js, file-indexer.js, etc. get "Codebase
+ *      indexing and analysis" rather than "Module entry point".
+ *
+ *   3. CODE-MODULE > DOC-ARTEFACT. Source-code role patterns precede
+ *      PRD / changelog / readme / decision-log patterns at the tail of
+ *      the array. The intent: code files matching both a code-role
+ *      pattern and a doc-role pattern (e.g. "roadmap.js") get the
+ *      code-role classification.
+ *
+ * ADDING A NEW PATTERN — checklist:
+ *   - If the new pattern is more specific than an existing one, insert
+ *     it BEFORE that one. Run tests/features/analysis/intent-seeder-
+ *     ordering.test.js to confirm no pinned mapping regressed.
+ *   - If the new pattern is generic (matches many basenames), append
+ *     to the relevant section. The test file is the executable lock
+ *     that catches accidental steals.
+ *   - First-match-wins means `/index/` near the top would silently
+ *     steal `background-indexer.js` from `/indexer/`. The current order
+ *     puts /indexer/ first by design.
  */
 const FILENAME_PURPOSE_MAP = [
     { pattern: /persistence/i, purpose: 'SQLite persistence layer' },
