@@ -141,7 +141,7 @@
       "src/features/schema-cards/manifest-generator.js",
       "src/shared/types/st8-types.js"
     ],
-    "commitHash": null,
+    "commitHash": "a21fb4858027f5e215b81a1c109677449aa9128e",
     "residualConcerns": "If a developer adds lifecyclePhase to the manifest projection AND fails to read the header, this documentation only catches the regression at code review. Could be hardened with a unit test asserting the keys of the per-file projection exactly equal an expected set (would fail loudly on accidental addition). Out of scope for this ticket but worth a P3 follow-up.",
     "verdict": null,
     "reviewNote": null
@@ -206,13 +206,15 @@
     "filepath": "src/frontend/components/dive-in/dive-in.js",
     "userNote": "CODE_CITY_BARRADEAU_BUILDER.md references a red lock indicator above locked file buildings. dive-in.js has a comment mentioning it (line 21: 'Locked files get a red lock indicator above the building') but the rendering code is not present — Louis (the PyQt6 lock-em-up app the founder uploaded) is not wired to the web UI. The indicator promised by docs is unimplemented.",
     "severity": "medium",
-    "status": "open",
-    "executedAt": null,
-    "executedBy": null,
-    "actionsTaken": null,
-    "filesChanged": [],
+    "status": "deferred",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3c-executor",
+    "actionsTaken": "Deferred with precise cross-cluster pointers. The red lock indicator is two pieces: (1) a DATA source (locked-state lookup) owned by the louis-and-locking cluster Phase L1 — see docs/_pending-roadmap/louis-and-locking.md (locked column on file_registry, lock-manager.js chmod primitive, GET /api/locks endpoint); and (2) a RENDER (3D sprite/billboard positioned above the building) owned by frontend-experience (Wave 7) since it is a visual primitive, not an identity-and-analysis concern. The render cannot ship before the data source, and the data source is upstream Phase L1.\n\nThe identity-and-analysis cluster cannot implement either half: we don't own the chmod primitive (louis), we don't own the 3D scene renderer (Wave 7), and inventing local lock semantics in dive-in.js would create exactly the multi-source-of-truth identity drift that st8 exists to prevent.\n\nIn lieu of removing the comment (which would erase the documentary intent the founder captured in CODE_CITY_BARRADEAU_BUILDER.md), the comment in dive-in.js has been EXPANDED into a DEFERRAL NOTE that:\n  - flags the indicator as NOT YET IMPLEMENTED\n  - names both upstream clusters and their roadmap files\n  - sketches the wire-up recipe (GET /api/locks on show, sprite attach at building.position + height-offset, LOCK_STATE hook subscribe for mid-flight updates)\n\nThis converts a dangling reference into an executable plan for the eventual implementer.",
+    "filesChanged": [
+      "src/frontend/components/dive-in/dive-in.js"
+    ],
     "commitHash": null,
-    "residualConcerns": null,
+    "residualConcerns": "If Louis Phase L1 ships before frontend Wave 7, the data will exist with no consumer. The reverse — Wave 7 attempting the render before Louis ships — would have to either stub the data layer (a cheat) or block. The DEFERRAL NOTE's sequencing paragraph makes the dependency order explicit so neither cluster fronts the other.",
     "verdict": null,
     "reviewNote": null
   },

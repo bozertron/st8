@@ -18,7 +18,46 @@
          GREEN / working   -> --gold  (#D4AF37)
          RED / broken      -> --cyan  (#1FBDEA — bug-juice)
          COMBAT (future)   -> --purple (#9D4EDD — agents-active)
-       Locked files get a red lock indicator above the building.
+       Locked files will get a red lock indicator above the building
+       (NOT YET IMPLEMENTED — see DEFERRAL NOTE below).
+
+   ─── DEFERRAL NOTE: red lock indicator ──────────────────────────
+   (identity-and-analysis ticket 12, Wave 3C)
+
+   The red lock indicator referenced in
+   /home/user/st8/docs/Sonic/CODE_CITY_BARRADEAU_BUILDER.md is a
+   cross-cluster feature that this cluster cannot ship in isolation.
+   It requires two upstream pieces neither of which exists today:
+
+     1. A locked-file STATE source on the data side. This is
+        louis-and-locking cluster Phase L1 territory: see
+        docs/_pending-roadmap/louis-and-locking.md — specifically
+        the `locked INTEGER DEFAULT 0` column addition to
+        file_registry, the lock-manager.js chmod primitive, and the
+        GET /api/locks endpoint. Until that lands, the dive-in has
+        no way to ask "is this file locked?" without inventing its
+        own lock semantics.
+
+     2. The 3D RENDER for the indicator (a red lock sprite or
+        billboarded mesh positioned above the building's max-height
+        particle envelope, with bloom/glow consistent with the rest
+        of the scene). This is frontend-experience cluster (Wave 7)
+        scope — it is a visual/interaction primitive, not an
+        identity-and-analysis concern.
+
+   Sequencing: Wave 7 (frontend) cannot implement the render until
+   Wave 8/louis ships the data source, so this dive-in comment
+   stays as documentary intent until BOTH clusters have shipped
+   their halves. When they do, the implementation is:
+   (a) GET /api/locks on `show(file)`, (b) if file.filepath is in
+   the response, attach a sprite at `building.position + (0, height
+   + offset, 0)` colored 0xFF3344, (c) listen for the LOCK_STATE
+   hook (defined in the louis roadmap Phase L1) to update mid-flight
+   via setStatus()'s sibling path.
+
+   Cross-cluster pointers:
+     - docs/_pending-roadmap/louis-and-locking.md (data source)
+     - docs/_pending-roadmap/frontend-experience.md (render layer)
 
    Source material:
      /home/user/st8/docs/Sonic/CODE_CITY_BARRADEAU_BUILDER.md
