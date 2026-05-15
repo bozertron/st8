@@ -220,7 +220,17 @@ class St8Persistence {
                 this.db.pragma('synchronous = NORMAL');
                 console.log('[st8:persistence] Using better-sqlite3 directly');
             }
-            
+
+            // Enforce declared FOREIGN KEY constraints. Without this pragma,
+            // SQLite accepts orphan rows in connections, file_intent,
+            // file_mutation_log, and tickets — making the schema's FK
+            // declarations documentary only. Manual JS-side cascade in
+            // deleteFile / pruneFilesNotIn is still required (SQLite does
+            // not auto-cascade unless ON DELETE CASCADE is declared, which
+            // we deliberately do not use — cascade semantics live in JS so
+            // mutation_log + activity_log can be written before deletion).
+            this.db.pragma('foreign_keys = ON');
+
             // Apply st8 schema
             this.db.exec(ST8_SCHEMA);
             console.log('[st8:persistence] Database initialized:', this.dbPath);
@@ -273,26 +283,91 @@ class St8Persistence {
         }));
     }
     
+    /**
+     * Look up a file_registry row by filepath.
+     *
+     * file_registry permits MULTIPLE rows per filepath (different
+     * birthTimestamp → different fingerprint). Without an explicit
+     * ORDER BY, SQLite returned whichever row sat first in physical
+     * layout — non-deterministic across runs. We now sort by
+     * birthTimestamp DESC so the most-recent identity wins.
+     *
+     * Callers that need to operate on EVERY fingerprint for a path
+     * (e.g. deleteFile) must use getAllFilesByPath instead.
+     *
+     * @param {string} filepath
+     * @returns {object|undefined} most-recent file_registry row
+     */
     getFileByPath(filepath) {
-        const stmt = this.db.prepare('SELECT * FROM file_registry WHERE filepath = ?');
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_registry WHERE filepath = ? ORDER BY birthTimestamp DESC'
+        );
         return stmt.get(filepath);
     }
-    
+
+    /**
+     * Return ALL file_registry rows for a filepath, newest first.
+     * Used by deleteFile to cascade across every fingerprint that
+     * shares the filepath — see the §4 caveat in
+     * docs/components/persistence-and-database.md.
+     *
+     * @param {string} filepath
+     * @returns {object[]}
+     */
+    getAllFilesByPath(filepath) {
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_registry WHERE filepath = ? ORDER BY birthTimestamp DESC'
+        );
+        return stmt.all(filepath);
+    }
+
+    /**
+     * Delete every file_registry row for `filepath` and cascade through
+     * connections, file_intent, file_mutation_log, and tickets.
+     *
+     * IMPORTANT: file_registry can have multiple rows per filepath
+     * (different birthTimestamps = different fingerprints from different
+     * runs). The old implementation looked up ONE row, cascaded that
+     * fingerprint's children, then `DELETE FROM file_registry WHERE
+     * filepath = ?` removed ALL rows — leaving connections/intent/
+     * mutation_log/tickets for the other fingerprints orphaned. With
+     * PRAGMA foreign_keys ON the orphan-creating delete now throws.
+     *
+     * Current shape: iterate every fingerprint, cascade per-fingerprint
+     * (same as pruneFilesNotIn), DELETE BY FINGERPRINT not filepath.
+     */
     deleteFile(filepath) {
-        const file = this.getFileByPath(filepath);
-        if (!file) return { changes: 0 };
+        const files = this.getAllFilesByPath(filepath);
+        if (files.length === 0) return { changes: 0 };
 
-        const _deleteFileTx = this.db.transaction((fp, fingerprint) => {
-            this.deleteConnectionsForFile(fingerprint);
-            this.deleteIntentForFile(fingerprint);
-            this.deleteMutationLogForFile(fingerprint);
+        const deleteRowStmt = this.db.prepare('DELETE FROM file_registry WHERE fingerprint = ?');
 
-            const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
-            return stmt.run(fp);
+        const _deleteFileTx = this.db.transaction(() => {
+            let changes = 0;
+            const fingerprints = [];
+            for (const f of files) {
+                this.deleteConnectionsForFile(f.fingerprint);
+                this.deleteIntentForFile(f.fingerprint);
+                this.deleteMutationLogForFile(f.fingerprint);
+                this.deleteTicketsForFile(f.fingerprint);
+                const result = deleteRowStmt.run(f.fingerprint);
+                if (result.changes > 0) {
+                    changes += result.changes;
+                    fingerprints.push(f.fingerprint);
+                }
+            }
+            return { changes, fingerprints };
         });
 
-        const result = _deleteFileTx(filepath, file.fingerprint);
-        return { changes: result.changes, fingerprint: file.fingerprint };
+        const { changes, fingerprints } = _deleteFileTx();
+        // Backwards-compatible return shape: callers historically read
+        // `fingerprint` (singular). Surface the most-recent fingerprint
+        // (first in the DESC-ordered list) plus the full set.
+        return {
+            changes,
+            fingerprint: fingerprints[0] || files[0].fingerprint,
+            fingerprints,
+        };
     }
 
     /**
@@ -324,6 +399,7 @@ class St8Persistence {
                 this.deleteConnectionsForFile(f.fingerprint);
                 this.deleteIntentForFile(f.fingerprint);
                 this.deleteMutationLogForFile(f.fingerprint);
+                this.deleteTicketsForFile(f.fingerprint);
                 const result = deleteRowStmt.run(f.fingerprint);
                 if (result.changes > 0) pruned.push(f.fingerprint);
             }
@@ -409,6 +485,17 @@ class St8Persistence {
     
     deleteMutationLogForFile(fingerprint) {
         const stmt = this.db.prepare('DELETE FROM file_mutation_log WHERE fingerprint = ?');
+        return stmt.run(fingerprint);
+    }
+
+    /**
+     * Cascade helper for tickets — drops every ticket referencing the
+     * given fingerprint. Called from deleteFile and pruneFilesNotIn so
+     * deleting a file_registry row never leaves orphan tickets behind
+     * (which would FK-violate once PRAGMA foreign_keys is enforced).
+     */
+    deleteTicketsForFile(fingerprint) {
+        const stmt = this.db.prepare('DELETE FROM tickets WHERE fingerprint = ?');
         return stmt.run(fingerprint);
     }
     
