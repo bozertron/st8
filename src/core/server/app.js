@@ -1514,6 +1514,11 @@ class St8Server {
         const { St8Persistence } = require('../database/persistence');
 
         if (req.method === 'GET') {
+            // No hook fired here by design — queries are read-only and have
+            // no subscribers today. If a future subscriber needs to observe
+            // ticket reads (e.g. a phreak> session marking itself "aware"),
+            // fire a TICKETS_QUERIED hook here. Don't add the constant
+            // prematurely — wait for a real subscriber to drive the contract.
             const persistence = new St8Persistence();
             persistence.initialize().then(function() {
                 try {
@@ -1585,6 +1590,9 @@ class St8Server {
 
     /** GET /api/tickets/count → { count } for the phreak> TUI badge. */
     _handleTicketsCount(req, res) {
+        // No hook fired here by design — see the matching note in
+        // _handleTickets GET. Fire TICKETS_QUERIED here if query
+        // subscribers are introduced.
         const { St8Persistence } = require('../database/persistence');
         const persistence = new St8Persistence();
         persistence.initialize().then(function() {
