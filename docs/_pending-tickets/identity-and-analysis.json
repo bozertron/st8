@@ -133,13 +133,16 @@
     "filepath": "src/features/schema-cards/manifest-generator.js",
     "userNote": "connection-state.json intentionally omits lifecyclePhase and birthTimestamp per batch 025 deep dive (identity-internal, not consumer-facing). This is a load-bearing schema decision but is NOT documented in src/shared/types/st8-types.js or in the manifest-generator file itself. A future developer adding lifecyclePhase to the manifest would silently break the contract.",
     "severity": "medium",
-    "status": "open",
-    "executedAt": null,
-    "executedBy": null,
-    "actionsTaken": null,
-    "filesChanged": [],
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3c-executor",
+    "actionsTaken": "Audit conclusion: the omission of lifecyclePhase + birthTimestamp from connection-state.json is STILL correct after Wave 3A. Wave 3A made persistence the canonical authority for birthTimestamp across runs (via reuse), which strengthens — not weakens — the original rationale: the manifest must not advertise a second identity surface that consumers could disagree with the fingerprint on. Decision: keep the omission, document it prominently per roadmap P2.5.\n\nChanges:\n  1. src/features/schema-cards/manifest-generator.js — added a 45-line header block explaining the omission. Specifies (a) birthTimestamp is already encoded in fingerprint (consumers should parseFingerprint), (b) lifecyclePhase is identity-internal and not consumer-facing, (c) if a future need arises, prefer a companion artefact over expanding this manifest's contract.\n  2. src/shared/types/st8-types.js — added a MANIFEST OMISSION NOTE on the St8SchemaCard definition pointing at the manifest-generator header as the load-bearing-omission rationale.\n\nNo code change to the projection itself; the change is purely documentary. Smoke test: require()ing both modules still resolves their exports.",
+    "filesChanged": [
+      "src/features/schema-cards/manifest-generator.js",
+      "src/shared/types/st8-types.js"
+    ],
     "commitHash": null,
-    "residualConcerns": null,
+    "residualConcerns": "If a developer adds lifecyclePhase to the manifest projection AND fails to read the header, this documentation only catches the regression at code review. Could be hardened with a unit test asserting the keys of the per-file projection exactly equal an expected set (would fail loudly on accidental addition). Out of scope for this ticket but worth a P3 follow-up.",
     "verdict": null,
     "reviewNote": null
   },
@@ -224,7 +227,7 @@
     "filesChanged": [
       "src/features/analysis/intent-seeder.js"
     ],
-    "commitHash": null,
+    "commitHash": "4760c5d5707f4e13dea5dbddb3880ac7ce43d502",
     "residualConcerns": "None — the wiring is intact and now self-documented adjacent to the producer code. If a future ticket adds an /api/needs-ai-review-summary surface it would benefit from a similar inline pointer.",
     "verdict": null,
     "reviewNote": null

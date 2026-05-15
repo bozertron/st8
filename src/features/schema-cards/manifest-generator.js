@@ -2,10 +2,51 @@
 
 /**
  * ST8 Manifest Generator
- * 
+ *
  * Generates connection-state.json and ai-signal.toml manifests.
  * References maestro-scaffolder-tool code for TOML serialization.
  * DO NOT copy files from maestro. Import/require by path.
+ *
+ * ─── INTENTIONAL OMISSIONS FROM connection-state.json ─────────
+ * (identity-and-analysis ticket 8, roadmap P2.5)
+ *
+ * The per-file entries emitted by generateConnectionState() OMIT
+ * two fields that are present on the canonical St8SchemaCard shape
+ * (src/shared/types/st8-types.js): `lifecyclePhase` and
+ * `birthTimestamp`. This is by design — load-bearing — and dates
+ * back to the batch 025 deep dive. DO NOT add either field to the
+ * `files.map(...)` projection below without first reading the
+ * reasoning in this header.
+ *
+ *   1. `birthTimestamp` is already encoded inside `fingerprint`
+ *      (format: `<filepath>||<ISO-timestamp>`, see
+ *      generateFingerprint() in st8-types.js). Emitting it as a
+ *      separate top-level field would create two identity surfaces
+ *      that consumers could disagree on — exactly the failure mode
+ *      st8 exists to prevent. After Wave 3A's birthTimestamp REUSE
+ *      work (src/shared/utils/birth-timestamp.js), persistence is
+ *      the canonical authority for birthTimestamp across runs; the
+ *      manifest defers to that via `fingerprint`. Consumers wanting
+ *      the timestamp should `parseFingerprint(fingerprint)`.
+ *
+ *   2. `lifecyclePhase` (CONCEPT / DEVELOPMENT / PRODUCTION) is
+ *      identity-internal and lives in `file_registry` for the
+ *      production-promotion workflow. It is NOT consumer-facing on
+ *      the manifest surface — UI views that care (file-explorer,
+ *      dive-in) read it directly from /api/files. Adding it to
+ *      `connection-state.json` would (a) imply external consumers
+ *      should branch on it without the surrounding workflow context
+ *      and (b) bloat the manifest for the common case where no UI
+ *      cares about the per-file phase at manifest read-time.
+ *
+ * If a future need surfaces (e.g. external tooling that wants a
+ * static snapshot of phases without hitting /api/files), prefer a
+ * separate `connection-state-lifecycle.json` companion artefact
+ * over expanding this manifest's contract.
+ *
+ * The canonical St8SchemaCard shape in st8-types.js carries a
+ * matching annotation referencing this comment block as the
+ * load-bearing-omission rationale.
  */
 
 'use strict';
