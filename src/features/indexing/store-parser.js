@@ -47,6 +47,43 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateStoreReport = generateStoreReport;
 // C:\orchestr8\scripts\prd src\storeParser.ts
+/**
+ * store-parser — Pinia/Vuex store extractor (Stage 1 of integr8 pipeline).
+ *
+ * INPUT CONTRACT:
+ *   - targetPath: absolute path to a project root OR a single .ts file.
+ *     When a directory, scans `<targetPath>/src/stores/**\/*.ts`
+ *     (DEFAULT_STORE_DIR), skipping index.ts and *.test.ts / *.spec.ts.
+ *     When a single .ts file, parses only that file.
+ *   - Babel parsed with the `typescript` plugin + errorRecovery.
+ *   - Looks for `export const useXxx = defineStore(...)` AND
+ *     `export default defineStore(...)`. Other store frameworks are
+ *     NOT detected.
+ *
+ * OUTPUT CONTRACT (generateStoreReport returns string):
+ *   - Human-readable text report (NOT JSON). data-ingestion.js then
+ *     parses this text via regex inside `parseStoreText()` to produce
+ *     SemanticGraph nodes of type 'store'. The text shape is
+ *     load-bearing for that downstream parser.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js:851 — invokes via retryParser with circuit-
+ *     breaker + adaptive-retry wrapping.
+ *   - parser-persistence.js — persists extracted store rows into the
+ *     Stores SQLite table when invoked via persistAllParserData.
+ *
+ * KNOWN LIMITATIONS:
+ *   - Only TypeScript. .js / .vue stores are NOT scanned.
+ *   - Only the default `src/stores/` location is searched on directory
+ *     targets; project-specific store locations require passing the
+ *     specific .ts file as targetPath.
+ *   - State/getter/action extraction relies on AST shape of the
+ *     defineStore() second argument; non-standard wrappings around
+ *     defineStore() are not unwrapped.
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/storeParser.ts.
+ * Vendored, not hand-edited. See .gitattributes (linguist-generated).
+ */
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const fast_glob_1 = __importDefault(require("fast-glob"));

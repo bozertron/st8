@@ -14,6 +14,43 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateOverviewAndGetFileList = generateOverviewAndGetFileList;
 // C:\orchestr8\scripts\prd src\overview.ts
+/**
+ * overview — project-shape ingestion (Stage 1, the FIRST parser).
+ *
+ * INPUT CONTRACT:
+ *   - targetPath: absolute path to a project root.
+ *   - options.comparePath (optional): a second project root for
+ *     side-by-side analysis.
+ *   - Scans SCAN_DIRS = ['src', 'src-tauri'] inside targetPath.
+ *   - Reads package.json, vite.config.ts, tauri.conf.json,
+ *     tsconfig.json for stack detection (Vue/Pinia/Naive UI on the
+ *     frontend; tauri/tokio on the Rust side).
+ *
+ * OUTPUT CONTRACT (returns { report: string, fileList: string[] }):
+ *   - `report`: text report with sections for combined file index,
+ *     primary target details (config, entry points, dependencies,
+ *     directory tree), and optional comparison target details.
+ *   - `fileList`: sorted array of relative file paths the indexer
+ *     should treat as the project's scannable surface.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js — invoked first, before the other six
+ *     specialised parsers. The fileList output drives the subsequent
+ *     parsers' targetPath narrowing (when a project lacks a stack
+ *     marker, the dependent parsers can skip).
+ *
+ * KNOWN LIMITATIONS:
+ *   - Only `src/` and `src-tauri/` are scanned. Monorepo layouts
+ *     (`packages/*`, `apps/*`) and Next.js (`app/`, `pages/`) are
+ *     invisible.
+ *   - Stack detection is signature-matching on known config-file
+ *     names — projects with custom tooling (Vite-but-renamed,
+ *     Rollup, esbuild) won't be classified accurately.
+ *   - The static help text at the end of the report (DAC-O preamble)
+ *     is a maestro-era artifact; harmless but not st8-shaped.
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/overview.ts.
+ */
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const fast_glob_1 = __importDefault(require("fast-glob")); // Using fast-glob for efficiency
