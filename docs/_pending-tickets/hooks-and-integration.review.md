@@ -531,3 +531,186 @@ not open (200). residualConcerns are honest and substantive.
 
 JSON annotations written; JSON file NOT renamed (final reviewer's
 job). Cluster is safe for Wave 2D to build on.
+
+
+## Wave 2D Review
+
+Reviewer: wave-2d-reviewer
+Reviewed: 2026-05-15
+Tickets in scope: indices 3, 4, 12, 13, 14, 15, 17, 18, 19, 26 (10 total) —
+subscriber idempotency, top-level sonic require, DRY+wrap convention,
+EventEmitter throw containment, FC1-FC6 test coverage, FC4 allowlist,
+FC3 stale-accumulation classifier, FC5 fail-on-missing-impl, async
+report write, INDEX_COMPLETE error aggregation.
+Commits audited: `dcf70e7..06819a1` (`0fee6a1`, `834a91b`, `d1c1a3f`,
+`a50a711`, `06819a1`).
+
+### Verdict counts
+
+- **ack:** 10
+- **defer-confirmed:** 0
+- **kickback:** 0
+
+### Test suite truth
+
+`npm test` -> tests:108 / pass:108 / fail:0 / skipped:0 / todo:0 /
+cancelled:0. Duration ~2.4 s. Executor's 108-test claim is exact.
+
+**Mutation probe** (proves the new tests genuinely exercise the SUT):
+replaced `ok: false` with `ok: true` in force-checks.js:220 (the FC5
+missing-impl branch added by ticket 18), re-ran
+`node --test tests/core/hooks/force-checks.test.js`. Result: 18 pass /
+1 fail — the failing probe is the ticket-18 silent-pass-blocking test
+at force-checks.test.js:327. Restored cleanly; full suite back to 108.
+The 2D tests are not pass-by-construction.
+
+### Commit-by-commit verification
+
+| Ticket | Commit | Verdict | Verification |
+|---|---|---|---|
+| 3  | `834a91b` | ack | 19 `test(` declarations in force-checks.test.js, matching the executor's claim. Each FC has at least one pass + one fail probe with assertions on exact `ref`/`id`/`issues`/`message`. Driver-level: static source check that `fs.writeFileSync(reportPath, ...)` is gone and `fsp.writeFile(reportPath, ...)` is present. Mutation probe confirmed real SUT coverage. |
+| 4  | `834a91b` | ack | FC4_KNOWN_ARCH_REFS = 7 entries (4 from endpointModuleMap + 3 component refs). `grep` confirms the old wholesale `src/`/`backend/`/`lib/` prefix-skip is GONE — only `/api/` and the allowlist remain. Tests use `ghost.js`, `real-file.js`, and `src/totally-not-in-allowlist.js` — none in the allowlist, so no test-masking. |
+| 12 | `a50a711` | ack | Symbol guard `Symbol.for('st8.defaultSubscribersRegistered')` set on the REGISTRY OBJECT (line 77), not module-level. Per-registry isolation verified: r1.register×2 → 5 INDEX_COMPLETE subscribers, fresh r2.register×1 → 5 (not affected by r1's flag). `_resetDefaultSubscribersFlag` exported for clear-then-re-register tests. |
+| 13 | `a50a711` | ack | DRY+wrap convention applied uniformly. All 7 default subscribers wrap their body in try/catch with `console.error('[st8] <module> failed:', err.message)`. Module tags: Manifest generation / Schema card emission / Gap analysis / Intent seeding / file_mutation_log retention / Failed to delete schema card / Failed to emit schema card / SSE broadcast. Distinctive per-subscriber. Wave 2B reviewer's note that registry isolation alone is technically sufficient stands — executor knew this and prized consistency. |
+| 14 | `a50a711` | ack | `require('../../features/search/sonic-daemon')` hoisted to module top (line 44), wrapped in try/catch. Handler reads captured `sonicDaemon` module binding — no lazy require inside. Missing-module surfaces at module-load time, then handler no-ops with a tagged warn line. ticket-14 source-grep probe at hook-registry.test.js:417 asserts both conditions. |
+| 15 | `d1c1a3f` | ack | execute() now iterates `rawListeners(name)` with per-listener try/catch. LIVE PROBE: `.on()` thrower + `.register()` priority handler — execute returned `{ok:1, fail:1, errors:[{source:'event-listener', error:'boom'}]}`. All three guarantees (no block, counted in summary.fail, doesn't bubble) verified. residualConcerns honest about uncovered once-wrapper semantics. |
+| 17 | `834a91b` | ack | FC3 classifier: builds `filepathCounts` Map; sets `staleAccumulationDetected=true` when any issue's filepath has count >1. LIVE PROBE: synthetic input with two file_registry rows for `a.js` (||old, ||new) + manifest containing only ||new → message `STALE ACCUMULATION DETECTED ... pruneFilesNotIn` with exact pointer. Non-stale case gets a different message (`check manifest-generator output coverage`). |
+| 18 | `834a91b` | ack | getAllConnections at persistence.js:919-924 — deterministic SELECT with ORDER BY. FC5 contract change: missing impl now returns `ok: false` with `FAIL — was silent-pass before ticket 18` message. **LIVE FC5 PROBE**: /tmp/st8-fc5-test3 with real file_registry + connection + FK-off DELETE to construct synthetic dangling endpoint — `.st8/force-check.md` shows `**FC5** ❌ fail | 1 dangling endpoint(s)` with full source/target/reason detail. The synthetic broken connection surfaces correctly. |
+| 19 | `834a91b` | ack | `grep -nE 'writeFileSync\|fsp.writeFile' src/core/hooks/force-checks.js` returns only line 320 (`await fsp.writeFile(reportPath, ...)`). sync call GONE. mkdirSync also converted to `await fsp.mkdir(..., {recursive:true})`. Test probe does TWO things: (a) runs runForceChecks + asserts report file + shape; (b) reads SOURCE of force-checks.js and asserts the sync regex does NOT match while the async regex DOES match. Real static check. |
+| 26 | `0fee6a1` | ack | `_writeIndexCompleteSummary` at main.js:60 — writes `.st8/index-complete-errors.json` with `{timestamp, ok, fail, errors}` shape, called inside the INDEX_COMPLETE handler block at main.js:357. Per-error log loop at 361-368 with `[st8] - <source>: <error>` lines. require.main === module guard at line 502 means tests can `require('main.js')` without auto-running main(). LIVE PROBE: deliberate P=10 thrower → execute returns summary with fail:1, errors:[{source:'manifest-generator', error:'manifest-deliberate-break'}]; writer produces matching JSON dump. |
+
+### The four convention decisions — do they hold up?
+
+1. **DRY+wrap (ticket 13)**: holds. Every subscriber consistently
+   tagged, log format uniform. The Wave 2B reviewer noted registry
+   isolation makes the inner catches technically unnecessary; the
+   executor knew this and chose consistency anyway. That is the right
+   call for debuggability — generic `[hooks] "X" subscriber "Y" threw:`
+   loses module context, the per-source `[st8] <module> failed: <msg>`
+   keeps it.
+2. **Idempotency via Symbol on registry (ticket 12)**: holds. The flag
+   is per-registry (`registry[DEFAULTS_REGISTERED] = true`), not
+   module-level. Fresh `new HookRegistry()` instances are unaffected by
+   the singleton's state. Tests can clear+reset to re-register.
+3. **Top-level sonic require (ticket 14)**: holds. Hoisted require
+   wrapped in try/catch, missing-module surfaces at module load with a
+   `[st8] Sonic daemon module unavailable at bootstrap:` warn line, and
+   the handler no-ops gracefully when the binding is null.
+4. **FC5 fail-on-missing-impl (ticket 18)**: holds. Silent-pass was a
+   cheat. The new contract returns `ok: false` with explicit
+   `FAIL — was silent-pass before ticket 18` message. Real persistence
+   always implements getAllConnections so production runs always take
+   the legitimate path; the FAIL branch fires only when a test double
+   or stripped-down persistence is used (or, hypothetically, a future
+   regression that drops the method).
+
+### No-cheats sweep
+
+- `git diff dcf70e7..06819a1` — every change outside tests/ read.
+  Total changed: 6 source files, 4 test files, 1 JSON, ~1346
+  insertions. No new `TODO/FIXME/HACK/XXX`. The only pre-existing
+  `catch (_)` is at default-subscribers.js:261 (AST parse fallback,
+  commented). No new commented-out blocks. No `console.log` debris.
+- FC4 allowlist verified NOT to include any path used in the FC4
+  tests. The allowlist must NOT mask the test inputs — confirmed
+  `ghost.js`, `real-file.js`, `src/totally-not-in-allowlist.js` all
+  absent from FC4_KNOWN_ARCH_REFS.
+- The `index-complete-errors.json` file is actually inspected: the
+  CI integration story is "snapshot per build" (the writer truncates
+  per run; that's the contract). For the cluster's own purposes, the
+  per-error log lines in main.js stdout are the at-the-moment surface
+  — see `console.error('[st8] See .st8/index-complete-errors.json for the full report.')`.
+- All executor residualConcerns are honest:
+  1. **Ticket 3**: tmp targetDir scaffolding is brittle to I/O contract changes — real.
+  2. **Ticket 4**: FC4_KNOWN_ARCH_REFS duplicates endpointModuleMap — real follow-up (P3).
+  3. **Ticket 13**: no lint check enforces the convention — real.
+  4. **Ticket 14**: adopted external sonic processes aren't killed by the probe — accurate.
+  5. **Ticket 15**: once-wrapper semantics not probed — accurate.
+  6. **Ticket 17**: classifier is heuristic (false-positive risk if a future feature legitimately produces multi-fingerprint-per-filepath) — accurate.
+  7. **Ticket 18**: first FC5 fail on long-lived targets is expected, not a regression — flagged correctly.
+  8. **Ticket 26**: no fail-fast mode; JSON dump overwritten per run — accurate.
+
+### Cluster shape — ready for close
+
+The cluster's hooks-and-integration surface is now:
+
+- `HookRegistry` has priority ordering, error isolation,
+  zero-subscriber fast path, EventEmitter throw containment,
+  introspection (listHooks / listAllHooks / introspectExecuteOrder),
+  21 hook-registry tests + 5 new in Wave 2D.
+- `registerDefaultSubscribers` is idempotent per-registry, every
+  subscriber wrapped with module-tagged logs, sonic-daemon top-level
+  required.
+- `runForceChecks` writes async, exports every FC check function for
+  unit testability, has 19 probes covering FC1-FC6 + driver.
+- `_handleRecordCommit` / `_handleTickets` use shared persistence,
+  shared-secret auth, strict validation, and explicit payload shapes.
+- `_writeIndexCompleteSummary` aggregates subscriber failures to a
+  machine-readable JSON file.
+- 108/108 tests pass; mutation probe confirms genuine SUT coverage.
+
+### Cross-cluster flags for the founder
+
+Aggregated across all 29 cluster tickets (carried forward from 2A/2B/2C
+plus 2D's own surfaces):
+
+1. **Lifecycle cluster (Wave 4)** — SIGTERM unwired in main.js (2A
+   flag); start.js spawn shell:true breaks SIGINT propagation (2A flag);
+   `_handleMvpLock` performs CONCEPT/DEVELOPMENT→LOCKED without firing
+   LIFECYCLE_TRANSITION (2B flag); bruno-oscar archive-staging sites
+   (`runBrunoCall`, `archiveFile`) flip brunoStatus without firing the
+   lifecycle hook (2B flag).
+2. **Lifecycle cluster (Wave 4) — additional from 2D**: the new
+   `.st8/server.secret` file persists across restarts by design (auth
+   restart-survivability) but is also not unlinked on shutdown — a
+   future rotation policy that requires unlink-on-shutdown needs the
+   SIGTERM handler from item 1.
+3. **Persistence cluster (closed)** — `getSharedPersistence()`
+   accessor at persistence.js:1411 is now load-bearing for HTTP
+   performance; the shared-instance contract is API surface (2C flag).
+   In 2D: `getAllConnections` is now part of that surface too — added
+   for FC5 but also exported for any future graph-walking tool.
+4. **Frontend cluster** — auth-token bootstrap has no refresh-on-401
+   loop (2C flag); long-running SPA sessions across a future rotation
+   would 401 until reload.
+5. **Indexer / Pass-0 prune (NEW FROM 2D, ticket 17)** — the FC3
+   stale-accumulation classifier is now in place. If
+   `persistence.pruneFilesNotIn()` ever silently fails or is removed,
+   FC3's failure message will explicitly point to it. Recommend the
+   founder rerun the indexer against /home/user/st8 to see whether the
+   new classifier surfaces any pre-existing stale-accumulation that the
+   pruner missed. If FC3 trips, that's a P1 indexer-cluster ticket.
+6. **FC4 allowlist duplication (NEW FROM 2D, ticket 4 residualConcern)** —
+   FC4_KNOWN_ARCH_REFS duplicates gap-analyzer's endpointModuleMap. A
+   one-line fix (export the map from gap-analyzer, import here) would
+   eliminate the drift risk. Real P3 roadmap shape.
+7. **FC5 dangling-edge surfacing (NEW FROM 2D, ticket 18 residualConcern)** —
+   first FC5 fail on long-lived targets is EXPECTED, not a regression.
+   Treat the next force-check failure with `target missing` /
+   `source missing` issues as a new diagnostic surface, not a bug in
+   2D's change.
+8. **SSE-vs-card ordering (carried forward from 2B)** — the new
+   FILE_AFTER_CHANGE order writes the card BEFORE publishing SSE; the
+   pre-decomp order published SSE first. No live consumers depend on
+   the order today; flag for any future SSE consumer.
+
+## Cluster Summary
+
+Total across all 29 tickets:
+
+- **ack:** 28 (11 wave-2a + 3 wave-2b + 4 wave-2c + 10 wave-2d)
+- **defer-confirmed:** 1 (wave-2a ticket 20, observation-only)
+- **kickback:** 0
+
+`npm test` — 108/108 passing, 0 skipped, 0 todo. Mutation probe
+(revert FC5 fail-on-missing-impl branch) — exactly 1 test fails as
+expected, confirming the suite genuinely exercises the SUT. Live
+probes confirmed across all 2D tickets: idempotency per-registry,
+EventEmitter throw containment, FC5 dangling-edge surfacing, FC3
+stale-accumulation classification, async report write, INDEX_COMPLETE
+error aggregation. Zero new TODO/FIXME/HACK markers introduced; no
+empty try/catch swallowers added.
+
+The hooks-and-integration cluster is closed.
+
+JSON annotations written; JSON file renamed to .for-review.json.

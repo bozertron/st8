@@ -59,8 +59,8 @@
     ],
     "commitHash": "834a91b",
     "residualConcerns": "FC1/FC2/FC3/FC4 probes need a tmp targetDir because the checks read `.st8/` files directly; if a future refactor changes that I/O contract the test scaffolding will need updating too.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Counted 19 `test(` declarations in tests/core/hooks/force-checks.test.js — matches the executor's claim. Coverage: FC1 (2 probes: pass + missing-card fail), FC2 (2: orphan fail + missing-dir skip), FC3 (3: pass + ticket-17 stale-accum + plain-fail-message), FC4 (5: pass + broken-ref fail + /api/* skip + allowlist skip + ticket-4 broken-src flag), FC5 (3: pass + dangling-target fail + ticket-18 missing-impl fail), FC6 (2: pass + malformed), driver (2: ticket-19 async-write static check + 6-check summary). Each probe asserts on a real observable (id, ok, count, issues.length, message regex, exact ref) — zero assert.ok(true). MUTATION PROBE: replaced `ok: false` with `ok: true` in the FC5 missing-impl branch (force-checks.js:220); ran `node --test tests/core/hooks/force-checks.test.js` — exactly 18 pass / 1 fail (the ticket-18 silent-pass-blocking probe). Restored cleanly; full suite passes. The tests genuinely exercise the SUT."
   },
   {
     "filepath": "src/core/hooks/force-checks.js",
@@ -76,8 +76,8 @@
     ],
     "commitHash": "834a91b",
     "residualConcerns": "Allowlist duplicates gap-analyzer's endpointModuleMap. If the gap-analyzer mapping changes and FC4_KNOWN_ARCH_REFS is not updated in lockstep, either (a) real broken refs are flagged (noisy) or (b) intentional cross-tree refs are flagged (false positive). Roadmap item P3 still stands: export the mapping from gap-analyzer and import it here.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Read FC4_KNOWN_ARCH_REFS at force-checks.js:163-173 — 7 entries (4 endpoint-handler modules from gap-analyzer's endpointModuleMap + 3 architectural component refs). Verified via `grep -n 'src/\\|backend/\\|lib/' src/core/hooks/force-checks.js` that the old wholesale prefix-skip is GONE — only `/api/` URL-shape skip and the allowlist remain. The test at force-checks.test.js:273 uses `src/totally-not-in-allowlist.js` — NOT in the allowlist — and asserts ok:false. The allowlist also does NOT include `ghost.js` (used in the FC4 broken-ref test at line 218) or `real-file.js` (used in the FC4 pass test). No masking. residualConcerns honestly captures the duplication risk with gap-analyzer's endpointModuleMap — that's a real roadmap-shaped follow-up."
   },
   {
     "filepath": "src/core/hook-registry.js",
@@ -212,8 +212,8 @@
     ],
     "commitHash": "a50a711",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Symbol guard at default-subscribers.js:53 (`Symbol.for('st8.defaultSubscribersRegistered')`) is set on the REGISTRY OBJECT (line 77: `registry[DEFAULTS_REGISTERED] = true`), not on a module-level variable \u2014 so per-registry isolation is correct. LIVE PROBE: registered defaults twice against `r1 = new HookRegistry()` and once against a fresh `r2 = new HookRegistry()`; both report INDEX_COMPLETE count: 5 (not 10 on r1). The doubling that would happen without the guard is prevented. `_resetDefaultSubscribersFlag` is exported for tests that call `clear()` then re-register (clear() wipes _hooks but not the symbol \u2014 covered by ticket-12 probe at hook-registry.test.js:399). Honest no-op on the second call."
   },
   {
     "filepath": "src/core/hooks/default-subscribers.js",
@@ -229,12 +229,10 @@
     ],
     "commitHash": "a50a711",
     "residualConcerns": "The convention is internal \u2014 there is no lint check that prevents a future subscriber from being added without an inner try/catch. If Wave 2C's test infra later grows a convention linter, default-subscribers.js is a natural target.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Grep'd every subscriber body for try/catch \u2014 all 7 register() blocks in default-subscribers.js wrap their body. INDEX_COMPLETE: manifest-generator (L114-122 try/catch around writeManifests), schema-card-emitter (L126-134), gap-analyzer (L138-149 pre-existing), intent-seeder (L153-163 pre-existing), mutation-log-retention (L182-205 pre-existing). FILE_AFTER_CHANGE: schema-card-emitter inner card-emit try/catch + DELETE branch try/catch; sse-broadcaster (L287-302 now wrapped). Log format is consistent: `console.error('[st8] <module> failed:', err.message)` \u2014 verified via `grep -nE 'console.(error|warn).*\\[st8\\]'`. Each subscriber has a distinctive module tag (Manifest generation / Schema card emission / Gap analysis / Intent seeding / file_mutation_log retention / Failed to delete schema card / Failed to emit schema card / SSE broadcast). DRY+wrap convention applied uniformly. Wave 2B reviewer noted registry isolation alone is technically sufficient \u2014 the executor knew this and prized consistency anyway, which is the right call for debuggability. residualConcerns honestly flags the absence of a lint check."
   },
   {
-    "filepath": "src/core/hooks/default-subscribers.js",
-    "userNote": "The sonic-daemon INDEX_START subscriber lazy-requires '../../features/search/sonic-daemon' inside the handler. That path is a relative require from default-subscribers.js \u2014 if the file is moved, the require path breaks at run time, not load time. Consider hoisting the require to module top (with a try/catch around require itself) so missing-module errors surface during bootstrap.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-15T00:00:00Z",
@@ -246,12 +244,10 @@
     ],
     "commitHash": "a50a711",
     "residualConcerns": "The probe stops a daemon if one was started (calls daemon.stop()), but if a real sonic process was adopted from outside (port 1491 already open), the test does not kill that. Acceptable \u2014 adopt-mode is intentional. If sonic-daemon.stop is added later it should also handle the adopted-process case.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified `grep -n 'require.*sonic-daemon' src/core/hooks/default-subscribers.js` returns line 44 ONLY (top-level, wrapped in try/catch at lines 43-48). The INDEX_START handler body (lines 84-99) reads the captured module binding `sonicDaemon` \u2014 no lazy require inside. Missing-module surfaces at module-load time with `console.warn('[st8] Sonic daemon module unavailable at bootstrap:'...)` and the handler then no-ops with a `[st8] Sonic daemon subscriber no-op (module load failed):` log line. ticket-14 source-grep probe at hook-registry.test.js:417 also asserts both: top-level try/catch require exists, and no require() inside the handler body. Cleanly hoisted."
   },
   {
-    "filepath": "src/core/hook-registry.js",
-    "userNote": "execute() re-emits via EventEmitter (line 137) AFTER all priority-ordered handlers complete. Throws from .on() listeners are NOT caught by the registry's try/catch \u2014 they surface as uncaught exceptions. Either drop the EventEmitter re-emit (no callers use it) or wrap the emit() in its own try/catch with per-listener isolation. The current `try { this.emit(...) } catch (_) {}` only catches synchronous throws from EventEmitter's internal dispatch, not from individual listeners.",
     "severity": "med",
     "status": "executed",
     "executedAt": "2026-05-15T00:00:00Z",
@@ -263,8 +259,8 @@
     ],
     "commitHash": "d1c1a3f",
     "residualConcerns": "rawListeners + manual .call preserves Node's once-wrapper semantics (the wrapper removes itself before invoking the original) but this is not currently covered by a test. No callers use .once() on the registry today (the docs explicitly say 'Prefer .register() over .on()').",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Read execute() at hook-registry.js:178-187 — `rawListeners(name)` is iterated, each listener `.call(this, ctx)` is wrapped in its own try/catch, throws are pushed into `summary.errors` with `source: 'event-listener'` and counted in `summary.fail`. LIVE PROBE: registered a priority handler (`source:'priority-handler'`) AND a `.on()` listener that throws; execute returned `{ok:1, fail:1, errors:[{source:'event-listener', error:'boom from .on'}]}` — exact match to the contract. Two tests at hook-registry.test.js:326+354 cover (a) listener throw counted with `source: 'event-listener'`, registered handler still ran; (b) two .on() listeners with first throwing — second still fires. All three executor guarantees verified. residualConcerns about Node's once-wrapper semantics is honest — `rawListeners` preserves that wrapper but there's no probe."
   },
   {
     "filepath": "src/core/hook-registry.js",
@@ -298,12 +294,10 @@
     ],
     "commitHash": "834a91b",
     "residualConcerns": "The classification is heuristic \u2014 multi-row-per-filepath is a necessary but not sufficient signal of stale accumulation (a legitimate concurrent indexer pass could in theory produce the same shape). Today nothing else does, so the hint is reliable. If a future feature legitimately produces multiple fingerprints per filepath, the classifier will mis-attribute.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "checkFC3_manifestCoversFiles at force-checks.js:93-141 builds a `filepathCounts` Map and sets `staleAccumulationDetected=true` when any issue's filepath has count >1 in file_registry. LIVE PROBE: synthetic input with two file_registry rows for 'a.js' (||old, ||new) and a manifest containing only ||new returned `staleAccumulationDetected: true` and message `1 files in registry but not manifest \u2014 STALE ACCUMULATION DETECTED (multiple fingerprints per filepath). The Pass-0 prune in main.js (persistence.pruneFilesNotIn) should have removed these; verify it ran.` Exact pointer to the cleanup mechanism. The non-stale case (each filepath has only one row, but manifest is missing one fingerprint outright) returns `staleAccumulationDetected: false` with a different message (`check manifest-generator output coverage`) \u2014 verified by force-checks.test.js:176. CROSS-CLUSTER FLAG: with the classifier in place, a re-run of the indexer against /home/user/st8 (which historically had FC3 fail with 5/6) would either clear FC3 cleanly (the prune is working) or fail with the new stale-accumulation classifier \u2014 either way the diagnostic is now self-documenting. residualConcerns honest about the heuristic limit (a legitimate concurrent indexer pass could trip the same signature)."
   },
   {
-    "filepath": "src/core/hooks/force-checks.js",
-    "userNote": "FC5 silently skips when persistence.getAllConnections() is not implemented (line 148). The check returns ok:true with message 'skipped'. That is a YELLOW signal masquerading as GREEN. Either return ok:false with a non-blocking severity tag, or surface 'check skipped' in the report's summary line, so a missing method does not look like a passing test.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-15T00:00:00Z",
@@ -317,12 +311,10 @@
     ],
     "commitHash": "834a91b",
     "residualConcerns": "After this ticket FC5 may flip from 'ok' to 'fail' on production runs the next time the registry has any dangling edges. That's the correct behavior (silent-pass was a cheat) but the first run on a long-lived target will likely surface real dangling edges that were previously masked. Treat the first FC5 failure as expected, not as a regression.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Read getAllConnections at persistence.js:919-924 — `SELECT * FROM connections ORDER BY sourceFingerprint, targetFingerprint` with deterministic ordering. The get-all-connections.test.js suite probes (a) function exists, (b) empty on fresh DB, (c) returns inserted rows with sourceFingerprint/targetFingerprint/connectionType, (d) sorted output across shuffled inserts. FC5 contract change verified at force-checks.js:216-225 — when `typeof ctx.persistence.getAllConnections !== 'function'`, returns `ok: false` with message `not implemented (FAIL — was silent-pass before ticket 18)`. LIVE PROBE: /tmp/st8-fc5-test3 — inserted real file row src/a.js||t1 + real file row src/b.js||t2 + real connection a→b, then DELETED b's file_registry row via raw SQL with FK temporarily off (real persistence enforces FK with the connection in place, so this is the only way to construct a synthetic dangling endpoint). Re-ran runForceChecks — `.st8/force-check.md` shows `**FC5** ❌ fail | 1 dangling endpoint(s)` with detail `{\"source\":\"src/a.js||t1\",\"target\":\"src/b.js||t2\",\"reason\":\"target missing\"}`. MUTATION-PROBE: changing FC5's `ok: false` (line 220) to `ok: true` causes exactly one test to fail (the missing-impl probe at force-checks.test.js:327). residualConcerns correctly flags that first FC5 fail on long-lived targets is expected, not a regression."
   },
   {
-    "filepath": "src/core/hooks/force-checks.js",
-    "userNote": "runForceChecks writes its report with synchronous fs.writeFileSync inside an async handler. On a large project this is a brief stop-the-world. Switch to fs.promises.writeFile.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-15T00:00:00Z",
@@ -334,12 +326,10 @@
     ],
     "commitHash": "834a91b",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: `grep -nE 'writeFileSync|fs.promises|fsp.writeFile' src/core/hooks/force-checks.js` returns only line 320 (`await fsp.writeFile(reportPath, lines.join('\\n') + '\\n')`). The sync call is GONE. `fsp = require('fs').promises` at the top of the file (line 46). force-checks.js:319 also uses `await fsp.mkdir(path.dirname(reportPath), { recursive: true })` \u2014 the mkdirSync was also converted. The ticket-19 probe at force-checks.test.js:370 does TWO things: (a) runs runForceChecks against a tmp dir and asserts the report file exists + matches expected shape; (b) reads the SOURCE of force-checks.js and asserts `fs\\.writeFileSync\\s*\\(\\s*reportPath` does NOT match, AND `fsp\\.writeFile\\s*\\(\\s*reportPath` DOES match. Real static check of the source, not a smoke test."
   },
   {
-    "filepath": "src/core/server/app.js",
-    "userNote": "_handleRecordCommit's hook fire is non-fatal (catches and logs). _handleTickets's hook fire is also non-fatal. Good. But the lazy require inside the catch happens AFTER the persistence write \u2014 if the require itself throws (unlikely but possible during a circular-require shakeout), the ticket/commit is already in the DB while the hook never fires. Subscribers expect at-least-once delivery for these events; in practice they get at-most-once. Document or add a retry queue.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-15T00:00:00Z",
@@ -446,8 +436,8 @@
     ],
     "commitHash": "0fee6a1",
     "residualConcerns": "No fail-fast mode added (still listed as roadmap P3). A subscriber throw still logs and continues \u2014 the change is visibility, not behavior change. If a future development run wants 'throw aborts the chain', the roadmap item is the right place for it. The JSON dump is overwritten each run \u2014 there is no history. A future CI integration that wants timelines should snapshot the file per build.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified `grep -n '_writeIndexCompleteSummary\\|index-complete-errors.json\\|require.main === module' src/core/server/main.js` returns the writer at line 60, the INDEX_COMPLETE handler call at line 357, the per-error log loop at lines 361-368, the export at line 494, and the require.main guard at line 502 (auto-run wrapped). LIVE PROBE: registered a P=10 thrower (`source: manifest-generator`) + P=20 observer on a fresh registry, executed INDEX_COMPLETE, fed the resulting summary into `_writeIndexCompleteSummary` against /tmp/st8-t26-test \u2014 `.st8/index-complete-errors.json` written with shape `{timestamp, ok:1, fail:1, errors:[{source: 'manifest-generator', error: 'manifest-deliberate-break'}]}`. Truncate-on-clean-run probe at index-complete-summary.test.js:56 \u2014 fail:0, errors:[] after a clean second run. The require.main guard means tests can require('main.js') without triggering main() auto-run \u2014 the writer is testable in isolation. residualConcerns honest that this is visibility, not behavior change."
   },
   {
     "filepath": "src/core/server/app.js",
