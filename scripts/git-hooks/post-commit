@@ -21,10 +21,30 @@
 
 set -u
 
-# Configuration — override via environment if needed.
+# Configuration. Resolution order for ST8_PORT:
+#   1. explicit env var (export ST8_PORT=…)
+#   2. .st8/server.port written by the running server at startup
+#   3. fallback default 3847
+# Git invokes hooks with a minimal env, so the .st8/server.port file is the
+# reliable cross-process channel — exporting ST8_PORT in a shell profile
+# does NOT propagate to git hooks in most setups.
 ST8_HOST="${ST8_HOST:-localhost}"
-ST8_PORT="${ST8_PORT:-3847}"
 ST8_TIMEOUT_S="${ST8_TIMEOUT_S:-2}"
+
+if [ -n "${ST8_PORT:-}" ]; then
+  : # env wins
+else
+  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  PORT_FILE="${REPO_ROOT}/.st8/server.port"
+  if [ -n "$REPO_ROOT" ] && [ -r "$PORT_FILE" ]; then
+    # Read first line, strip whitespace, validate it's a positive integer.
+    candidate=$(head -n 1 "$PORT_FILE" 2>/dev/null | tr -d ' \t\r\n')
+    if [ -n "$candidate" ] && [ "$candidate" -eq "$candidate" ] 2>/dev/null && [ "$candidate" -gt 0 ] 2>/dev/null; then
+      ST8_PORT="$candidate"
+    fi
+  fi
+  ST8_PORT="${ST8_PORT:-3847}"
+fi
 
 COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null) || exit 0
 SHORT_HASH=$(git rev-parse --short HEAD 2>/dev/null) || exit 0

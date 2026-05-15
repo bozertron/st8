@@ -48,14 +48,38 @@ class St8Server {
         this.server = http.createServer((req, res) => {
             this._handleRequest(req, res);
         });
-        
+
         this.server.listen(this.port, '127.0.0.1', () => {
             console.log(`[st8:server] Server running on http://localhost:${this.port} (bound to 127.0.0.1)`);
+            this._writePortFile();
         });
-        
+
         return true;
     }
-    
+
+    /**
+     * Write the live server port to <targetDir>/.st8/server.port so the
+     * post-commit git hook (and any other out-of-process tooling) can
+     * auto-discover where st8 is listening, rather than hardcoding 3847
+     * or relying on git invoking hooks with a usable env.
+     *
+     * Silent on success; logs a warning on failure (non-fatal — the server
+     * runs fine without the file).
+     */
+    _writePortFile() {
+        if (!this.targetDir) return;
+        try {
+            const st8Dir = path.join(this.targetDir, '.st8');
+            if (!fs.existsSync(st8Dir)) {
+                fs.mkdirSync(st8Dir, { recursive: true });
+            }
+            const portPath = path.join(st8Dir, 'server.port');
+            fs.writeFileSync(portPath, String(this.port) + '\n', 'utf8');
+        } catch (err) {
+            console.warn('[st8:server] Could not write .st8/server.port:', err.message);
+        }
+    }
+
     _handleRequest(req, res) {
         const url = new URL(req.url, `http://localhost:${this.port}`);
         
@@ -1624,6 +1648,14 @@ class St8Server {
         if (this.server) {
             this.server.close();
             console.log('[st8:server] Server stopped');
+        }
+        // Remove the port file so stale readers don't keep hitting a dead
+        // port. Best-effort — missing file is fine.
+        if (this.targetDir) {
+            try {
+                const portPath = path.join(this.targetDir, '.st8', 'server.port');
+                if (fs.existsSync(portPath)) fs.unlinkSync(portPath);
+            } catch (_) { /* non-fatal */ }
         }
     }
 }
