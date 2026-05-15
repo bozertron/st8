@@ -59,12 +59,57 @@ TIMESTAMP=$(git log -1 --pretty=%cI 2>/dev/null) || exit 0
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || BRANCH="(detached)"
 FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | wc -l | tr -d ' ')
 
-# Escape quotes/backslashes for JSON.
-escape_json() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
-}
-
-PAYLOAD=$(cat <<EOF
+# Build the JSON payload. Prefer jq when available — it correctly
+# escapes the full C0 control-char range (NUL, BEL, BS, FF, VT, etc.)
+# AND all higher-plane characters, so commit subjects with weird bytes
+# (which `git log` can emit verbatim) produce valid JSON.
+#
+# When jq is missing, fall back to an awk-based escaper that handles
+# every U+0000..U+001F control character (per RFC 8259 §7) plus the
+# two structural characters (\ and ").
+if command -v jq >/dev/null 2>&1; then
+  PAYLOAD=$(jq -n \
+    --arg hash         "$COMMIT_HASH" \
+    --arg shortHash    "$SHORT_HASH" \
+    --arg subject      "$SUBJECT" \
+    --arg author       "$AUTHOR" \
+    --arg timestamp    "$TIMESTAMP" \
+    --arg branch       "$BRANCH" \
+    --argjson filesChanged "${FILES_CHANGED:-0}" \
+    '{hash:$hash, shortHash:$shortHash, subject:$subject, author:$author, timestamp:$timestamp, branch:$branch, filesChanged:$filesChanged}')
+else
+  # Fallback: awk-based escape covering every C0 control character.
+  # Emits \uXXXX for chars in U+0000..U+001F (plus \b\t\n\f\r short
+  # forms where JSON specifies them) and escapes \ and ".
+  escape_json() {
+    printf '%s' "$1" | awk '
+    BEGIN {
+      for (i = 0; i < 32; i++) {
+        # short forms per RFC 8259
+        if (i == 8)       esc[sprintf("%c", i)] = "\\b"
+        else if (i == 9)  esc[sprintf("%c", i)] = "\\t"
+        else if (i == 10) esc[sprintf("%c", i)] = "\\n"
+        else if (i == 12) esc[sprintf("%c", i)] = "\\f"
+        else if (i == 13) esc[sprintf("%c", i)] = "\\r"
+        else              esc[sprintf("%c", i)] = sprintf("\\u%04x", i)
+      }
+      esc["\\"] = "\\\\"
+      esc["\""] = "\\\""
+    }
+    {
+      out = ""
+      n = length($0)
+      for (j = 1; j <= n; j++) {
+        c = substr($0, j, 1)
+        if (c in esc) out = out esc[c]
+        else          out = out c
+      }
+      printf "%s", out
+      # Preserve trailing newlines between input records too.
+      if (FNR < NR) out = out "\\n"
+    }'
+  }
+  PAYLOAD=$(cat <<EOF
 {
   "hash": "$(escape_json "$COMMIT_HASH")",
   "shortHash": "$(escape_json "$SHORT_HASH")",
@@ -72,10 +117,11 @@ PAYLOAD=$(cat <<EOF
   "author": "$(escape_json "$AUTHOR")",
   "timestamp": "$(escape_json "$TIMESTAMP")",
   "branch": "$(escape_json "$BRANCH")",
-  "filesChanged": $FILES_CHANGED
+  "filesChanged": ${FILES_CHANGED:-0}
 }
 EOF
 )
+fi
 
 # Fire-and-forget POST. Suppress all output so the hook is silent on success
 # and silent on st8-not-running. Only one possible visible effect: stderr
