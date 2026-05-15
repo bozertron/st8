@@ -41,6 +41,36 @@ const { registerForceChecks } = require('../hooks/force-checks');
 // @param {{path: string, type: 'add'|'change'|'unlink'}} change
 // @param {{targetDir: string, persistence: object, resultFiles: object[]}} ctx
 // @returns {{file: object, mutation: object} | null}
+/**
+ * Write a structured summary of the INDEX_COMPLETE subscriber chain to
+ * `.st8/index-complete-errors.json`. Ticket 26.
+ *
+ * The file is overwritten every INDEX_COMPLETE pass, so a clean run
+ * truncates the previous run's errors. CI and dashboards that want
+ * historical errors should snapshot this file per build.
+ *
+ * Shape:
+ *   {
+ *     timestamp: '2026-05-15T...Z',
+ *     ok: N,           // count of subscribers that returned cleanly
+ *     fail: M,         // count of subscribers that threw
+ *     errors: [{ source, error }]  // [] on a clean run
+ *   }
+ */
+async function _writeIndexCompleteSummary(targetDir, summary) {
+    const fsp = require('fs').promises;
+    const out = {
+        timestamp: new Date().toISOString(),
+        ok: summary.ok,
+        fail: summary.fail,
+        errors: summary.errors,
+    };
+    const dir = path.join(targetDir, '.st8');
+    const file = path.join(dir, 'index-complete-errors.json');
+    await fsp.mkdir(dir, { recursive: true });
+    await fsp.writeFile(file, JSON.stringify(out, null, 2) + '\n');
+}
+
 function _applyFileChange(change, ctx) {
     const { targetDir, persistence, resultFiles } = ctx;
     const relativePath = path.relative(targetDir, change.path);
@@ -307,13 +337,36 @@ async function main() {
         // above via registerDefaultSubscribers) handle manifest generation,
         // schema-card emission, gap analysis, and intent seeding. Any future
         // module can register additional handlers without touching main.js.
-        await hookRegistry.execute(HOOKS.INDEX_COMPLETE, {
+        //
+        // Ticket 26: surface aggregated subscriber errors. Previously the
+        // execute() summary was discarded — a failure in any subscriber
+        // (e.g. manifest-generator) was visible only in scrollback as a
+        // generic `[hooks] "index:complete" subscriber "<name>" threw:` log
+        // line. Now we both log a one-line summary AND write a structured
+        // error block to .st8/index-complete-errors.json (truncated on a
+        // clean run) so a downstream consumer (CI, dashboard, the
+        // force-check report itself) has a machine-readable view.
+        const indexCompleteSummary = await hookRegistry.execute(HOOKS.INDEX_COMPLETE, {
             result,
             targetDir,
             persistence,
             emitter,
             printer,
         });
+        try {
+            await _writeIndexCompleteSummary(targetDir, indexCompleteSummary);
+        } catch (writeErr) {
+            console.error('[st8] Failed to write index-complete summary:', writeErr.message);
+        }
+        if (indexCompleteSummary.fail > 0) {
+            console.error(
+                `[st8] INDEX_COMPLETE finished with ${indexCompleteSummary.fail} subscriber error(s):`
+            );
+            for (const e of indexCompleteSummary.errors) {
+                console.error(`[st8]   - ${e.source}: ${e.error}`);
+            }
+            console.error('[st8] See .st8/index-complete-errors.json for the full report.');
+        }
     }
     
     // Start file watcher if requested
@@ -431,9 +484,24 @@ async function main() {
     }
 }
 
-// ─── RUN ─────────────────────────────────────────────────────
+// ─── EXPORTS ─────────────────────────────────────────────────
+// Module-level helpers exported for unit testing. main() itself is
+// exported too so a test runner could in principle drive a full boot
+// (today none does — keep this surface small).
+module.exports = {
+    main,
+    _applyFileChange,
+    _writeIndexCompleteSummary,
+};
 
-main().catch(err => {
-    console.error('[st8] Fatal error:', err);
-    process.exit(1);
-});
+// ─── RUN ─────────────────────────────────────────────────────
+// Auto-run main() ONLY when this file is invoked directly (e.g.
+// `node src/core/server/main.js <targetDir>`), not when it is
+// `require()`'d from a test. require.main === module is the canonical
+// "am I the entry point" check.
+if (require.main === module) {
+    main().catch(err => {
+        console.error('[st8] Fatal error:', err);
+        process.exit(1);
+    });
+}
