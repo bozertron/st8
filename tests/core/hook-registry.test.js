@@ -320,3 +320,225 @@ test('HookRegistry — module-level singleton is exported and distinct from new 
   const fresh = new HookRegistry();
   assert.notEqual(fresh, hookRegistry);
 });
+
+// ─── Ticket 15: EventEmitter re-emit listener throws are isolated + counted ───
+
+test('HookRegistry — ticket 15: throw from .on() listener is counted in summary.fail', async () => {
+  // Before ticket 15, throws from listeners attached via .on() (the
+  // EventEmitter re-emit path after the priority loop) were not caught
+  // by the registry's try/catch — they propagated as uncaught
+  // exceptions. The fix: iterate rawListeners() and call each inside
+  // its own try/catch, count failures in summary.fail.
+  const r = new HookRegistry();
+  let registeredFired = false;
+  r.register('test:t15', () => { registeredFired = true; }, { source: 'reg', priority: 10 });
+  r.on('test:t15', () => { throw new Error('listener-boom'); });
+
+  let executeDidThrow = false;
+  let summary;
+  try {
+    summary = await r.execute('test:t15', {});
+  } catch (_) {
+    executeDidThrow = true;
+  }
+
+  assert.equal(executeDidThrow, false, 'execute() must not throw — listener throw was contained');
+  assert.equal(registeredFired, true, 'priority-loop handler still ran');
+  assert.equal(summary.ok, 1, 'registered handler counted as ok');
+  assert.equal(summary.fail, 1, 'listener throw counted as fail');
+  assert.equal(summary.errors.length, 1);
+  assert.equal(summary.errors[0].source, 'event-listener');
+  assert.equal(summary.errors[0].error, 'listener-boom');
+});
+
+test('HookRegistry — ticket 15: one listener throwing does not block other listeners', async () => {
+  // Two .on() listeners; the first throws; the second must still fire.
+  const r = new HookRegistry();
+  let secondFired = false;
+  r.on('test:t15-multi', () => { throw new Error('first-listener-boom'); });
+  r.on('test:t15-multi', () => { secondFired = true; });
+
+  const summary = await r.execute('test:t15-multi', {});
+
+  assert.equal(secondFired, true, 'second listener must run even though first threw');
+  assert.equal(summary.fail, 1);
+  assert.equal(summary.errors.length, 1);
+  assert.equal(summary.errors[0].source, 'event-listener');
+});
+
+// ─── Ticket 12: registerDefaultSubscribers idempotency ───
+
+test('registerDefaultSubscribers — ticket 12: idempotent (calling twice does not duplicate handlers)', async () => {
+  const { registerDefaultSubscribers, _resetDefaultSubscribersFlag } =
+    require('../../src/core/hooks/default-subscribers');
+  const r = new HookRegistry();
+
+  registerDefaultSubscribers(r);
+  const firstSnapshot = r.listHooks().map((h) => ({ name: h.name, count: h.count }));
+
+  // Second call: must be a no-op.
+  registerDefaultSubscribers(r);
+  const secondSnapshot = r.listHooks().map((h) => ({ name: h.name, count: h.count }));
+
+  assert.deepEqual(firstSnapshot, secondSnapshot, 'subscriber counts must be identical after second register');
+
+  // Spot-check: INDEX_COMPLETE has exactly 5 default subscribers
+  // (manifest, schema-card-emitter, gap-analyzer, intent-seeder,
+  // mutation-log-retention). force-checks is registered separately.
+  const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
+  assert.equal(idxComplete.count, 5, 'INDEX_COMPLETE should have exactly 5 default subscribers, not 10');
+
+  // INDEX_START has exactly 1 (sonic-daemon), not 2.
+  const idxStart = r.listHooks().find((h) => h.name === HOOKS.INDEX_START);
+  assert.equal(idxStart.count, 1, 'INDEX_START should have exactly 1 default subscriber');
+
+  // Cleanup so the symbol flag does not leak (cosmetic — registry is GC'd).
+  _resetDefaultSubscribersFlag(r);
+});
+
+test('registerDefaultSubscribers — ticket 12: _resetDefaultSubscribersFlag unblocks re-register', () => {
+  const { registerDefaultSubscribers, _resetDefaultSubscribersFlag } =
+    require('../../src/core/hooks/default-subscribers');
+  const r = new HookRegistry();
+
+  registerDefaultSubscribers(r);
+  // Second call would have been a no-op; clear() wipes subscribers but
+  // not the flag, so we MUST also reset the flag to re-register.
+  r.clear();
+  _resetDefaultSubscribersFlag(r);
+  registerDefaultSubscribers(r);
+
+  const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
+  assert.equal(idxComplete.count, 5, 'after clear+reset, defaults re-register cleanly');
+});
+
+// ─── Ticket 14: sonic-daemon subscriber survives missing module ───
+
+test('default-subscribers — ticket 14: sonic-daemon module is required at top-level (not in handler)', () => {
+  // The module exports sonicDaemon as an internal — we cannot inspect it
+  // directly. But we CAN verify the previous behavior is gone: the handler
+  // body no longer contains require('../../features/search/sonic-daemon').
+  const fs = require('fs');
+  const path = require('path');
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'core', 'hooks', 'default-subscribers.js'),
+    'utf8'
+  );
+  // Top-level require must exist.
+  assert.match(
+    source,
+    /^try \{\s*sonicDaemon = require\('\.\.\/\.\.\/features\/search\/sonic-daemon'\);/m,
+    'top-level try/catch require of sonic-daemon must exist'
+  );
+  // No lazy require inside the handler body.
+  const handlerBody = source.split('registry.register(HOOKS.INDEX_START')[1];
+  assert.equal(
+    /require\(['"]\.\.\/\.\.\/features\/search\/sonic-daemon['"]\)/.test(handlerBody.split('}, { priority: 10')[0]),
+    false,
+    'sonic-daemon must NOT be lazy-required inside the INDEX_START handler'
+  );
+});
+
+test('default-subscribers — ticket 14: subscriber survives an INDEX_START fire (no throw)', async () => {
+  // We register the defaults against a fresh registry and fire INDEX_START
+  // with a targetDir that points at a tmp dir. The sonic-daemon module
+  // is real (loaded at top-level of default-subscribers); calling
+  // daemon.start in a test environment may fail (no sonic binary), but
+  // the handler must catch that and NOT throw out of execute().
+  const { registerDefaultSubscribers, _resetDefaultSubscribersFlag } =
+    require('../../src/core/hooks/default-subscribers');
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+
+  const r = new HookRegistry();
+  registerDefaultSubscribers(r);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'st8-t14-'));
+  try {
+    let threw = false;
+    let summary;
+    try {
+      summary = await r.execute(HOOKS.INDEX_START, { targetDir: tmp });
+    } catch (_) {
+      threw = true;
+    }
+    assert.equal(threw, false, 'INDEX_START execute must not throw');
+    // The subscriber either succeeded (ok:1) or failed-internally and the
+    // registry's catch surfaced fail:1. Both are acceptable — the
+    // contract is "must not throw out of execute()".
+    assert.equal(summary.ok + summary.fail, 1);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    _resetDefaultSubscribersFlag(r);
+    // Stop the sonic daemon if it started, so the test doesn't leak a process.
+    try {
+      const daemon = require('../../src/features/search/sonic-daemon');
+      if (typeof daemon.stop === 'function') await daemon.stop();
+    } catch (_) { /* daemon module unavailable — fine */ }
+  }
+});
+
+// ─── Ticket 13: subscriber try/catch convention ───
+
+test('default-subscribers — ticket 13: every INDEX_COMPLETE subscriber survives a bare-ctx INDEX_COMPLETE fire', async () => {
+  // Ticket 13 convention: every default subscriber wraps its body in
+  // its own try/catch with a module-tagged log line. Effect: a bare ctx
+  // (no ctx.result, ctx.emitter, ctx.persistence) fires the entire
+  // chain to completion. Each subscriber either short-circuits cleanly
+  // (defensive guards) or its inner catch swallows the throw — and the
+  // outer registry catch is the safety net.
+  //
+  // What we assert: execute() returns a summary, does not throw, and
+  // every subscriber position was visited (ok + fail accounts for all
+  // 5). Whether each one ok'd or fail'd is implementation-detail —
+  // both branches still pass the convention because BOTH paths leave
+  // the priority chain intact.
+  const { registerDefaultSubscribers, _resetDefaultSubscribersFlag } =
+    require('../../src/core/hooks/default-subscribers');
+  const r = new HookRegistry();
+  registerDefaultSubscribers(r);
+
+  let threw = false;
+  let summary;
+  try {
+    summary = await r.execute(HOOKS.INDEX_COMPLETE, {});
+  } catch (_) {
+    threw = true;
+  }
+  assert.equal(threw, false, 'execute(INDEX_COMPLETE, {}) must not throw');
+  // All 5 default subscribers ran.
+  assert.equal(summary.ok + summary.fail, 5, 'all 5 subscribers must have been visited');
+
+  _resetDefaultSubscribersFlag(r);
+});
+
+test('default-subscribers — ticket 13: registry catch isolates a P=10 throw from later subscribers', async () => {
+  // Most direct probe: register a thrower at P=5 (before manifest), and
+  // assert that the 5 default INDEX_COMPLETE subscribers AND a P=99
+  // observer both still run. Proves the convention isn't load-bearing
+  // on the inner catches alone — the registry's outer catch is the
+  // safety net.
+  const { registerDefaultSubscribers, _resetDefaultSubscribersFlag } =
+    require('../../src/core/hooks/default-subscribers');
+  const r = new HookRegistry();
+  // Register an early thrower BEFORE the defaults so it runs first.
+  r.register(HOOKS.INDEX_COMPLETE, () => { throw new Error('early-boom'); }, { priority: 5, source: 'test-thrower' });
+  registerDefaultSubscribers(r);
+  let observerRan = false;
+  r.register(HOOKS.INDEX_COMPLETE, () => { observerRan = true; }, { priority: 99, source: 'test-observer' });
+
+  const summary = await r.execute(HOOKS.INDEX_COMPLETE, {});
+
+  assert.equal(observerRan, true, 'P=99 observer must run even though P=5 threw');
+  // 5 defaults + 1 thrower + 1 observer = 7 subscribers visited.
+  assert.equal(summary.ok + summary.fail, 7);
+  // The thrower contributed at least 1 fail.
+  assert.equal(summary.fail >= 1, true);
+  assert.equal(
+    summary.errors.some((e) => e.source === 'test-thrower'),
+    true,
+    'thrower must surface in summary.errors'
+  );
+
+  _resetDefaultSubscribersFlag(r);
+});
