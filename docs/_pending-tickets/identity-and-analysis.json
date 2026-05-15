@@ -37,13 +37,15 @@
     "filepath": "src/features/analysis/gap-analyzer.js",
     "userNote": "Zero unit tests for the 6 dimensions. D1-D6 each compute summary metrics that the gap-analysis.md report depends on, but there's no fixture-driven test that asserts e.g. 'a card with empty intent.purpose AND non-empty intent.valueStatement counts as unauthored'. The intent-coverage percentage that drives D3 is silently sensitive to the '(not set)' sentinel check on line 217.",
     "severity": "medium",
-    "status": "open",
-    "executedAt": null,
-    "executedBy": null,
-    "actionsTaken": null,
-    "filesChanged": [],
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3c-executor",
+    "actionsTaken": "Added tests/features/analysis/gap-analyzer.test.js — 10 probes, all green. Each dimension D1..D6 gets a dedicated synthetic-fixture probe; a roll-up probe runs all 6 against a realistic mini-codebase and asserts the toMarkdown() report contains each dimension header. Test infrastructure follows tests/README.md conventions: node:test + node:assert/strict, per-test temp dirs via fs.mkdtempSync, cleanup in t.after via a cleanupDir helper. No mocks of the SUT — GapAnalyzer is constructed for real and reads real card JSONs off disk.\n\nProbes:\n  D1 (lifecycle): asserts phase distribution counts, canProgress filtering excludes PRODUCTION even when intent present, hasPurpose/hasValueStatement flags carry through.\n  D2 (status): asserts RED root-cause inference for both 'No exports' and 'No importers' causes (independently and combined), GREEN-low-reachability threshold of 0.3, YELLOW count.\n  D3 (intent): asserts the load-bearing '(not set)' sentinel check AND empty-string AND whitespace-only all count as unauthored. Verifies directory grouping isolates by path.dirname.\n  D4 (exports): asserts CommonJS vs ES6 classification (any `import` wins over `require`), exportCoverage percentage, exportDetails per-file count.\n  D5 (connections): asserts the `||`-split fingerprint parsing produces orphan import detection, isolated-file roll-up requires BOTH empty imports AND empty importedBy.\n  D6 (architecture): two probes — one positive (8 component cards seeded, asserts 7/8 with notification-bus correctly flagged absent, hasPRD true), one negative (only server card seeded, asserts 12+ missingEndpoints all carrying their requiredModule path).\n\nRoll-up + edge-case + writeReport probes round out the file. npm test went 192 → 202 (all pass).\n\nNote: gap-analyzer.js's _loadCards catches per-file parse errors and continues, so a fixture with malformed JSON would skip-not-crash. Did not add a probe for that path since the userNote scope is dimension correctness, not loader robustness.",
+    "filesChanged": [
+      "tests/features/analysis/gap-analyzer.test.js"
+    ],
     "commitHash": null,
-    "residualConcerns": null,
+    "residualConcerns": "The intent-coverage percentage check at gap-analyzer.js:217 ('(not set)' sentinel) is now pinned by the D3 probe — if a future refactor changes the sentinel string the test will fail loudly. D4's CommonJS vs ES6 rule ('any import wins') is similarly pinned; if the rule changes to 'majority wins' or 'first wins' the mixed-imports probe surfaces it. D6's positive probe asserts endpointCoverage = 14/14 against the current 14-endpoint map in gap-analyzer.js — if the map grows or shrinks the test pin will need updating. These are intentional regression locks, not brittleness.",
     "verdict": null,
     "reviewNote": null
   },
@@ -213,7 +215,7 @@
     "filesChanged": [
       "src/frontend/components/dive-in/dive-in.js"
     ],
-    "commitHash": null,
+    "commitHash": "743b9bda404bffca869e90ce191600bd7bcba48d",
     "residualConcerns": "If Louis Phase L1 ships before frontend Wave 7, the data will exist with no consumer. The reverse — Wave 7 attempting the render before Louis ships — would have to either stub the data layer (a cheat) or block. The DEFERRAL NOTE's sequencing paragraph makes the dependency order explicit so neither cluster fronts the other.",
     "verdict": null,
     "reviewNote": null
