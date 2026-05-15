@@ -2,6 +2,43 @@
 // src/utils/astParser.ts
 // AST-based import/export extraction using @babel/parser
 // Fixes: I-02, I-03, I-10, I-12
+//
+// ─── SPECIFIER COVERAGE MATRIX ─────────────────────────────────────────
+// (identity-and-analysis ticket 11 — executable matrix lives in
+//  tests/shared/utils/ast-parser-coverage.test.js)
+//
+//   IMPORTS (6 shapes)
+//     1. default        — import X from 'mod'                 — parseImportDeclaration
+//     2. named          — import { a, b } from 'mod'          — parseImportDeclaration
+//     3. namespace      — import * as X from 'mod'            — parseImportDeclaration
+//     4. side-effect    — import 'mod'                        — parseImportDeclaration
+//     5. dynamic        — import('mod')                       — extractDynamicImportsFromAST
+//                                                              + extractDynamicImportsViaRegex (fallback)
+//     6. require        — require('mod')                      — extractRequireStatements (regex)
+//
+//   EXPORTS (7 shapes)
+//     7. module.exports = X         (identifier)              — extractCommonJSExportsFromAST
+//     8. module.exports = { a, b }  (object)                  — extractCommonJSExportsFromAST
+//     9. exports.foo = ...          (property)                — extractCommonJSExportsFromAST
+//    10. export { a, b }            (ES named, no source)     — main loop
+//    11. export const x = ...       (declaration)             — parseExportDeclaration
+//    12. export default ...                                   — parseDefaultExport
+//    13. export * from './m'        (star re-export)          — resolveExportStar
+//                                                              + traceReexportChain
+//
+//   SOURCE EXTRACTION (1 shape)
+//    14. <script> block in .vue                               — extractScriptFromVue
+//
+//   KNOWN LIMITATIONS (probes documented in the test file):
+//     - require(`./foo${suffix}`)  — template-literal require: best-effort
+//     - import(variable)           — dynamic import with variable source: not resolvable
+//     - export = X                 — TS `export = ...`: only one probe in extractor (TSExportAssignment)
+//
+// Consumer audit: this matrix is the contract that schema-cards/emitter.js,
+// indexer.js (Pass-1 imports), intent-seeder.js, and data-ingestion.js rely on.
+// If a new shape is added, add a row to this table AND a probe to the test
+// file in the same PR — otherwise downstream gap-analysis becomes silently
+// incomplete.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
