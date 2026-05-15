@@ -13,37 +13,18 @@
 'use strict';
 
 const path = require('path');
-const fs = require('fs');
 const { St8FileEntry, LifecyclePhase, FileStatus } = require('../../shared/types/st8-types');
 
 // ─── LIB CODE REFERENCES ─────────────────────────────────────
-// Post-move: graph-persister.js now lives alongside this file in
-// src/core/database/. The dynamic-loader pattern is preserved (graceful
-// fallback on missing module) but LIB_DIR now points at the local directory.
-
-const LIB_DIR = __dirname;
-
-let _databasePersister = null;
-
-function loadLibModule(modulePath) {
-    try {
-        const fullPath = path.join(LIB_DIR, modulePath);
-        if (!fs.existsSync(fullPath)) {
-            throw new Error(`Lib module not found: ${fullPath}`);
-        }
-        return require(fullPath);
-    } catch (err) {
-        console.error(`[st8:persistence] Failed to load lib module: ${modulePath}`, err.message);
-        return null;
-    }
-}
-
-function getDatabasePersister() {
-    if (!_databasePersister) {
-        _databasePersister = loadLibModule('graph-persister.js');
-    }
-    return _databasePersister;
-}
+// The old loadLibModule / getDatabasePersister helpers (a dynamic-loader
+// pattern that tried to construct a maestro DatabasePersister against
+// st8.sqlite first) were dead code: graph-persister.js exports the class
+// via `exports.DatabasePersister = ...`, so `typeof require(...) ===
+// 'function'` was always false and the loader's only consumer (the old
+// initialize() try-block) always fell through to better-sqlite3 direct.
+// Removed alongside the fallthrough cleanup (ticket 6). graph-persister.js
+// remains in this directory because insight-store imports it separately
+// for the unrelated getSharedDatabasePath() helper.
 
 // ─── ST8 SCHEMA ──────────────────────────────────────────────
 
@@ -285,19 +266,31 @@ class St8Persistence {
     
     async initialize() {
         try {
-            // Try to use maestro's DatabasePersister
-            const DatabasePersister = getDatabasePersister();
-            if (DatabasePersister && typeof DatabasePersister === 'function') {
-                this.db = new DatabasePersister(this.dbPath);
-                console.log('[st8:persistence] Using maestro DatabasePersister');
-            } else {
-                // Fallback: use better-sqlite3 directly
-                const Database = require('better-sqlite3');
-                this.db = new Database(this.dbPath);
-                this.db.pragma('journal_mode = WAL');
-                this.db.pragma('synchronous = NORMAL');
-                console.log('[st8:persistence] Using better-sqlite3 directly');
-            }
+            // st8.sqlite owns its own schema (the 9 tables declared in
+            // ST8_SCHEMA below). The maestro-derived DatabasePersister in
+            // ./graph-persister.js is project-scoped to a different file
+            // (scaffolder_data.sqlite, used by the integr8 pipeline) and
+            // declares an unrelated graph-of-nodes-and-edges schema. The
+            // old code attempted `new DatabasePersister(this.dbPath)` first
+            // and fell through to better-sqlite3 direct — but graph-persister
+            // exports the class via `exports.DatabasePersister = ...`, so
+            // `typeof require('./graph-persister') === 'function'` was always
+            // false and the maestro branch never ran. The fallthrough was the
+            // real path, and the log line read like a routine success.
+            //
+            // Drop the dead branch. st8 always uses better-sqlite3 directly
+            // against st8.sqlite. graph-persister.js stays in the tree
+            // because insight-store imports it separately for the
+            // getSharedDatabasePath() helper (a different DB file).
+            const Database = require('better-sqlite3');
+            this.db = new Database(this.dbPath);
+            this.db.pragma('journal_mode = WAL');
+            this.db.pragma('synchronous = NORMAL');
+            console.log(
+                '[st8:persistence] Initialised better-sqlite3 ' +
+                '(st8.sqlite owns its own schema; maestro DatabasePersister ' +
+                'is project-scoped to scaffolder_data.sqlite)'
+            );
 
             // Enforce declared FOREIGN KEY constraints. Without this pragma,
             // SQLite accepts orphan rows in connections, file_intent,
