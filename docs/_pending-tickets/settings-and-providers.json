@@ -1,0 +1,62 @@
+[
+  {
+    "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
+    "userNote": "`editEntry(categoryId, index)` (line 251) is a stub that only `console.info`s the args. There is no form to set a `models` entry's provider / model / apiKey / baseUrl / enabled fields. `addEntry()` (line 243) only pushes the placeholder `{id:'new-entry', name:'New Entry'}` and never asks the user for the actual schema. Combined effect: the entire LLM_PROVIDERS registry is plumbing with no user-facing surface — a user cannot create a usable `models` entry from the UI today.",
+    "severity": "high",
+    "status": "RED"
+  },
+  {
+    "filepath": "/home/user/st8/src/core/server/app.js",
+    "userNote": "No backend route exists to actually invoke a configured model. Even if `editEntry()` were built and a user populated a `models` entry with provider + apiKey + model, there is no `/api/llm-call` or `/api/chat` endpoint that consumes a `models` entry, routes to the right provider SDK, and returns a completion. The settings layer is feeding nothing.",
+    "severity": "high",
+    "status": "RED"
+  },
+  {
+    "filepath": "/home/user/st8/src/core/database/persistence.js",
+    "userNote": "`upsertSetting()` (line 622) stores `value` as plain TEXT in `st8_settings`. A `models` entry's `apiKey` is therefore persisted plaintext into SQLite (`st8.sqlite`). The LLM_PROVIDERS registry has an `envKey` fallback documented in the schema comment but the persistence path has no opt-out — once `editEntry()` ships, every typed-in key lands on disk in cleartext. Needs either env-only mode (refuse to store, read from `process.env[envKey]` at call time) or symmetric encryption at rest.",
+    "severity": "high",
+    "status": "RED"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
+    "userNote": "`SETTINGS_CATEGORIES` (line 15) and `DEFAULT_SETTINGS` (line 67) must be kept in lock-step manually. There is no assertion at module load that every category id has a matching DEFAULT_SETTINGS top-level key (or vice versa). A typo — `voidflow` vs `void_flow` — silently produces an empty form because `renderCategoryEntries` falls through to `{}`. Add a startup sanity check that compares `SETTINGS_CATEGORIES.map(c => c.id).sort()` against `Object.keys(DEFAULT_SETTINGS).sort()` and throws (or console.errors loudly) on mismatch.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
+    "userNote": "No type validation on persisted values. `renderCategoryEntries` (line 129) infers the input type via `typeof value`. If the SQLite round-trip ever returns `reveal_wpm: \"200\"` (string) instead of `200` (number) — which can happen if a value was written before its key was numeric, or if JSON.parse falls through to the raw string branch in `persistence.getAllSettings` — the field renders as a text input and subsequent edits propagate strings. Validate against DEFAULT_SETTINGS' type for the same key before rendering and coerce or warn.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/core/database/persistence.js",
+    "userNote": "`st8_settings` schema (line 132) has no migration story. If `DEFAULT_SETTINGS` ever renames a key (`reveal_wpm` → `reveal_words_per_minute`), the existing row stays under the old name forever and the new key reads as default. There is no `schemaVersion` column, no `_migrations` table for settings, no rename map. Same DB-migration gap as the broader codebase but bites harder here because the UI silently ignores orphaned rows.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
+    "userNote": "`window.St8Settings.getLLMProviders()` (line 373) is exposed but no caller in src/ invokes it. Batch 025 added it specifically so the (future) `editEntry()` provider dropdown would consume it — but until that dropdown ships, the API is a dead export. Either ship the consumer or document the exposure as intentional future-facing.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
+    "userNote": "`DEFAULT_SETTINGS.theme` (line 84) declares `palette_overrides`, `font_sizes`, `spacing_scale`, and the UI happily renders + persists edits to them, but nothing in the front end actually applies these values to CSS. No `:root` style injection, no CSS variable bridge — the theme category is a write-only UI today. Either wire a `applyTheme(theme)` that sets CSS custom properties on `document.documentElement` after `loadSettings()` resolves, or temporarily hide the category until the bridge exists.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/core/server/app.js",
+    "userNote": "`_handleSettings` (line 430) accepts any non-empty `category` + `key` strings. There is no enum check against `SETTINGS_CATEGORIES` ids — a POST with `category: 'voidfloow'` (typo) succeeds and creates a permanently-orphaned row that no UI category will ever read. Either expose a known-categories list from a shared source-of-truth module on both ends or validate against `getAllSettings()`-discovered categories at write time.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
+    "userNote": "`updateValue` (line 196) writes to `settingsState.entries` and POSTs to /api/settings, but never reads the server response. A 400 (missing category/key) or 413 (body > 1 KB — unlikely for a single value but possible for a large JSON blob) only logs to console — the in-memory state already diverged from what's on disk. Either roll back on non-OK response or surface a toast.",
+    "severity": "low",
+    "status": "YELLOW"
+  }
+]
