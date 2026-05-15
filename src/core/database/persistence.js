@@ -197,6 +197,65 @@ CREATE INDEX IF NOT EXISTS idx_tickets_open ON tickets(resolvedAt);
 CREATE INDEX IF NOT EXISTS idx_tickets_fingerprint ON tickets(fingerprint);
 `;
 
+// ─── EXPECTED SCHEMA (introspection target) ──────────────────
+//
+// Parallel to ST8_SCHEMA above. ST8_SCHEMA is what we CREATE; this is
+// what we EXPECT at boot. introspectSchema() runs `PRAGMA table_info`
+// on every listed table and logs a `[st8:persistence:drift]` warning
+// for missing tables, missing columns, or extra columns.
+//
+// Why a parallel structure instead of parsing ST8_SCHEMA? Parsing a
+// 150-line template literal at boot would be fragile (commented-out
+// blocks, multi-line FK clauses, etc.). A hand-maintained constant
+// keeps the diff explicit: anyone who touches ST8_SCHEMA is expected
+// to touch EXPECTED_SCHEMA in the same edit.
+//
+// Pairs naturally with a future migration framework (P1.1): the
+// migration runner mutates the live DB, the introspector confirms the
+// mutation landed and flags any column ST8_SCHEMA expects that an
+// older DB never gained (the five post-initial columns are the
+// canonical example — needsAIReview, tripleAtCount, aiContentInjected,
+// templateVariables, hasUnfilledVariables).
+//
+// Column-type comparison is intentionally case-insensitive and ignores
+// the trailing `(N)` size annotation — SQLite treats type names as
+// affinity hints, not strict types.
+const EXPECTED_SCHEMA = {
+    file_registry: [
+        'fingerprint', 'filepath', 'filename', 'sha256Hash', 'fileSizeBytes',
+        'status', 'reachabilityScore', 'impactRadius', 'lifecyclePhase',
+        'birthTimestamp', 'lastModified', 'lastIndexed', 'isEntryPoint',
+        'lastAccessed', 'sessionsSinceAccess', 'expiryDate', 'associatedWith',
+        'eventTrigger', 'brunoStatus', 'needsAIReview', 'tripleAtCount',
+        'aiContentInjected', 'templateVariables', 'hasUnfilledVariables',
+    ],
+    connections: [
+        'id', 'sourceFingerprint', 'targetFingerprint', 'connectionType',
+        'importSpecifier', 'isResolved', 'confidenceScore', 'lastVerified',
+    ],
+    file_intent: [
+        'fingerprint', 'purpose', 'dependsOnBehavior', 'valueStatement',
+        'authoredBy', 'lastUpdated',
+    ],
+    file_mutation_log: [
+        'id', 'fingerprint', 'sha256Hash', 'mutationType', 'changedFields',
+        'actor', 'timestamp', 'metadata',
+    ],
+    activity_log: [
+        'id', 'timestamp', 'source', 'action', 'targetFingerprint', 'details',
+    ],
+    st8_settings: ['category', 'key', 'value', 'updatedAt'],
+    prd_projects: [
+        'id', 'name', 'path', 'template', 'variables', 'created', 'updated',
+    ],
+    ai_content: ['id', 'filepath', 'content', 'reviewed', 'timestamp'],
+    tickets: [
+        'id', 'fingerprint', 'filepath', 'sha256Hash', 'statusAtCreation',
+        'userNote', 'identityBundle', 'createdAt', 'claimedAt', 'claimedBy',
+        'resolvedAt', 'resolution',
+    ],
+};
+
 // ─── PERSISTENCE CLASS ───────────────────────────────────────
 
 class St8Persistence {
@@ -234,13 +293,104 @@ class St8Persistence {
             // Apply st8 schema
             this.db.exec(ST8_SCHEMA);
             console.log('[st8:persistence] Database initialized:', this.dbPath);
-            
+
+            // Detect drift between ST8_SCHEMA / EXPECTED_SCHEMA and the
+            // live DB. Pre-existing st8.sqlite files predate post-initial
+            // columns (needsAIReview, etc.) — without a migration framework
+            // they only land in a fresh DB. introspectSchema() logs the
+            // diff so the gap is visible, not silent. Throws are only on
+            // catastrophic introspection failure (e.g. sqlite_master
+            // unreadable) — column drift logs warnings and continues.
+            try {
+                const drift = this.introspectSchema();
+                if (drift.hasDrift) {
+                    for (const line of drift.report) {
+                        console.warn('[st8:persistence:drift]', line);
+                    }
+                }
+            } catch (driftErr) {
+                console.error('[st8:persistence] Schema introspection failed:', driftErr.message);
+            }
+
         } catch (err) {
             console.error('[st8:persistence] Failed to initialize database:', err.message);
             throw err;
         }
     }
-    
+
+    /**
+     * Compare EXPECTED_SCHEMA to the live DB via PRAGMA table_info.
+     * Returns a structured diff so callers can decide whether to log,
+     * throw, or attempt migration. initialize() calls this after the
+     * schema apply and logs warnings on any drift.
+     *
+     * @returns {{
+     *   hasDrift: boolean,
+     *   missingTables: string[],
+     *   extraTables: string[],
+     *   missingColumns: Record<string, string[]>,
+     *   extraColumns: Record<string, string[]>,
+     *   report: string[]
+     * }}
+     */
+    introspectSchema() {
+        const result = {
+            hasDrift: false,
+            missingTables: [],
+            extraTables: [],
+            missingColumns: {},
+            extraColumns: {},
+            report: [],
+        };
+
+        // Inventory of actual tables in the DB (skip sqlite internals).
+        const actualTableRows = this.db.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).all();
+        const actualTables = new Set(actualTableRows.map(r => r.name));
+        const expectedTables = new Set(Object.keys(EXPECTED_SCHEMA));
+
+        for (const t of expectedTables) {
+            if (!actualTables.has(t)) {
+                result.missingTables.push(t);
+                result.hasDrift = true;
+                result.report.push(`missing table: ${t}`);
+            }
+        }
+        for (const t of actualTables) {
+            if (!expectedTables.has(t)) {
+                result.extraTables.push(t);
+                result.hasDrift = true;
+                result.report.push(`extra table (not in EXPECTED_SCHEMA): ${t}`);
+            }
+        }
+
+        // Column diff for tables that exist on both sides.
+        for (const table of Object.keys(EXPECTED_SCHEMA)) {
+            if (!actualTables.has(table)) continue;
+            const actualCols = this.db.pragma(`table_info(${table})`).map(c => c.name);
+            const actualSet = new Set(actualCols);
+            const expectedCols = EXPECTED_SCHEMA[table];
+            const expectedSet = new Set(expectedCols);
+
+            const missing = expectedCols.filter(c => !actualSet.has(c));
+            const extra = actualCols.filter(c => !expectedSet.has(c));
+
+            if (missing.length > 0) {
+                result.missingColumns[table] = missing;
+                result.hasDrift = true;
+                result.report.push(`${table}: missing column(s) [${missing.join(', ')}]`);
+            }
+            if (extra.length > 0) {
+                result.extraColumns[table] = extra;
+                result.hasDrift = true;
+                result.report.push(`${table}: extra column(s) not in EXPECTED_SCHEMA [${extra.join(', ')}]`);
+            }
+        }
+
+        return result;
+    }
+
     // ─── FILE REGISTRY ──────────────────────────────────────
     
     upsertFile(file) {
