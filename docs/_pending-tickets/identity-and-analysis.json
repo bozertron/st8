@@ -13,8 +13,8 @@
     ],
     "commitHash": "255330f1205838596e9158c1697143bff6b02de5",
     "residualConcerns": "P3.1 in docs/_pending-roadmap/identity-and-analysis.md still calls for replacing the pattern matcher with AST-driven heuristics. The ordering lock added here makes that future refactor safer (the pin file becomes the regression suite the refactor must pass) but does NOT address the underlying fragility — a 70-row regex table is the wrong data structure for this job. Out of scope for ticket 0.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Manual probe via `new IntentSeeder({}, '/tmp', '/tmp')._generatePurpose('background-indexer.js', ...)` returned 'Codebase indexing and analysis ???' — the /indexer/ pattern wins over /index/ exactly as the JSDoc claims. The ordering-policy block above FILENAME_PURPOSE_MAP names the three principles (SPECIFIC > GENERIC, NAMED-ROLE > FRAMEWORK, CODE-MODULE > DOC-ARTEFACT) with concrete examples. tests/features/analysis/intent-seeder-ordering.test.js pins 14+ filename → purpose mappings (one test() with a table-driven assert loop) including the canonical background-indexer.js, database-persister.js, and schema-card-emitter.js probes. Note the userNote's example was slightly off (the executor flagged this honestly); the load-bearing-order point stands."
   },
   {
     "filepath": "src/features/analysis/intent-seeder.js",
@@ -30,8 +30,8 @@
     ],
     "commitHash": "883f435d5349cf5f34b62a7c287d1f35ffcda03d",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Read src/features/analysis/intent-seeder.js:228 (_readSourceOnce call) and the new helper at line 407. _parseFileContent accepts an optional preReadContent (line 428) and the @@@ scan reuses the cached content (line 235). The spy in tests/features/analysis/intent-seeder.test.js:47-59 captures all fs.readFileSync calls then filters with `reads.filter((p) => p === target)` — correctly scoped to ONLY the file under test, not the global call count. Mutation safety: removing the cache and reverting to two reads would push targetReads.length to 2, tripping the strict-equal assertion. The companion probes (@@@ detection, missing-file fallback, INFERRED authoredBy) round out the contract."
   },
   {
     "filepath": "src/features/analysis/gap-analyzer.js",
@@ -145,8 +145,8 @@
     ],
     "commitHash": "eed1bd229d1cc74328d50f12cb936a2eb0db3604",
     "residualConcerns": "FC3 force-check still flags multi-fingerprint stale accumulation in the live st8.sqlite — these are historical rows from runs that predate Wave 3A's birthTimestamp reuse. The emitter fix here prevents NEW accumulation; clearing the historical residue requires a one-off pruneFilesNotIn variant that operates per-fingerprint or per-stale-birthTimestamp. Flagged for the lifecycle cluster's next wave or for a Wave 3C reviewer-led cleanup.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Confirmed via live manual probe: built a SchemaCardEmitter on /tmp, supplied a fake persistence with two registry rows for app.js (birthTimestamps 2020-01-01 vs 2027-01-01), called emitAllCards in BOTH orderings. Both runs produced exactly one card (app.js.json) carrying sha-NEW + birthTimestamp=2027-01-01. The dedup block at emitter.js:120-131 uses lexicographic string comparison (b > a) on ISO-8601 birthTimestamp — correct because ISO-8601 ordering is monotonic in time. MUTATION PROBE: replaced the dedup block with `const files = allFiles.slice();` (no dedup); reran tests/features/schema-cards/emitter-prune.test.js → 6 pass / 2 fail (both MULTI-FINGERPRINT probes failed). Restored. The tests genuinely guard the bug. The residualConcerns flag for historical accumulation is appropriate and out-of-cluster (lifecycle cleanup)."
   },
   {
     "filepath": "src/features/indexing/store-parser.js",
@@ -167,8 +167,8 @@
     ],
     "commitHash": "b0de3f45fedbdbd5924d5dd42eb794eae9880d3f",
     "residualConcerns": "All seven parsers are still compiled-from-TS artifacts (the __createBinding / __importStar boilerplate at top + the trailing source-map footer are the tell-tales). If the upstream maestro-scaffolder-tool re-vendors them, the JSDoc headers will be overwritten unless the re-vendor process includes a header-preservation step. Recommended follow-up: add the parsers' filepaths to .gitattributes as linguist-generated=true (matches the graph-persister.js handling) AND document the re-vendor recipe in the upstream's README. Not in this ticket's scope.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified `grep -l 'INPUT CONTRACT' src/features/indexing/*.js | wc -l` → 7 (overview, store, route, command, type, ui, parser-persistence). Sampled headers: each carries INPUT CONTRACT / OUTPUT CONTRACT / CONSUMERS / KNOWN LIMITATIONS / ORIGIN sections. Contracts are specific — store-parser names `DEFAULT_STORE_DIR`, ui-parser names the NaiveUI assumption, route-parser names Vue-only routes. The 'emits text not JSON' caveat is correctly surfaced (data-ingestion.js then parses via regex). Comment-only diff, no code path touched; full test suite still green. Provenance residualConcerns (linguist-generated=true follow-up) is the right cross-cluster flag — out of scope here."
   },
   {
     "filepath": "src/shared/utils/ast-parser.js",
@@ -184,8 +184,8 @@
     ],
     "commitHash": "72e481162589a667405e5d8d73a804611427d3d0",
     "residualConcerns": "ast-parser.js is itself a compiled-from-TS artifact (witnessed by the __createBinding boilerplate at top and the trailing void-* exports pattern). If the file is re-vendored from upstream, the new SPECIFIER COVERAGE MATRIX header will be overwritten unless re-vendoring preserves the block. Same provenance concern as the parsers in ticket 10. Recommendation: add ast-parser.js to .gitattributes as linguist-generated=true and document the header-preservation expectation in the upstream's vendor-out process.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Header block at src/shared/utils/ast-parser.js:6-37 documents 14 shapes (6 imports + 7 exports + 1 source-extraction) + 3 known limitations, matching the executor's claim. tests/shared/utils/ast-parser-coverage.test.js contains 18 `test(` blocks (17 probes + 1 meta-coverage probe asserting all documented shapes have a probe). LIVE PROBE: `extractImportsAndExports` on `import { foo as bar, baz } from \"x\";` returns the correct named-aliased shape (`{name:'foo', alias:'bar'}, {name:'baz'}` with `importType: 'named'`). Matrix is honest about gaps (template-literal require asserts 'must not crash' rather than papering over). Same vendor-provenance residualConcern as ticket 10."
   },
   {
     "filepath": "src/frontend/components/dive-in/dive-in.js",
@@ -236,9 +236,9 @@
       "tests/shared/utils/birth-timestamp.test.js"
     ],
     "commitHash": "260cb805c3ab37b32090da1d420dbbe1739cd899",
-    "residualConcerns": "(1) Historical multi-fingerprint stale rows in the live st8.sqlite (visible in FC3 force-check output) are NOT cleaned up by this ticket. Wave 3A's ticket 15 prevents NEW drift; clearing the historical residue requires a one-off cleanup pass (per-fingerprint pruneFilesNotIn variant or a manual ALTER). Flagged for the lifecycle cluster or a Wave 3C reviewer.\n\n(2) The 1980 cutoff for isUnreliableBirthtime is a heuristic. If a real file genuinely has a 1979 birthtime (vintage archive, manually-set mtime via touch -t), it will be flagged as unreliable and fall back to mtime. This is a strictly safer mistake than the alternative (treating epoch as a real birth), but worth knowing.\n\n(3) The fallback reporter writes .st8/identity-risk.json synchronously inside indexDirectory. If the target dir is read-only or .st8/ is mounted as a separate filesystem with permissions issues, the write will console.error and continue — no behavioural regression from pre-fix, but the artifact won't surface the risk. The console.warn still fires regardless.",
-    "verdict": null,
-    "reviewNote": null
+    "residualConcerns": "(1) Historical multi-fingerprint stale rows in the live st8.sqlite (visible in FC3 force-check output) are NOT cleaned up by this ticket. Wave 3A's ticket 15 prevents NEW drift; clearing the historical residue requires a one-off cleanup pass (per-fingerprint pruneFilesNotIn variant or a manual ALTER). Flagged for the lifecycle cluster or a Wave 3C reviewer.\n\n(2) The 1980 cutoff for isUnreliableBirthtime is a heuristic. If a real file genuinely has a 1979 birthtime (vintage archive, manually-set mtime via touch -t), it will be flagged as unreliable and fall back to mtime. This is a strictly safer mistake than the alternative (treating epoch as a real birth), but worth knowing.\n\n(3) The fallback reporter writes .st8/identity-risk.json synchronously inside indexDirectory. If the target dir is read-only or .st8/ is mounted as a separate filesystem with permissions issues, the write will console.error and continue — no behavioural regression from pre-fix, but the artifact won't surface the risk. The console.warn still fires regardless.\n\n(4) REVIEWER-ADDED: .st8/identity-risk.json is written by indexer.js but has NO consumer anywhere in src/. `grep -rn 'identity-risk' src/` finds only writers. The console.warn line IS the live introspection surface today; the JSON file is a forward-compatible extension point. Wave 3B/3C should wire a reader (force-checks, gap-analyzer, or a dedicated /api/identity-risk route) or downgrade the executor's docstring claim that the artifact is 'consumed by introspection tools / force-checks'.",
+    "verdict": "ack",
+    "reviewNote": "LIVE IDENTITY-PRESERVATION PROBE PASSED. Built a real St8Persistence on /tmp, wrote a file, called deriveBirthTimestamp → origin 'stat-birthtime'; upserted the row; then `utimesSync` advanced mtime to 2027-01-01 and overwrote contents; called deriveBirthTimestamp a 2nd time WITH the same persistence → origin 'reused-persisted', SAME birthTimestamp. FP1 === FP2 → true. Identity thread survives the mtime move. The unit-test e2e probe (birth-timestamp.test.js:153) uses a stub persistence, but the real-persistence path was verified by this reviewer manually. Indexer wiring at indexer.js:384-395 + main.js:247 threads the shared persistence correctly. Watcher's 'add' branch (main.js:103-115) also reuses persistence so a delete-then-restore inside a session keeps identity. The 1980 heuristic is sound for modern filesystems; the 1979-vintage-archive concern is correctly noted. The unwired identity-risk.json artifact is the strongest residual gap — flagged in residualConcerns (4) for Wave 3B/3C."
   },
   {
     "filepath": "src/features/indexing/data-ingestion.js",
@@ -254,7 +254,7 @@
     ],
     "commitHash": "fffa53f50b422dc55d904fa98a6c75ed2ea8ff42",
     "residualConcerns": "The configs are exposed but NOT yet driven by st8_settings ('parserHealth' category). A future ticket may want to wire boot-time persistence-backed reads — call getSetting('parserHealth', 'failureThreshold') etc. on startup and configureDataIngestion() with the result. The shape is in place to support that; the wiring is the only missing piece. Out of scope for the userNote's 'expose for testability / runtime tuning' brief.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Manually probed: configureDataIngestion({circuitBreaker:{failureThreshold:-1}}) throws RangeError with descriptive message 'failureThreshold must be ≥ 1, got -1'; failureThreshold:0 also throws (bound is strictly ≥ 1); adaptiveRetry.maxRetries:-5 also throws RangeError. Deep-copy isolation confirmed: mutated `getDataIngestionConfig().circuitBreaker.failureThreshold = 999`, subsequent get returned the original 3. tests/features/indexing/data-ingestion-config.test.js has 11 probes covering each validator + the isolation + the reset path. The const→let mutation pattern matches Wave 1A's settings-validator idiom. residualConcerns appropriately flags the unwired st8_settings hookup as a future ticket, not a 3A defect."
   }
 ]
