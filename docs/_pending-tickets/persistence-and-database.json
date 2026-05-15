@@ -16,8 +16,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "1363afe",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: deleteFile now uses getAllFilesByPath, iterates per-fingerprint, calls all four cascade helpers (connections / intent / mutation_log / tickets), and DELETEs by fingerprint, not filepath. Return shape preserves `.changes` + `.fingerprint`, adds `.fingerprints` array. Multi-fingerprint probe confirms newest wins in `.fingerprint` and FK check stays clean ([]) after the delete. Prominent JSDoc comment now records the foot-gun the userNote called out — the executor did the rewrite, not just a comment."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -30,8 +30,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "1363afe",
     "residualConcerns": "If a future writer ever logs a connection or mutation referencing a fingerprint that hasn't been upserted yet, FK enforcement will throw. The validator added to logActivity in ticket 3 is a model for the same pattern on logMutation / insertConnection; not in scope here.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: `PRAGMA foreign_keys = ON` is set in initialize() at L303 right after journal_mode/synchronous, before ST8_SCHEMA is applied. Live `x.db.pragma('foreign_keys')` returns `[{foreign_keys:1}]`; `foreign_key_check` returns []; integrity_check returns ok. Residual concern is honest: confirmed main.js's indexer upserts file_registry before logMutation/insertConnection at every call site (lines 129→145, 297→299, 350→352), so the latent-orphan risk is bounded to future writers. Inline comment in initialize() spells out why JS-side cascade is still needed (no ON DELETE CASCADE — deliberate, so mutation_log can be written before deletion)."
   },
   {
     "filepath": "src/core/server/app.js",
@@ -44,8 +44,8 @@
     "filesChanged": ["src/core/server/app.js", "src/core/database/persistence.js"],
     "commitHash": "bec7145",
     "residualConcerns": "The hooks-and-integration cluster owns the original ticket; that cluster's reviewer should confirm the fix here resolves their version (the producer site) and decide whether to close out the duplicate or keep it as a paired record.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: `grep target_fingerprint src/core/server/app.js` returns nothing — the snake_case was replaced with camelCase at L1558. logActivity now whitelists {source, action, targetFingerprint, details} and THROWS (not just logs) on unknown keys. Probed both directions in-memory: snake_case throws with the exact descriptive message the actionsTaken describes; camelCase passes through. This is the better answer than 'rename the schema' — it makes the bug pattern impossible to recur silently."
   },
   {
     "filepath": "src/core/database/verify-persistence-fixes.js",
@@ -64,8 +64,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "477dbee",
     "residualConcerns": "EXPECTED_SCHEMA only checks column NAMES, not types or defaults — a future change that renames a column's type from INTEGER to TEXT would not be caught. Type-checking is straightforward to add but was out of scope for this ticket's 'log diffs at boot' brief.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: EXPECTED_SCHEMA constant lists all 9 tables, columns match the schema exactly. introspectSchema() is called at the tail of initialize() under a try/catch that logs+continues (correct — drift detection should never block boot). Probed live: fresh DB → hasDrift=false. Injected drift (ALTER ADD COLUMN bogusCol + CREATE TABLE rogue_table) → hasDrift=true and report enumerates both: `extra table (not in EXPECTED_SCHEMA): rogue_table` and `file_registry: extra column(s) not in EXPECTED_SCHEMA [bogusCol]`. Residual concern about type checking is honestly flagged. The catch block uses console.error (not silent) and re-uses driftErr.message — not a hidden swallow."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -78,8 +78,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "1f238e0",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: executor chose option (a) — branch removed, not just log-leveled. Confirmed by diff: loadLibModule, getDatabasePersister, _databasePersister, and the unused `fs` import are all gone. initialize() unconditionally constructs better-sqlite3. The new log line records the design intent in-line, exactly as the userNote asked for ('design intent now obvious in the file'). graph-persister.js correctly left in place for insight-store's getSharedDatabasePath() — separate DB. The replacement LIB CODE REFERENCES comment block explains the removal so a future reader doesn't re-introduce the dead branch."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -92,8 +92,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "3396fb7",
     "residualConcerns": "If callers materialize (the @@@ pipeline wires up), revisit. The decision is recorded but not load-bearing yet.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: 19-line schema-block comment sits directly above the ai_content CREATE TABLE in ST8_SCHEMA. Real explanation, not a one-liner — covers (a) WHY filepath-not-fingerprint, (b) WHY no FK, (c) WHY NOT in cascade, plus an explicit four-step reversal checklist. Caller-audit claim is correct: `grep storeAIContent|appendAIContent` returns only the two definitions inside persistence.js — no external consumers exist, so the loose-coupling decision has no immediate blast radius. Note: the 8f0b27c→3396fb7 backtick-escape fix is honest — executor surfaced their own intermediate-commit mistake in the actionsTaken, exactly the kind of disclosure that builds trust."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -112,8 +112,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "1363afe",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: deleteTicketsForFile(fingerprint) helper exists at L659 in persistence.js with the same shape as deleteIntentForFile / deleteMutationLogForFile. Wired into BOTH cascade paths: deleteFile inside its per-fingerprint loop, and pruneFilesNotIn (diff at L399). The verify-persistence-fixes script doesn't yet probe ticket cascade specifically, but the in-memory probe above (create file → createTicket → deleteFile → foreign_key_check returns []) confirms the cascade works under FK enforcement. Co-bundled with ticket 1/2/13 in 1363afe — the executor was honest about the coupling and the trace that exposed the orphan."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -138,8 +138,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "10946cd",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: appendAIContent exists at L1013 (plain INSERT, no OR REPLACE). storeAIContent retained at L1026 as `@deprecated` thin alias that calls appendAIContent — userNote allowed either option; keeping the alias is the lower-risk choice. Caller audit: grep across the repo confirms NO external consumers needed updating, so 'all internal callers updated' is vacuously true. JSDoc on both methods is honest about the design (append-log semantics align with the ticket-7 ai_content decision)."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -152,8 +152,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "1363afe",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: getFileByPath SQL is `SELECT * FROM file_registry WHERE filepath = ? ORDER BY birthTimestamp DESC` (uses .get() so still returns one row — the newest). New getAllFilesByPath returns .all() with the same ORDER BY. Multi-fingerprint probe confirms behavior: two rows inserted with different birthTimestamps → getFileByPath returns the 2025 one, getAllFilesByPath returns both newest-first. The 'preserve existing one-row consumer assumption' design choice (rather than refactor ~10 server.js call sites to handle arrays) is defended in the actionsTaken and is the right call for a minimum-blast-radius fix."
   },
   {
     "filepath": "src/core/database/graph-persister.js",
