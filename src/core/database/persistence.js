@@ -149,6 +149,25 @@ CREATE TABLE IF NOT EXISTS prd_projects (
 
 CREATE INDEX IF NOT EXISTS idx_prd_projects_name ON prd_projects(name);
 
+-- ─── AI_CONTENT ────────────────────────────────────────────
+-- @@@-flagged content store. Deliberately decoupled from file_registry:
+--
+--   * Key is `filepath` (not fingerprint) because content can arrive
+--     before the file is indexed (or after it has been pruned — e.g.
+--     a conversation transcript referencing a file that no longer
+--     exists on disk).
+--   * No FK to file_registry. Adding one would force-couple content
+--     ingestion to indexer lifecycle and break the "content first,
+--     file second" workflow.
+--   * NOT cascaded from deleteFile / pruneFilesNotIn. Deleting a file
+--     leaves its ai_content rows in place by design — the content is
+--     a historical record of what was said about a path, independent
+--     of whether the path is currently live.
+--
+-- If you change this decision, also (a) add a `fingerprint` column
+-- and an FK, (b) wire a cascade hook in deleteFile + pruneFilesNotIn,
+-- (c) update EXPECTED_SCHEMA above, (d) add a migration so existing
+-- ai_content rows get their fingerprint backfilled.
 CREATE TABLE IF NOT EXISTS ai_content (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   filepath TEXT NOT NULL,
