@@ -382,11 +382,12 @@ test('registerDefaultSubscribers — ticket 12: idempotent (calling twice does n
 
   assert.deepEqual(firstSnapshot, secondSnapshot, 'subscriber counts must be identical after second register');
 
-  // Spot-check: INDEX_COMPLETE has exactly 5 default subscribers
+  // Spot-check: INDEX_COMPLETE has exactly 6 default subscribers
   // (manifest, schema-card-emitter, gap-analyzer, intent-seeder,
-  // mutation-log-retention). force-checks is registered separately.
+  // insight-store-populator [Wave 3B ticket 7], mutation-log-retention).
+  // force-checks is registered separately.
   const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
-  assert.equal(idxComplete.count, 5, 'INDEX_COMPLETE should have exactly 5 default subscribers, not 10');
+  assert.equal(idxComplete.count, 6, 'INDEX_COMPLETE should have exactly 6 default subscribers, not 12');
 
   // INDEX_START has exactly 1 (sonic-daemon), not 2.
   const idxStart = r.listHooks().find((h) => h.name === HOOKS.INDEX_START);
@@ -409,7 +410,7 @@ test('registerDefaultSubscribers — ticket 12: _resetDefaultSubscribersFlag unb
   registerDefaultSubscribers(r);
 
   const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
-  assert.equal(idxComplete.count, 5, 'after clear+reset, defaults re-register cleanly');
+  assert.equal(idxComplete.count, 6, 'after clear+reset, defaults re-register cleanly');
 });
 
 // ─── Ticket 14: sonic-daemon subscriber survives missing module ───
@@ -490,7 +491,7 @@ test('default-subscribers — ticket 13: every INDEX_COMPLETE subscriber survive
   //
   // What we assert: execute() returns a summary, does not throw, and
   // every subscriber position was visited (ok + fail accounts for all
-  // 5). Whether each one ok'd or fail'd is implementation-detail —
+  // 6). Whether each one ok'd or fail'd is implementation-detail —
   // both branches still pass the convention because BOTH paths leave
   // the priority chain intact.
   const { registerDefaultSubscribers, _resetDefaultSubscribersFlag } =
@@ -506,15 +507,15 @@ test('default-subscribers — ticket 13: every INDEX_COMPLETE subscriber survive
     threw = true;
   }
   assert.equal(threw, false, 'execute(INDEX_COMPLETE, {}) must not throw');
-  // All 5 default subscribers ran.
-  assert.equal(summary.ok + summary.fail, 5, 'all 5 subscribers must have been visited');
+  // All 6 default subscribers ran.
+  assert.equal(summary.ok + summary.fail, 6, 'all 6 subscribers must have been visited');
 
   _resetDefaultSubscribersFlag(r);
 });
 
 test('default-subscribers — ticket 13: registry catch isolates a P=10 throw from later subscribers', async () => {
   // Most direct probe: register a thrower at P=5 (before manifest), and
-  // assert that the 5 default INDEX_COMPLETE subscribers AND a P=99
+  // assert that the 6 default INDEX_COMPLETE subscribers AND a P=99
   // observer both still run. Proves the convention isn't load-bearing
   // on the inner catches alone — the registry's outer catch is the
   // safety net.
@@ -530,8 +531,8 @@ test('default-subscribers — ticket 13: registry catch isolates a P=10 throw fr
   const summary = await r.execute(HOOKS.INDEX_COMPLETE, {});
 
   assert.equal(observerRan, true, 'P=99 observer must run even though P=5 threw');
-  // 5 defaults + 1 thrower + 1 observer = 7 subscribers visited.
-  assert.equal(summary.ok + summary.fail, 7);
+  // 6 defaults + 1 thrower + 1 observer = 8 subscribers visited.
+  assert.equal(summary.ok + summary.fail, 8);
   // The thrower contributed at least 1 fail.
   assert.equal(summary.fail >= 1, true);
   assert.equal(

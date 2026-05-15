@@ -162,6 +162,39 @@ function registerDefaultSubscribers(registry) {
     }
   }, { priority: 40, source: 'intent-seeder' });
 
+  // P=35 — Insight store population (Wave 3B ticket 7, founder priority
+  // P1.2 in identity-and-analysis roadmap).
+  //
+  // Walks the file_registry after intent-seeding has run and writes
+  // per-file insights into InsightRecords / FileInsightSlots:
+  //   - RED files → severity=error, category=orphan
+  //     ("file is unreachable: no incoming connections, no exports")
+  //   - YELLOW files → severity=warning, category=under-connected
+  //     ("partial wiring: status YELLOW")
+  //   - GREEN files with reachabilityScore < 0.3 → severity=warning,
+  //     category=under-imported
+  //
+  // The insights are addressable via GET /api/insights?filepath=<p>.
+  // This is the data layer for "why is this file RED" — the
+  // frontend/dive-in panel surface that consumes these is Wave 7 scope.
+  //
+  // Project id is hard-coded to 'st8' for now since st8 only ever
+  // indexes one project at a time. Configurable in a future ticket
+  // when multi-project indexing lands.
+  //
+  // Wrapped in try/catch per the ticket-13 convention.
+  registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
+    try {
+      const { populateInsightsFromRegistry } = require('../../features/analysis/insight-store-populator');
+      const result = populateInsightsFromRegistry(ctx.persistence, { projectId: 'st8' });
+      console.log(
+        `[st8] Insight store: ${result.inserted} insights across ${result.files} files (errors=${result.severityCounts.error}, warnings=${result.severityCounts.warning}, info=${result.severityCounts.info})`,
+      );
+    } catch (err) {
+      console.error('[st8] Insight store population failed:', err.message);
+    }
+  }, { priority: 35, source: 'insight-store-populator' });
+
   // P=50 — file_mutation_log retention (ticket 10, Wave 1B).
   //
   // Policy:
