@@ -23,6 +23,42 @@
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     };
 
+    // ──────────────────────────────────────────────────────────
+    // AUTH (ticket 27)
+    //
+    // The write routes /api/record-commit and /api/tickets require
+    // X-St8-Secret. The secret is generated server-side at boot and
+    // served to loopback callers via GET /api/auth-token. We fetch it
+    // once at module load and cache the resulting Promise so every
+    // call to st8AuthFetch() that needs the header reuses it.
+    //
+    // If the fetch fails (server down, non-loopback, secret not yet
+    // initialized) we degrade to fetching without the header — the
+    // server will respond 401/503, which is the correct visible
+    // failure mode for the user. We do not silently mask auth errors.
+    // ──────────────────────────────────────────────────────────
+    window._st8SecretPromise = (function() {
+      return fetch('/api/auth-token', { method: 'GET' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(j) { return (j && j.secret) ? j.secret : null; })
+        .catch(function() { return null; });
+    })();
+
+    /**
+     * Fetch wrapper that adds X-St8-Secret to the request headers
+     * once the secret has been loaded. Pass-through to the global
+     * `fetch` for everything else. Use for any POST to a write route
+     * gated by ticket-27 auth.
+     */
+    window.st8AuthFetch = function(url, opts) {
+      opts = opts || {};
+      return window._st8SecretPromise.then(function(secret) {
+        var headers = Object.assign({}, opts.headers || {});
+        if (secret) headers['X-St8-Secret'] = secret;
+        return fetch(url, Object.assign({}, opts, { headers: headers }));
+      });
+    };
+
 // ──────────────────────────────────────────────────────────────
 // Main application (panels, wizard, file list, toasts, SSE)
 // Extracted from st8.html lines 1797–2584.
@@ -609,7 +645,9 @@
       if (valueEl   && valueEl.value)   parts.push('VALUE:\n'   + valueEl.value);
       const userNote = parts.join('\n\n') || '(no note text)';
 
-      fetch('/api/tickets', {
+      // Auth-aware POST — st8AuthFetch attaches X-St8-Secret if the
+      // secret was successfully fetched on page load (ticket 27).
+      window.st8AuthFetch('/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

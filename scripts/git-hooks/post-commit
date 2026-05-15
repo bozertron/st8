@@ -31,10 +31,13 @@ set -u
 ST8_HOST="${ST8_HOST:-localhost}"
 ST8_TIMEOUT_S="${ST8_TIMEOUT_S:-2}"
 
+# Resolve REPO_ROOT unconditionally — needed for both the port-file
+# lookup (below) and the auth-secret lookup (further down).
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+
 if [ -n "${ST8_PORT:-}" ]; then
   : # env wins
 else
-  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
   PORT_FILE="${REPO_ROOT}/.st8/server.port"
   if [ -n "$REPO_ROOT" ] && [ -r "$PORT_FILE" ]; then
     # Read first line, strip whitespace, validate it's a positive integer.
@@ -123,15 +126,40 @@ EOF
 )
 fi
 
+# Auth (ticket 27): read .st8/server.secret if it exists and pass it as
+# X-St8-Secret. The server writes this file at boot (mode 0600). If the
+# file is missing the POST will get 401/503 — same as before from the
+# hook's perspective (silent fire-and-forget; the commit still
+# succeeds). Resolution order matches ST8_PORT above: REPO_ROOT was set
+# earlier; just reuse it.
+SECRET_HEADER=""
+if [ -n "${REPO_ROOT:-}" ] && [ -r "${REPO_ROOT}/.st8/server.secret" ]; then
+  SECRET_VAL=$(head -n 1 "${REPO_ROOT}/.st8/server.secret" 2>/dev/null | tr -d ' \t\r\n')
+  if [ -n "$SECRET_VAL" ]; then
+    SECRET_HEADER="X-St8-Secret: ${SECRET_VAL}"
+  fi
+fi
+
 # Fire-and-forget POST. Suppress all output so the hook is silent on success
 # and silent on st8-not-running. Only one possible visible effect: stderr
 # from curl itself on truly weird failures, which we also swallow.
 if command -v curl >/dev/null 2>&1; then
-  curl --silent --show-error --max-time "$ST8_TIMEOUT_S" \
-       -X POST "http://${ST8_HOST}:${ST8_PORT}/api/record-commit" \
-       -H "Content-Type: application/json" \
-       -d "$PAYLOAD" \
-       >/dev/null 2>&1 || true
+  if [ -n "$SECRET_HEADER" ]; then
+    curl --silent --show-error --max-time "$ST8_TIMEOUT_S" \
+         -X POST "http://${ST8_HOST}:${ST8_PORT}/api/record-commit" \
+         -H "Content-Type: application/json" \
+         -H "$SECRET_HEADER" \
+         -d "$PAYLOAD" \
+         >/dev/null 2>&1 || true
+  else
+    # No secret on disk — try anyway. The server will 401/503 and the
+    # commit still succeeds (the hook is fire-and-forget).
+    curl --silent --show-error --max-time "$ST8_TIMEOUT_S" \
+         -X POST "http://${ST8_HOST}:${ST8_PORT}/api/record-commit" \
+         -H "Content-Type: application/json" \
+         -d "$PAYLOAD" \
+         >/dev/null 2>&1 || true
+  fi
 fi
 
 exit 0

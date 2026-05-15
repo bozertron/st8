@@ -12,6 +12,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const auth = require('./auth');
 
 // ─── STATIC FILE SERVING ─────────────────────────────────────
 
@@ -52,6 +53,7 @@ class St8Server {
         this.server.listen(this.port, '127.0.0.1', () => {
             console.log(`[st8:server] Server running on http://localhost:${this.port} (bound to 127.0.0.1)`);
             this._writePortFile();
+            this._ensureAuthSecret();
         });
 
         return true;
@@ -80,13 +82,36 @@ class St8Server {
         }
     }
 
+    /**
+     * Generate (or load) the shared auth secret stored at
+     * <targetDir>/.st8/server.secret. Writes the file with mode 0600 if
+     * it does not yet exist. The post-commit shell hook reads this
+     * file; the frontend fetches it via the loopback-gated
+     * /api/auth-token endpoint.
+     *
+     * Logs a warning on failure — the server can still serve static
+     * files and read-only endpoints, but the auth-required write
+     * endpoints will return 503 until a secret is present.
+     */
+    _ensureAuthSecret() {
+        if (!this.targetDir) return;
+        try {
+            auth.ensureSecret(this.targetDir);
+        } catch (err) {
+            console.warn('[st8:server] Could not initialize auth secret:', err.message);
+        }
+    }
+
     _handleRequest(req, res) {
         const url = new URL(req.url, `http://localhost:${this.port}`);
         
-        // CORS headers — restricted to localhost origins only (security fix: prevent RCE via CORS wildcard)
+        // CORS headers — restricted to localhost origins only (security fix: prevent RCE via CORS wildcard).
+        // X-St8-Secret is the ticket-27 auth header; must be in
+        // Access-Control-Allow-Headers so browser fetch() preflights
+        // don't strip it.
         res.setHeader('Access-Control-Allow-Origin', 'http://localhost:' + this.port);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-St8-Secret');
         
         if (req.method === 'OPTIONS') {
             res.writeHead(200);
@@ -174,6 +199,9 @@ class St8Server {
                 break;
             case '/api/tickets/count':
                 this._handleTicketsCount(req, res);
+                break;
+            case '/api/auth-token':
+                this._handleAuthToken(req, res);
                 break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -1549,6 +1577,16 @@ class St8Server {
             return;
         }
 
+        // Auth gate (ticket 27). Missing/wrong secret → 401 with a
+        // generic body; reason logged server-side for debugging.
+        const authCheck = auth.checkRequest(req, this.targetDir);
+        if (!authCheck.ok) {
+            console.warn('[st8:auth] /api/record-commit rejected:', authCheck.reason);
+            res.writeHead(authCheck.status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+        }
+
         let body = '';
         req.on('data', (chunk) => { body += chunk; });
         req.on('end', async () => {
@@ -1636,6 +1674,15 @@ class St8Server {
             return;
         }
 
+        // Auth gate (ticket 27). Same shape as _handleRecordCommit.
+        const authCheck = auth.checkRequest(req, this.targetDir);
+        if (!authCheck.ok) {
+            console.warn('[st8:auth] /api/tickets POST rejected:', authCheck.reason);
+            res.writeHead(authCheck.status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+        }
+
         let body = '';
         req.on('data', function(chunk) { body += chunk; });
         req.on('end', async function() {
@@ -1713,6 +1760,42 @@ class St8Server {
                 res.end(JSON.stringify({ error: err.message }));
             }
         });
+    }
+
+    /**
+     * GET /api/auth-token → returns the shared secret to a loopback
+     * caller so the frontend can include it as X-St8-Secret on
+     * subsequent POSTs. Non-loopback callers get 403.
+     *
+     * This endpoint is itself NOT secret-gated — the gate is the
+     * loopback check. Rationale: the frontend is loaded same-origin
+     * over HTTP and needs SOME way to obtain the header value. Any
+     * caller that can reach this endpoint over loopback already has
+     * read access to anything else served by st8 (manifests, schema
+     * cards) and could read .st8/server.secret directly if the
+     * filesystem is accessible. So the loopback constraint is the
+     * meaningful boundary.
+     */
+    _handleAuthToken(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+        if (!auth.isLoopback(req)) {
+            console.warn('[st8:auth] /api/auth-token rejected non-loopback:', req.socket && req.socket.remoteAddress);
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'forbidden' }));
+            return;
+        }
+        const secret = auth.readSecret(this.targetDir);
+        if (!secret) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'auth not initialized' }));
+            return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ secret: secret }));
     }
 
     stop() {
