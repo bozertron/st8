@@ -141,16 +141,27 @@ class HookRegistry extends EventEmitter {
   /**
    * Introspection — list every registered hook + its subscribers.
    *
+   * Each entry's `sources` is sorted by priority ascending so the order
+   * matches the order `execute()` will invoke handlers. A `runOrder`
+   * field holds just the source names in execution order — convenient
+   * for consumers that only need the order, not the priorities.
+   *
    * Hooks declared in the canonical HOOKS map but with zero subscribers are
    * NOT returned here — see `listAllHooks()` for that view.
    */
   listHooks() {
     const out = [];
     for (const [name, arr] of this._hooks.entries()) {
+      // Sort by priority ascending so consumers see execution order at a
+      // glance. Within a priority tier, registration order is preserved.
+      const ordered = arr
+        .map((e) => ({ source: e.source, priority: e.priority }))
+        .sort((a, b) => a.priority - b.priority);
       out.push({
         name,
         count: arr.length,
-        sources: arr.map((e) => ({ source: e.source, priority: e.priority })),
+        sources: ordered,
+        runOrder: ordered.map((e) => e.source),
       });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
@@ -169,13 +180,27 @@ class HookRegistry extends EventEmitter {
     const byName = new Map();
     // Seed with the canonical map so zero-subscriber hooks appear too.
     for (const canonicalName of Object.values(HOOKS)) {
-      byName.set(canonicalName, { name: canonicalName, count: 0, sources: [] });
+      byName.set(canonicalName, { name: canonicalName, count: 0, sources: [], runOrder: [] });
     }
     // Overlay actually-registered hooks (including any non-canonical names).
     for (const entry of this.listHooks()) {
       byName.set(entry.name, entry);
     }
     return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Introspection — return the source names that will run for `name`, in
+   * the exact priority order `execute()` will invoke them. Empty array if
+   * no subscribers are registered. Cheaper than `listHooks()` when a caller
+   * only needs the order for one hook.
+   */
+  introspectExecuteOrder(name) {
+    const arr = this._hooks.get(name) || [];
+    return arr
+      .slice()
+      .sort((a, b) => a.priority - b.priority)
+      .map((e) => e.source);
   }
 
   /**
