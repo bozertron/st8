@@ -1563,10 +1563,8 @@ class St8Server {
                 // phreak's badge counter, etc.) can react.
                 try {
                     const { hookRegistry, HOOKS } = require('../hook-registry');
-                    // Add a TICKET_CREATED hook lazily — we don't add it
-                    // to the canonical HOOKS list since this is a v1
-                    // mechanism that may be reshaped.
-                    await hookRegistry.execute(HOOKS.TICKET_CREATED || 'ticket:created', {
+                    // HOOKS.TICKET_CREATED is part of the canonical map.
+                    await hookRegistry.execute(HOOKS.TICKET_CREATED, {
                         ticket: { id: ticket.id, ...payload, createdAt: ticket.createdAt },
                     });
                 } catch (hookErr) {
