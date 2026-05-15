@@ -100,10 +100,20 @@ function _applyFileChange(change, ctx) {
         if (change.type === 'add') {
             const fs = require('fs');
             const crypto = require('crypto');
+            const { deriveBirthTimestamp } = require('../../shared/utils/birth-timestamp');
             const content = fs.readFileSync(change.path);
             const hash = crypto.createHash('sha256').update(content).digest('hex');
             const stat = fs.statSync(change.path);
-            const birthTimestamp = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
+            // birthTimestamp is identity-load-bearing. Pass persistence in
+            // so a re-added file (deleted then restored within the same st8
+            // session) preserves its first-observed birthTimestamp — the
+            // identity thread survives the round-trip. See
+            // shared/utils/birth-timestamp.js for the full rationale.
+            const { birthTimestamp } = deriveBirthTimestamp({
+                stat,
+                filepath: relativePath,
+                persistence,
+            });
             const fingerprint = generateFingerprint(relativePath, birthTimestamp);
 
             const newFile = {
@@ -227,9 +237,14 @@ async function main() {
     // and ran ST8_SCHEMA + introspectSchema per request.
     const persistence = await getSharedPersistence();
     
-    // Run initial indexing
+    // Run initial indexing. Pass the shared persistence in so the indexer
+    // can REUSE first-observed birthTimestamps for filepaths it has seen
+    // before — preserving the identity thread (mutation_log, intent,
+    // connections, tickets) across runs on filesystems where stat.birthtime
+    // is unreliable. See src/shared/utils/birth-timestamp.js for the
+    // contract (identity-and-analysis ticket 15).
     console.log('[st8] Running initial indexing...');
-    const result = await indexDirectory(targetDir, { write: true });
+    const result = await indexDirectory(targetDir, { write: true, persistence });
 
     // Initialize schema card emitter + printer (hoisted for file watcher access)
     const emitter = new SchemaCardEmitter(targetDir);
