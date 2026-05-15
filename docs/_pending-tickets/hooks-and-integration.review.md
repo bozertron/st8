@@ -329,3 +329,205 @@ as the right future fix).
 
 JSON annotations written; JSON file NOT renamed (final reviewer's job).
 Cluster is safe for Wave 2C to build on.
+
+## Wave 2C Review
+
+Reviewer: wave-2c-reviewer
+Reviewed: 2026-05-15
+Tickets in scope: indices 7, 16, 27, 28 (4 total) — test infra, perf
+via shared persistence, shared-secret auth on write routes, strict
+input validation on /api/record-commit.
+Commits audited: `1425822..0d75ebe` (`1425822`, `4c8c29e`, `606eb4c`,
+`6a4a87f`, `0d75ebe`).
+
+### Verdict counts
+
+- **ack:** 4
+- **defer-confirmed:** 0
+- **kickback:** 0
+
+### Test suite truth
+
+`npm test` → tests:74 / pass:74 / fail:0 / skipped:0 / todo:0 /
+cancelled:0. Duration ~2.2 s. Executor's claim of "74 passing tests"
+is exact.
+
+**Probe-break audit** (proves the tests genuinely exercise the SUT,
+not pass-by-construction): replaced `a.priority - b.priority` with `0`
+in src/core/hook-registry.js, re-ran npm test — exactly two tests
+failed (`HookRegistry — priority ordering: P=10 runs before P=100`
+and `HookRegistry — introspectExecuteOrder returns sources in priority
+order`). Restored cleanly. The suite does not pass by construction.
+
+**Cheat scan across every test file** (tests/core/hook-registry.test.js,
+tests/core/database/persistence-shared.test.js,
+tests/core/server/auth.test.js,
+tests/core/server/app-auth-routes.test.js,
+tests/core/server/validate-record-commit.test.js):
+
+- Zero `assert.ok(true)` / by-construction asserts.
+- Zero mocks of the SUT — auth, persistence, and server are all real
+  instances against fs.mkdtempSync dirs and ephemeral HTTP ports.
+- One conditional skip exists at auth.test.js:63
+  (`{skip: process.platform === 'win32'}` on the mode-0600 check);
+  legitimate and reports 0 skipped on Linux.
+- No `t.skip()`, `it.skip()`, `test.todo()`, `describe.only()`.
+
+### Commit-by-commit verification
+
+| Ticket | Commit | Verdict | Verification |
+|---|---|---|---|
+| 7  | `4c8c29e` | ack | getSharedPersistence() at persistence.js:1411 is a true memoized accessor with both cache + in-flight Promise dedupe (no double-init race). Live probe: 100 sequential GETs on /api/tickets/count completed in 618 ms (~6 ms/req including HTTP roundtrip; the historical baseline was ~478 ms for a single new+init); "Database initialized" appears exactly ONCE in the server log across boot + 100 requests. Prototype-spy test wraps St8Persistence.prototype.initialize across 5 sequential + 10 concurrent callers and asserts initCallCount === 1, peakConcurrency === 1 — real probe, not self-mocking. close+reopen test asserts notEqual instance refs. |
+| 16 | `1425822` | ack | 74/74 passing, zero skipped/todo. Probe-break confirmed the tests actually exercise the registry. tests/README.md documents the three reusable patterns (prototype-spy, ephemeral-port boot, real persistence vs tmp dir) that the rest of the suite uses. 21 hook-registry probes cover priority ordering, stable tie-breaking, error isolation, async-sequential semantics, fast-path zero-sub, EventEmitter re-emit order, listHooks vs listAllHooks, introspectExecuteOrder, unregister true/false return, register()-returned unregister fn, clear(), TypeError on non-function handler, default priority/source, HOOKS frozen, singleton-vs-fresh-instance. |
+| 27 | `606eb4c` | ack | Live HTTP probe on port 4949 against a real main.js boot: POST /api/record-commit returns **401/401/200** for missing/wrong/correct X-St8-Secret. GET /api/tickets remains unauthenticated (200 with no header). GET /api/auth-token returns 200 over loopback, POST → 405. **Cheat-check passed:** with `.st8/server.secret` removed, POST returns **503** (no-secret-on-disk) — does NOT silently allow. auth.js uses `crypto.timingSafeEqual` with a length-mismatch fast-path that returns false BEFORE the timingSafeEqual call (avoids the buffer-length throw). ensureSecret writes via tmp+rename atomic + chmod 0600 + explicit chmodSync belt-and-braces. Frontend bootstrap at frontend/app.js:40 fetches /api/auth-token once on load; st8AuthFetch attaches X-St8-Secret; makeTicketFromNotes routes through it. |
+| 28 | `6a4a87f` | ack | Live HTTP probe with valid auth header: filesChanged="5" → **400**, filesChanged=[1,2,3] → **400**, unknown field "bogus" → **400**, happy path filesChanged:3 → **200**. validateRecordCommitPayload at app.js:75 is exported for direct testability and is called BEFORE persistence/hook work, so malformed payloads cannot reach activity_log or COMMIT_RECORDED subscribers. The unknown-key check fires before type checks so attacker-controlled keys (e.g. `"exploit": ...`) return 400 with the field name. The validator handles the full negative space for filesChanged: string, array, object, float, negative, NaN, ±Infinity, >MAX. Invalid JSON body returns 400 (was 500 before). Normalized payload is a reference-fresh object — verified by `assert.notEqual(r.payload, input)`. |
+
+### Live probe results (the four cluster proofs)
+
+```
+=== AUTH (port 4949, real server, real .st8/server.secret) ===
+no header        → 401
+wrong secret     → 401
+correct secret   → 200
+
+=== VALIDATION (auth header attached) ===
+filesChanged="5"        → 400
+filesChanged=[1,2,3]    → 400
+bogus unknown field     → 400
+happy path              → 200
+
+=== MISSING-SECRET CHEAT CHECK ===
+no header, no file              → 503 (not 200; not silent pass)
+old secret, no file             → 503
+
+=== AUTH-TOKEN BOOTSTRAP ===
+GET /api/auth-token (loopback)  → 200, 64-hex secret
+POST /api/auth-token            → 405
+
+=== PERF ===
+100 sequential GET /api/tickets/count = 618 ms wall (~6 ms/req)
+"Database initialized" log lines across boot + 100 reqs = 1
+```
+
+### Singleton proof
+
+One-line summary: across server-boot plus 100 HTTP requests, the
+string `Database initialized` appears in the server log exactly ONCE
+(`grep -c 'Database initialized' /tmp/st8-srv.log` → 1), and the
+prototype-spy test asserts `initCallCount === 1` for 10 concurrent
+`Promise.all` callers. The shared instance is real.
+
+### Auth deviation worth noting (not a kickback)
+
+`auth.ensureSecret()` re-writes the secret file if the existing
+contents are shorter than 16 chars (auth.js:69 `if (existing.length
+>= 16) return existing`; below the threshold falls through to the
+regen branch). That's the *correct* behavior for a corrupted/stub
+file, and it matches the test at auth.test.js:107 (which writes
+`'short\n'` and expects readSecret to return null). But the symmetry
+is worth understanding: a manually-shortened secret will be
+silently regenerated rather than errored. Not a cheat (it would be a
+cheat if it silently *accepted* a too-short secret as valid; it does
+the opposite) but worth a callout for future rotation work.
+
+### No-cheats sweep
+
+- `git diff 99cfd4b..0d75ebe -- ':!tests/' ':!docs/' ':!package.json'`
+  reviewed line by line. No new TODO/FIXME/XXX, no `NODE_ENV` bypasses,
+  no empty function bodies, no swallowing catches.
+- Every try/catch in the new code logs with a tagged
+  `[st8:server]` / `[st8:auth]` / `[st8:record-commit]` /
+  `[st8:tickets]` prefix and continues — never a bare `catch (_) {}`
+  except the chmodSync best-effort on Windows (justified inline).
+- The "fire-and-forget" shell hook keeps the `|| true` + final
+  `exit 0`. Both are pre-existing patterns from Wave 2A's hook work —
+  not new cheats.
+- File renaming: NOT performed (correct — Wave 2D handles).
+
+### residualConcerns audit
+
+All four executor-flagged residualConcerns are real and present in
+the JSON, not just the agent report:
+
+1. **Ticket 7 — 20+ other routes still per-request `new
+   St8Persistence()`.** Confirmed by `grep -c 'new St8Persistence(' src/core/server/app.js`
+   showing many remaining sites. Out of scope for this ticket (which
+   targeted only the two hook-firing POSTs + /api/tickets GET + /count).
+   Natural follow-up; the accessor is in place.
+2. **Ticket 16 — only hook-registry.js has direct unit coverage.**
+   Accurate; default-subscribers.js, force-checks.js, and
+   _applyFileChange remain uncovered. Wave 2D inherits the conventions
+   doc + the three reusable patterns the existing tests pioneered.
+3. **Ticket 27 — token rotation not implemented; frontend bootstrap
+   fetches /api/auth-token once with no refresh-on-401; auth-token
+   endpoint is loopback-gated but NOT secret-gated.** All three
+   accurate and honestly characterized as design choices for the
+   current threat model.
+4. **Ticket 28 — _handleTickets POST has weaker validation; FILES_CHANGED_MAX
+   is a sanity cap not a real upper bound.** Both accurate.
+
+### Cluster shape for downstream waves
+
+**Safe for 2D (subscriber tests + force-check audit + file rename) to
+build on.** The 2C changes:
+
+- The test infrastructure (`node --test`, tests/ mirrors src/,
+  conventions doc) is the foundation Wave 2D needs. Patterns reusable
+  for default-subscribers.js + force-checks.js + _applyFileChange
+  tests are already exemplified in the existing suite.
+- `getSharedPersistence` is purely additive — existing per-request
+  callers still work. 2D can either propagate the accessor to the
+  remaining 20+ routes (P2 follow-up) or leave it; the test infra
+  for either path is in place.
+- Auth gating is scoped to the two write routes; it does not affect
+  any subscriber wiring or in-process hook fires. 2D's subscriber
+  tests will register directly against `new HookRegistry()` instances
+  with no HTTP path involved.
+- The validator is exported for direct unit-testability — 2D can
+  follow the same pattern when adding `validateCreateTicketPayload`
+  (the natural ticket-28 follow-up the residualConcerns flagged).
+
+### Cross-cluster flags for founder
+
+- **Persistence cluster (closed): the accessor at persistence.js:1411
+  is now load-bearing for HTTP performance.** Any future change to
+  St8Persistence.initialize() must remain idempotent within a single
+  process lifetime. The shared-instance contract is now part of the
+  cluster API surface, not just an internal helper. Worth a one-line
+  callout in the persistence component doc next time it's touched.
+- **Lifecycle cluster: SIGTERM is STILL unwired in main.js.** The
+  Wave 2A reviewer flagged this. With 2C's `.st8/server.secret` now
+  on disk, a SIGTERM-killed server leaves both `.st8/server.port`
+  AND the secret behind — the secret survives by design
+  (restart-survivability), but a future rotation policy that depends
+  on unlinking-on-shutdown would also be unrun. No regression today;
+  flagging the same gap from a different angle.
+- **Frontend cluster: the auth-token bootstrap has no refresh-on-401
+  loop.** If a long-running SPA session ever survives a secret
+  rotation, every POST after the rotation will 401 until the user
+  reloads. Out of cluster scope; documented in ticket 27 residualConcerns.
+
+### Cluster running total
+
+Across the 19 tickets reviewed so far (12 from Wave 2A + 3 from
+Wave 2B + 4 from Wave 2C):
+
+- **ack:** 18
+- **defer-confirmed:** 1 (Wave 2A ticket 20 — observation-only)
+- **kickback:** 0
+
+Wave 2D tickets remain untouched.
+
+### Bottom line
+
+Wave 2C executor was rigorous on the highest-temptation tickets in
+the cluster (the deliverable is "tests pass" and "auth works" — the
+two surfaces most prone to by-construction cheats). The probe-break
+audit confirms the test suite genuinely exercises the SUT; the live
+HTTP probes confirm the auth gate, validation gate, and shared-instance
+optimization all behave as advertised in real-world conditions;
+the missing-secret cheat-check confirms auth fails closed (503),
+not open (200). residualConcerns are honest and substantive.
+
+JSON annotations written; JSON file NOT renamed (final reviewer's
+job). Cluster is safe for Wave 2D to build on.
