@@ -1435,11 +1435,14 @@ class St8Server {
      *
      * Receives commit metadata from the post-commit git hook
      * (scripts/git-hooks/post-commit) and:
-     *   1. Logs a COMMIT_CHECKPOINT mutation to the mutation_log table
-     *   2. Logs a GIT_COMMIT activity to the activity_log table
-     *   3. Fires the LIFECYCLE_TRANSITION hook (for future subscribers
-     *      that want to react to commits — e.g. snapshot the manifest,
-     *      regenerate gap analysis)
+     *   1. Logs a COMMIT_RECORDED activity row in the activity_log table.
+     *      (Commits are project-level events — they cannot satisfy the
+     *      mutation_log.fingerprint → file_registry FK, so they live in
+     *      activity_log, not mutation_log.)
+     *   2. Fires the COMMIT_RECORDED hook (for subscribers that want to
+     *      react to commits — e.g. snapshot the manifest, regenerate gap
+     *      analysis). Batch 025 corrected this from LIFECYCLE_TRANSITION
+     *      (wrong payload contract) to a dedicated COMMIT_RECORDED hook.
      *
      * Body shape (from the shell hook):
      *   { hash, shortHash, subject, author, timestamp, branch, filesChanged }
