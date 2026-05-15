@@ -10,8 +10,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Until P1.1 lands, every new column added to ST8_SCHEMA after this date will silently NOT appear on existing st8.sqlite files. Workaround remains 'delete st8.sqlite or apply a one-off ALTER'. The introspection diff will surface the gap as `[st8:persistence:drift]` warnings at boot — Wave 1A's payoff — but contributors must read those warnings.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Deferral confirmed legitimate. Opened docs/_pending-roadmap/persistence-and-database.md:9 — line 9 is exactly the P1.1 'SQLite migration framework' header, and the surface-area bullet list (numbered migration files, _migrations table, applyMigrations() step, db:migrate CLI, migration 001 to fold the five post-initial columns) matches the actionsTaken description nearly verbatim. This is roadmap-shaped multi-day work, not Wave-1B-sized: a half-implementation would leave the codebase worse than the deferral. The actionsTaken also correctly identifies the three Wave 1A surfaces the framework should integrate with (EXPECTED_SCHEMA/introspectSchema for post-step assertion, the FK-ON pragma's implication that migrations must be FK-safe or wrap in PRAGMA OFF, deleteTicketsForFile as the cascade-pattern template). residualConcerns honestly notes the workaround that contributors must keep using. Not a dodge — the correct call."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -66,8 +66,8 @@
     "filesChanged": ["scripts/verify-persistence-fixes.js", "src/core/database/verify-persistence-fixes.js", "scripts/migration/check-conventions.js"],
     "commitHash": "d53906f",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: `git ls-files scripts/verify-persistence-fixes.js` returns the path; `git ls-files src/core/database/verify-persistence-fixes.js` returns nothing — git rename history is preserved (97% similarity per git show stat). Internal require updated to `../src/core/database/persistence` (commit d53906f, line `const mod = require('../src/core/database/persistence');`). `node scripts/verify-persistence-fixes.js` from the new location reports `=== Results: 10 passed, 0 failed ===`. The check-conventions.js entry-points list update at line 330 is real and visible in the diff (old path → new path, single-line edit). Honest, surgical move."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -122,8 +122,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "53a9fd0",
     "residualConcerns": "(1) Cross-cluster: the settings-and-providers cluster (Wave 5b) owns the CRUD UI that should wire to getAllProviders / upsertProvider / deactivateProvider. Until that lands, providers can only be edited via the persistence API directly (no HTTP endpoint exposes them yet). (2) Hard SQL FK on tickets.claimedBy → providers.id is deferred to whoever ships ticket 0's migration framework — block comment in ST8_SCHEMA records the recommended migration recipe. (3) src/frontend/components/settings/settings.js LLM_PROVIDERS is still the canonical frontend constant; ideally a future commit removes the duplication by having the frontend fetch /api/providers (settings cluster's call).",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified end-to-end: providers table is in ST8_SCHEMA with the documented columns (id PK, displayName, kind, envKey, docsUrl, active, createdAt, updatedAt) + idx_providers_active. CANONICAL_PROVIDERS constant mirrors the 7 frontend LLM_PROVIDERS entries plus 'human' = 8 rows. Live probe: in-memory init seeds all 8 (anthropic, custom, google, human, lmstudio, ollama, openai, openrouter), claimTicket('nonsense-provider') throws RangeError with the descriptive message listing all 8 known providers, claimTicket(validId, 'anthropic') succeeds (changes=1). The rationale comment for the deferred SQL-level FK is present in ST8_SCHEMA above the providers DDL (cites ticket 0's migration framework as the gate, names the 12-step recreate as the future migration recipe). EXPECTED_SCHEMA row for providers exists. residualConcern (3) about the settings.js:44 LLM_PROVIDERS duplication is real — confirmed by reading the frontend file: lines 44-53 are the duplicated registry the executor flagged. The JS-side validator pattern matches Wave 1A's logActivity validator — loud-bug-beats-quiet-bug propagated correctly."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -150,8 +150,8 @@
     "filesChanged": ["src/core/database/persistence.js", "src/core/hooks/default-subscribers.js"],
     "commitHash": "8a570f5",
     "residualConcerns": "Default retentionDays=30 is hardcoded in default-subscribers.js. A future ticket might surface this as a setting under st8_settings('persistence','mutationLogRetentionDays') so users can tune it without editing source. Out of scope for the 'wire as periodic subscriber' brief — the userNote specified the policy shape, not a configuration UI.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified deeply — this was the trickiest ticket to audit. pruneMutationLogRetention exists in persistence.js with the correct WHERE clause: `DELETE FROM file_mutation_log WHERE mutationType NOT IN ('PRODUCTION', 'PURGE') AND timestamp < ?`. Note the userNote in the reviewer brief sketched `lifecyclePhase IN ('CONCEPT','DEVELOPMENT','CONTENT')` but the persistence component doc §2.4 explicitly establishes mutationType (not lifecyclePhase) as the dimension that takes values CONCEPT/PRODUCTION/PURGE/content-strings — executor chose the doc-aligned dimension and got the inverse-filter logic right. Synthetic probe (old CONCEPT + old PRODUCTION + new CONCEPT, all on a real fingerprint, called pruneMutationLogRetention(30) directly): prunedRows=1, old PRODUCTION preserved, new CONCEPT preserved. Policy correct. P=50 priority confirmed in default-subscribers.js between intent-seeder (P=40) and force-checks (P=90). The 24h gate is REAL persistence-backed via `getSetting('persistence','mutationLogLastPruneAt') + upsertSetting(...)` — NOT a hardcoded boot-time variable that resets on every run (which would have been the stub failure mode). try/catch around the whole subscriber surfaces failures via console.error (not silent swallow), with method-presence guard for defensive compat. The hardcoded-30-days residualConcern is honest and out-of-scope per the original brief."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -164,8 +164,8 @@
     "filesChanged": ["src/core/database/persistence.js"],
     "commitHash": "5690285",
     "residualConcerns": "If a future refactor consolidates PRD storage to a different location (e.g. the PRD feature gets its own DB), revisit this comment and either move the audit trail to the new home or delete the table + methods cleanly. The block comment notes this dependency.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified the LIVE verdict. The 22-line wiring trail block comment sits above the prd_projects CREATE TABLE in ST8_SCHEMA (git stat confirms exactly 22 insertions). Independent grep audit confirms every claim in the comment: src/frontend/index.html:143 has the CREATE PROJECT button → `onclick=\"createPRDProject()\"`; src/frontend/app.js:277 has `window.createPRDProject = async function()`; src/core/server/app.js:127 + 1088 handle `/api/prd-projects` routes (GET list / GET :name / POST create) wired to getAllPRDProjects/getPRDProject/createPRDProject. The 'reserved for future UI' claim for updatePRDProject and deletePRDProject is honest — `grep -rn 'updatePRDProject\\|deletePRDProject' src/ scripts/` returns only the method definitions in persistence.js plus the documentation comment itself. Zero external callers, confirming the audit. Pure documentation commit; no code-path change."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -206,7 +206,7 @@
     "filesChanged": ["src/core/database/graph-persister.js", ".gitattributes"],
     "commitHash": "952410f",
     "residualConcerns": "If the maestro-scaffolder-tool upstream ships a breaking change to DatabasePersister or getSharedDatabasePath, the seven importers under src/features/ will silently break until someone re-vendors this file. There is no automated sync. Mitigation: when re-vendoring, re-run `node start.js .` and check `[st8:force-check] N/N pass` — the cross-tool integrity checks will surface most contract drift.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: graph-persister.js now opens with a block-comment header (the executor described it as 34-line; the actual block runs lines 2-34 inclusive — fits the description). The header documents upstream source location (maestro-scaffolder-tool/src/commands/integr8/databasePersister.ts), regeneration process (tsc, witnessed by the __createBinding boilerplate + the trailing source-map footer), READ-ONLY status, every live importer's purpose, and points at .gitattributes. /home/user/st8/.gitattributes exists with `src/core/database/graph-persister.js linguist-generated=true`. The 7-importer claim verified independently via `grep -rn 'require.*graph-persister' src/`: sonic-indexer:22, sonic-queries:57, traversal:65, integr8/index:55, insight-store:46, parser-persistence:45, background-indexer:60 — exactly seven live require sites under src/features/, matching the actionsTaken list. The persistence.js comment-match is a doc reference (not an importer), correctly excluded. The original tsc 2-line header is preserved as the final comment line in the block. Honest, well-scoped vendor-marking work."
   }
 ]

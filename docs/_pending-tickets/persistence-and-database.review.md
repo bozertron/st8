@@ -190,3 +190,221 @@ and continue) is the right shape and should probably propagate
 to `logMutation` and `insertConnection` in a future ticket — the
 executor flagged this as a residual concern under ticket 2.
 Worth keeping on the radar.
+
+---
+
+## Wave 1B Review
+
+### Summary
+- Tickets reviewed: 6 (1B — indices 0, 4, 8, 10, 11, 14)
+- Ack: 5
+- Kickback: 0
+- Defer-confirmed: 1 (ticket 0 — migration framework)
+- Cluster total: 14 ack / 0 kickback / 1 defer-confirmed across all
+  15 persistence tickets.
+- Cluster **is** safe for Wave 2 (hooks) to build on. The new
+  P=50 mutation-log-retention subscriber slots cleanly between the
+  P=40 intent-seeder and the P=90 force-check chain — Wave 2's hook
+  work inherits a registry that already demonstrates the
+  isolation-via-try/catch pattern under load.
+
+### Per-ticket findings
+
+#### Ticket idx 0 — Migration framework (DEFERRED)
+- Commit: none (deferral)
+- Verdict: defer-confirmed
+- What I verified:
+  - Opened `docs/_pending-roadmap/persistence-and-database.md:9` —
+    line 9 is exactly the P1.1 "SQLite migration framework"
+    heading. The roadmap bullet list (numbered migration files,
+    `_migrations` table, `applyMigrations()` step, `db:migrate`
+    CLI, migration 001 to fold the five post-initial columns)
+    matches the executor's actionsTaken nearly verbatim.
+  - The deferral pointer in actionsTaken (`persistence.js (L245+, L431+)`,
+    `deleteTicketsForFile cascade pattern (L659)`) lines up with
+    Wave 1A's actual landing sites — those are the surfaces a
+    future migration framework will integrate with.
+  - residualConcerns honestly notes the workaround contributors
+    must keep using (`delete st8.sqlite` or one-off ALTER) and
+    that the introspection diff will surface the gap as
+    `[st8:persistence:drift]` warnings.
+- Concerns: none. This is roadmap-shaped multi-day work; a
+  half-implementation in a sub-wave would have been the dishonest
+  choice. Deferral confirmed legitimate.
+
+#### Ticket idx 4 — verify-persistence-fixes.js → scripts/
+- Commit: d53906f
+- Verdict: ack
+- What I verified:
+  - `git ls-files scripts/verify-persistence-fixes.js` returns the
+    path; `git ls-files src/core/database/verify-persistence-fixes.js`
+    returns nothing.
+  - `git show --stat d53906f` confirms 97% rename similarity →
+    git rename history preserved.
+  - Internal `require('./persistence')` updated to
+    `require('../src/core/database/persistence')` — visible in
+    the diff.
+  - `node scripts/verify-persistence-fixes.js` from the new
+    location reports `=== Results: 10 passed, 0 failed ===`.
+  - The check-conventions.js entry-points list update at line 330
+    is real — the diff shows the single-line swap from
+    `'src/core/database/verify-persistence-fixes.js'` to
+    `'scripts/verify-persistence-fixes.js'` inside
+    `expectedOrphans`.
+- Concerns: none. Surgical move; no behavior change.
+
+#### Ticket idx 8 — providers table + claimTicket validator
+- Commit: 53a9fd0
+- Verdict: ack
+- What I verified:
+  - In-memory boot seeds 8 providers exactly as listed
+    (anthropic, custom, google, human, lmstudio, ollama, openai,
+    openrouter).
+  - `claimTicket(id, 'nonsense-provider')` throws RangeError with
+    the descriptive message listing all 8 known providers.
+  - `claimTicket(validId, 'anthropic')` returns `changes=1`.
+  - EXPECTED_SCHEMA row for `providers` exists so the
+    introspector confirms the table landed.
+  - The block comment above the providers DDL records the
+    deferred SQL-level FK rationale and points at ticket 0's
+    migration framework as the gate — the executor honestly
+    flagged the FK as out-of-scope rather than hand-waving it.
+  - residualConcern (3) about `src/frontend/components/settings/settings.js:44`
+    LLM_PROVIDERS duplication is real — confirmed by reading the
+    frontend file: lines 44-53 are the duplicated 7-entry
+    registry. The executor's note matches.
+- Concerns: none. The JS-side validator-throw mirrors Wave 1A's
+  logActivity pattern — loud-bug-beats-quiet-bug propagated
+  correctly.
+
+#### Ticket idx 10 — mutation_log retention policy
+- Commit: 8a570f5
+- Verdict: ack
+- What I verified (this was the trickiest one to audit):
+  - `pruneMutationLogRetention` exists in persistence.js with the
+    correct WHERE clause:
+    `DELETE FROM file_mutation_log WHERE mutationType NOT IN ('PRODUCTION','PURGE') AND timestamp < ?`.
+  - Note: the reviewer brief sketched the filter as
+    `lifecyclePhase IN ('CONCEPT','DEVELOPMENT','CONTENT')`, but
+    `docs/components/persistence-and-database.md §2.4` is
+    explicit that `mutationType` (not `lifecyclePhase`) takes the
+    values `CONCEPT`/`PRODUCTION`/`PURGE`/content-strings.
+    Executor used the doc-aligned dimension and inverted the
+    filter correctly.
+  - Synthetic probe: inserted old CONCEPT (2025-01-01), old
+    PRODUCTION (2025-01-01), new CONCEPT (today), called
+    `pruneMutationLogRetention(30)` directly → `prunedRows=1`,
+    PRODUCTION preserved, new CONCEPT preserved. Policy correct.
+  - P=50 priority confirmed in `default-subscribers.js` between
+    intent-seeder (P=40) and force-checks (P=90).
+  - The 24h gate is **real** persistence-backed via
+    `getSetting('persistence','mutationLogLastPruneAt')` +
+    `upsertSetting(...)`. This is the form the brief required —
+    NOT a hardcoded module-scope variable that resets on each
+    boot.
+  - try/catch wraps the whole subscriber, with
+    `console.error('[st8] file_mutation_log retention failed:', err.message)`
+    on the catch path — failures surface, not swallowed.
+  - Method-presence guard
+    (`typeof persistence.pruneMutationLogRetention !== 'function'`)
+    keeps the subscriber compat with older persistence instances.
+- Concerns: none. The hardcoded-30-days residualConcern is
+  honest and explicitly out-of-scope per the brief.
+
+#### Ticket idx 11 — prd_projects audit (LIVE)
+- Commit: 5690285
+- Verdict: ack
+- What I verified:
+  - 22-line block comment above the `prd_projects` DDL in
+    ST8_SCHEMA — git stat confirms exactly 22 insertions.
+  - Every wiring claim in the comment verified independently:
+    - `src/frontend/index.html:143` — CREATE PROJECT button with
+      `onclick="createPRDProject()"`.
+    - `src/frontend/app.js:277` — `window.createPRDProject = async function()`.
+    - `src/core/server/app.js:127 + 1088` — `/api/prd-projects`
+      routes (GET list / GET :name / POST create).
+  - `grep -rn 'updatePRDProject\|deletePRDProject' src/ scripts/`
+    returns only the method definitions in persistence.js plus
+    the documentation comment itself — zero external callers,
+    confirming "reserved for future PRD UI" is honestly
+    truthful, not a hand-wave.
+- Concerns: none. Pure documentation commit; no code-path
+  change.
+
+#### Ticket idx 14 — graph-persister.js provenance
+- Commit: 952410f
+- Verdict: ack
+- What I verified:
+  - Header block runs lines 2-34 of
+    `src/core/database/graph-persister.js` and documents:
+    upstream source location
+    (`maestro-scaffolder-tool/src/commands/integr8/databasePersister.ts`),
+    regeneration process (tsc, evidenced by the
+    `__createBinding`/`__importStar` boilerplate + trailing
+    source-map footer), READ-ONLY status, every live importer's
+    purpose, pointer to .gitattributes. Original 2-line tsc
+    header preserved as the final comment line.
+  - `/home/user/st8/.gitattributes` exists with
+    `src/core/database/graph-persister.js linguist-generated=true`
+    plus an explanatory comment block.
+  - 7-importer claim verified via `grep -rn 'require.*graph-persister' src/`:
+    sonic-indexer.js:22, sonic-queries.js:57, traversal.js:65,
+    integr8/index.js:55, insight-store.js:46,
+    parser-persistence.js:45, background-indexer.js:60 — exactly
+    seven under `src/features/`. The persistence.js match is a
+    documentation reference (correctly excluded).
+- Concerns: none. The "no automated sync" residualConcern is
+  honest about the cost of the read-only-vendored decision.
+
+### No-cheats sweep findings
+
+- `git diff 7c49b51..d834c4c -- src/ scripts/` is 452 lines, all
+  hand-reviewed.
+- Zero `TODO` / `FIXME` / `implement later` / `XXX` markers.
+- Two new try/catch blocks audited — both surface failures via
+  `console.error` (provider-seed + retention-prune). Neither
+  swallows silently. The retention catch was specifically
+  flagged in the brief as intentional and verified to log.
+- Zero `process.env.NODE_ENV === 'test'` or `if (skipReal)`
+  style bypasses.
+- Zero empty function bodies.
+- All deferrals (just ticket 0) point at a real, multi-day
+  roadmap item with surface area enumerated.
+
+### Cross-cluster flags for the founder
+
+1. **LLM_PROVIDERS duplication** —
+   `src/frontend/components/settings/settings.js:44-53` is now a
+   duplicate of the backend `CANONICAL_PROVIDERS` in
+   `persistence.js`. The settings-and-providers cluster (Wave
+   5b) is the natural owner; the cleanest follow-up is to expose
+   `/api/providers` (read) and have the frontend fetch the list
+   rather than hard-code it. Flagged in ticket 8's
+   residualConcerns; surfacing here for cross-cluster visibility.
+2. **Wave 5b dependency** — `getAllProviders` /
+   `upsertProvider` / `deactivateProvider` are persistence-side
+   ready but have no HTTP routes yet. Wave 5b owns wiring them.
+3. **Hard SQL FK on `tickets.claimedBy` → `providers.id`** is
+   gated on ticket 0's migration framework. JS-side enforcement
+   is equivalent for correctness today (single mutation method),
+   but a future founder reading the schema should know the FK is
+   declared in the providers block comment as a
+   migration-framework deliverable.
+
+### Recommendation for Wave 2
+
+Wave 1B leaves the cluster in a state where:
+
+1. The hook registry has its first non-trivial persistence-side
+   subscriber (P=50 mutation-log retention) demonstrating the
+   isolation-via-try/catch + method-presence-guard + persistence-backed-gate
+   pattern. Wave 2 should adopt this shape for any new
+   persistence-touching subscribers.
+2. The providers table is the first new FK'd table since the
+   tickets table — Wave 2 hook work that wants to introduce more
+   provider-typed event sources can build against
+   `getAllProviders` directly without re-touching the persistence
+   layer.
+3. The migration framework deferral is a known, named follow-up;
+   any Wave 2 hook work that needs new columns should expect to
+   land alongside the migration framework, not before it.
