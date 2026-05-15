@@ -217,7 +217,64 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE INDEX IF NOT EXISTS idx_tickets_filepath ON tickets(filepath);
 CREATE INDEX IF NOT EXISTS idx_tickets_open ON tickets(resolvedAt);
 CREATE INDEX IF NOT EXISTS idx_tickets_fingerprint ON tickets(fingerprint);
+
+-- ─── PROVIDERS ─────────────────────────────────────────────
+-- Canonical LLM collaborator registry (ticket 8, Wave 1B).
+--
+-- Mirrors LLM_PROVIDERS in src/frontend/components/settings/settings.js.
+-- The seeder runs at boot (seedCanonicalProviders) so a fresh DB is
+-- populated with the seven canonical entries, and INSERT OR IGNORE
+-- keeps existing rows intact.
+--
+-- tickets.claimedBy is intended to reference providers.id. We do NOT
+-- declare a SQL-level FOREIGN KEY because the tickets table predates
+-- this providers table on every existing st8.sqlite and adding an FK
+-- column to an existing SQLite table requires the migration framework
+-- (ticket 0 / roadmap P1.1) — out of scope here. Until that lands, the
+-- relationship is enforced at the JS layer in claimTicket(), which
+-- throws on an unknown provider id (same pattern as logActivity's
+-- key-whitelist validator from Wave 1A).
+--
+-- Cross-cluster: settings-and-providers (Wave 5b) owns the CRUD UI
+-- for this table. The settings UI's model editor reads providers via
+-- getAllProviders() and writes via upsertProvider(); the validator on
+-- claimTicket() reads via getProvider(id).
+CREATE TABLE IF NOT EXISTS providers (
+  id TEXT PRIMARY KEY,           -- canonical short name: 'anthropic', 'openai', etc.
+  displayName TEXT NOT NULL,     -- human-readable label
+  kind TEXT NOT NULL,            -- 'cloud' | 'local' | 'human' | 'custom'
+  envKey TEXT,                   -- API-key environment variable name (null for local/custom)
+  docsUrl TEXT,                  -- documentation URL (null permitted)
+  active INTEGER DEFAULT 1,      -- 1 = available for assignment, 0 = disabled
+  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_providers_active ON providers(active);
 `;
+
+// ─── CANONICAL PROVIDERS ─────────────────────────────────────
+//
+// Seed for the providers table. Matches LLM_PROVIDERS in
+// src/frontend/components/settings/settings.js — those two lists are
+// the same registry. If you add a provider here, mirror it in the
+// frontend constant (and ideally vice-versa once the settings UI
+// gains a write-back to this table).
+//
+// `human` is added on top of the frontend list — it represents a
+// human collaborator picking up a ticket (the founder, a contributor)
+// distinct from any of the LLM providers. The tickets workflow allows
+// human claims so this is the right place to recognise that.
+const CANONICAL_PROVIDERS = [
+    { id: 'anthropic',  displayName: 'Anthropic',         kind: 'cloud',  envKey: 'ANTHROPIC_API_KEY',  docsUrl: 'https://docs.anthropic.com' },
+    { id: 'openai',     displayName: 'OpenAI',            kind: 'cloud',  envKey: 'OPENAI_API_KEY',     docsUrl: 'https://platform.openai.com/docs' },
+    { id: 'google',     displayName: 'Google (Gemini)',   kind: 'cloud',  envKey: 'GOOGLE_API_KEY',     docsUrl: 'https://ai.google.dev/docs' },
+    { id: 'ollama',     displayName: 'Ollama (local)',    kind: 'local',  envKey: null,                 docsUrl: 'https://github.com/ollama/ollama' },
+    { id: 'lmstudio',   displayName: 'LM Studio (local)', kind: 'local',  envKey: null,                 docsUrl: 'https://lmstudio.ai/docs' },
+    { id: 'openrouter', displayName: 'OpenRouter',        kind: 'cloud',  envKey: 'OPENROUTER_API_KEY', docsUrl: 'https://openrouter.ai/docs' },
+    { id: 'custom',     displayName: 'Custom (URL)',      kind: 'custom', envKey: null,                 docsUrl: null },
+    { id: 'human',      displayName: 'Human',             kind: 'human',  envKey: null,                 docsUrl: null },
+];
 
 // ─── EXPECTED SCHEMA (introspection target) ──────────────────
 //
@@ -275,6 +332,10 @@ const EXPECTED_SCHEMA = {
         'id', 'fingerprint', 'filepath', 'sha256Hash', 'statusAtCreation',
         'userNote', 'identityBundle', 'createdAt', 'claimedAt', 'claimedBy',
         'resolvedAt', 'resolution',
+    ],
+    providers: [
+        'id', 'displayName', 'kind', 'envKey', 'docsUrl', 'active',
+        'createdAt', 'updatedAt',
     ],
 };
 
@@ -344,6 +405,15 @@ class St8Persistence {
                 }
             } catch (driftErr) {
                 console.error('[st8:persistence] Schema introspection failed:', driftErr.message);
+            }
+
+            // Seed the canonical providers (ticket 8). INSERT OR IGNORE
+            // keeps user-edited rows intact across boots. Wrapped in
+            // try/catch so a seed failure can't block boot.
+            try {
+                this.seedCanonicalProviders();
+            } catch (seedErr) {
+                console.error('[st8:persistence] Provider seeding failed:', seedErr.message);
             }
 
         } catch (err) {
@@ -645,14 +715,142 @@ class St8Persistence {
         return stmt.run(resolution || '', id);
     }
 
-    /** Claim a ticket on behalf of an LLM provider. */
+    /**
+     * Claim a ticket on behalf of an LLM provider.
+     *
+     * `claimedBy` MUST be the `id` of an active row in the providers
+     * table (ticket 8). The SQL schema doesn't yet declare a FOREIGN
+     * KEY (the tickets table predates the providers table on existing
+     * DBs and adding the FK requires the migration framework / ticket
+     * 0), so this method enforces the relationship at the JS layer —
+     * same pattern as the logActivity key-whitelist validator from
+     * Wave 1A. Loud bug beats quiet bug.
+     *
+     * Throws TypeError if claimedBy is empty, RangeError if the id is
+     * not a known active provider.
+     */
     claimTicket(id, claimedBy) {
+        if (!claimedBy || typeof claimedBy !== 'string') {
+            throw new TypeError(
+                `[st8:persistence] claimTicket: claimedBy must be a non-empty string (provider id). Got ${JSON.stringify(claimedBy)}.`
+            );
+        }
+        const provider = this.getProvider(claimedBy);
+        if (!provider) {
+            const known = this.getAllProviders().map((p) => p.id).join(', ');
+            throw new RangeError(
+                `[st8:persistence] claimTicket: unknown provider '${claimedBy}'. Known providers: [${known}]. Add the provider via upsertProvider() before claiming.`
+            );
+        }
+        if (provider.active === 0) {
+            throw new RangeError(
+                `[st8:persistence] claimTicket: provider '${claimedBy}' exists but is inactive (active=0). Re-activate via upsertProvider({id, active: 1}) before claiming.`
+            );
+        }
         const stmt = this.db.prepare(`
             UPDATE tickets
             SET claimedAt = CURRENT_TIMESTAMP, claimedBy = ?
             WHERE id = ? AND claimedAt IS NULL
         `);
-        return stmt.run(claimedBy || 'unknown', id);
+        return stmt.run(claimedBy, id);
+    }
+
+    // ─── PROVIDERS (ticket 8, Wave 1B) ──────────────────────
+    //
+    // CRUD for the providers table. The settings-and-providers cluster
+    // (Wave 5b) owns the UI side; these methods are the storage layer
+    // it will eventually call. Until that lands, the seeded canonical
+    // entries (CANONICAL_PROVIDERS) are the only rows — they cover
+    // every provider in the frontend LLM_PROVIDERS registry plus
+    // 'human' for non-LLM claims.
+
+    /**
+     * Idempotent — INSERT OR IGNORE so an existing DB keeps any
+     * user-edited rows. Called from initialize().
+     */
+    seedCanonicalProviders() {
+        const stmt = this.db.prepare(`
+            INSERT OR IGNORE INTO providers (id, displayName, kind, envKey, docsUrl, active)
+            VALUES (?, ?, ?, ?, ?, 1)
+        `);
+        const tx = this.db.transaction((rows) => {
+            let inserted = 0;
+            for (const r of rows) {
+                const info = stmt.run(r.id, r.displayName, r.kind, r.envKey, r.docsUrl);
+                if (info.changes > 0) inserted += 1;
+            }
+            return inserted;
+        });
+        return { inserted: tx(CANONICAL_PROVIDERS), total: CANONICAL_PROVIDERS.length };
+    }
+
+    /** Returns a single provider row or null. */
+    getProvider(id) {
+        const row = this.db.prepare('SELECT * FROM providers WHERE id = ?').get(id);
+        return row || null;
+    }
+
+    /**
+     * Returns every provider row ordered by displayName. Pass
+     * `{ activeOnly: true }` to filter inactive rows out.
+     */
+    getAllProviders(opts) {
+        const activeOnly = opts && opts.activeOnly;
+        const sql = activeOnly
+            ? 'SELECT * FROM providers WHERE active = 1 ORDER BY displayName'
+            : 'SELECT * FROM providers ORDER BY displayName';
+        return this.db.prepare(sql).all();
+    }
+
+    /**
+     * Insert or update a provider. Updates `updatedAt` automatically.
+     * `kind` must be one of 'cloud' | 'local' | 'human' | 'custom'.
+     * Throws on missing required fields.
+     */
+    upsertProvider(p) {
+        if (!p || !p.id || !p.displayName || !p.kind) {
+            throw new TypeError(
+                `[st8:persistence] upsertProvider: { id, displayName, kind } are required. Got ${JSON.stringify(p)}.`
+            );
+        }
+        const KINDS = new Set(['cloud', 'local', 'human', 'custom']);
+        if (!KINDS.has(p.kind)) {
+            throw new RangeError(
+                `[st8:persistence] upsertProvider: kind must be one of [cloud, local, human, custom]. Got '${p.kind}'.`
+            );
+        }
+        const stmt = this.db.prepare(`
+            INSERT INTO providers (id, displayName, kind, envKey, docsUrl, active, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                displayName = excluded.displayName,
+                kind        = excluded.kind,
+                envKey      = excluded.envKey,
+                docsUrl     = excluded.docsUrl,
+                active      = excluded.active,
+                updatedAt   = CURRENT_TIMESTAMP
+        `);
+        return stmt.run(
+            p.id,
+            p.displayName,
+            p.kind,
+            p.envKey || null,
+            p.docsUrl || null,
+            p.active === 0 ? 0 : 1
+        );
+    }
+
+    /**
+     * Soft delete — flip active=0. Hard delete is intentionally not
+     * exposed because rows in tickets.claimedBy may still reference
+     * this provider id; we want the historical record to remain
+     * resolvable via getProvider().
+     */
+    deactivateProvider(id) {
+        const stmt = this.db.prepare(
+            'UPDATE providers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?'
+        );
+        return stmt.run(id);
     }
 
     deleteConnectionsForFile(fingerprint) {
