@@ -34,6 +34,113 @@ const MIME_TYPES = {
     '.woff2': 'font/woff2'
 };
 
+// ─── INPUT VALIDATION ────────────────────────────────────────
+//
+// validateRecordCommitPayload (ticket 28) — strict-shape validator for
+// POST /api/record-commit. Returns:
+//   { ok: true, payload }   — normalized payload (defaults applied,
+//                              unknown keys stripped, types coerced
+//                              to canonical forms where unambiguous)
+//   { ok: false, error }    — human-readable error string the route
+//                              should return as the 400 body
+//
+// Rules:
+//   - hash:         REQUIRED string, 1..200 chars
+//   - shortHash:    optional string, 0..40 chars   (default '')
+//   - subject:      optional string, 0..500 chars  (default '')
+//   - author:       optional string, 0..300 chars  (default '')
+//   - timestamp:    optional string, 0..50 chars   (default '')
+//   - branch:       optional string, 0..200 chars  (default '')
+//   - filesChanged: optional integer 0..10000      (default 0)
+//
+// Unknown keys → 400. The shell hook only ever produces the seven
+// canonical fields, so strict mode prevents arbitrary callers from
+// polluting activity_log.details with attacker-controlled fields.
+//
+// Exposed via module.exports for direct unit-testability.
+
+const RECORD_COMMIT_ALLOWED_KEYS = new Set([
+    'hash', 'shortHash', 'subject', 'author', 'timestamp', 'branch', 'filesChanged',
+]);
+const RECORD_COMMIT_STRING_LIMITS = {
+    hash: 200,
+    shortHash: 40,
+    subject: 500,
+    author: 300,
+    timestamp: 50,
+    branch: 200,
+};
+const FILES_CHANGED_MAX = 10000;
+
+function validateRecordCommitPayload(input) {
+    if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+        return { ok: false, error: 'payload must be a JSON object' };
+    }
+    // Reject unknown keys up front so a typo isn't silently accepted.
+    for (const key of Object.keys(input)) {
+        if (!RECORD_COMMIT_ALLOWED_KEYS.has(key)) {
+            return { ok: false, error: `unknown field: ${key}` };
+        }
+    }
+
+    // hash — required, non-empty string.
+    if (typeof input.hash !== 'string') {
+        return { ok: false, error: 'hash required (string)' };
+    }
+    if (input.hash.length === 0) {
+        return { ok: false, error: 'hash required (non-empty)' };
+    }
+    if (input.hash.length > RECORD_COMMIT_STRING_LIMITS.hash) {
+        return { ok: false, error: `hash too long (max ${RECORD_COMMIT_STRING_LIMITS.hash})` };
+    }
+
+    const out = { hash: input.hash };
+
+    // Other string fields — optional; if present must be strings; default ''.
+    for (const field of ['shortHash', 'subject', 'author', 'timestamp', 'branch']) {
+        if (field in input && input[field] !== undefined && input[field] !== null) {
+            if (typeof input[field] !== 'string') {
+                return { ok: false, error: `${field} must be a string` };
+            }
+            if (input[field].length > RECORD_COMMIT_STRING_LIMITS[field]) {
+                return {
+                    ok: false,
+                    error: `${field} too long (max ${RECORD_COMMIT_STRING_LIMITS[field]})`,
+                };
+            }
+            out[field] = input[field];
+        } else {
+            out[field] = '';
+        }
+    }
+
+    // filesChanged — optional integer 0..FILES_CHANGED_MAX. Reject:
+    //   string, array, object, float, negative, NaN, Infinity, >MAX.
+    if ('filesChanged' in input && input.filesChanged !== undefined && input.filesChanged !== null) {
+        const v = input.filesChanged;
+        if (typeof v !== 'number') {
+            return { ok: false, error: 'filesChanged must be a number' };
+        }
+        if (!Number.isFinite(v)) {
+            return { ok: false, error: 'filesChanged must be finite' };
+        }
+        if (!Number.isInteger(v)) {
+            return { ok: false, error: 'filesChanged must be an integer' };
+        }
+        if (v < 0) {
+            return { ok: false, error: 'filesChanged must be >= 0' };
+        }
+        if (v > FILES_CHANGED_MAX) {
+            return { ok: false, error: `filesChanged exceeds sanity cap (${FILES_CHANGED_MAX})` };
+        }
+        out.filesChanged = v;
+    } else {
+        out.filesChanged = 0;
+    }
+
+    return { ok: true, payload: out };
+}
+
 // ─── SERVER CLASS ────────────────────────────────────────────
 
 class St8Server {
@@ -1569,6 +1676,12 @@ class St8Server {
      *
      * Body shape (from the shell hook):
      *   { hash, shortHash, subject, author, timestamp, branch, filesChanged }
+     *
+     * Validation (ticket 28): the shell hook always produces well-typed
+     * fields, but the route is also reachable from `curl` and from the
+     * frontend (and any future external integration), so types are
+     * enforced here. Strict mode: extra fields are rejected so callers
+     * cannot pollute activity_log.details with arbitrary payloads.
      */
     _handleRecordCommit(req, res) {
         if (req.method !== 'POST') {
@@ -1591,12 +1704,25 @@ class St8Server {
         req.on('data', (chunk) => { body += chunk; });
         req.on('end', async () => {
             try {
-                const payload = JSON.parse(body || '{}');
-                if (!payload.hash) {
+                let rawPayload;
+                try {
+                    rawPayload = JSON.parse(body || '{}');
+                } catch (parseErr) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'hash required' }));
+                    res.end(JSON.stringify({ error: 'invalid JSON: ' + parseErr.message }));
                     return;
                 }
+
+                const validation = validateRecordCommitPayload(rawPayload);
+                if (!validation.ok) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: validation.error }));
+                    return;
+                }
+                // Use the NORMALIZED payload (defaults applied, extras
+                // stripped) so activity_log.details + the hook payload
+                // see a well-typed shape, not whatever the client sent.
+                const payload = validation.payload;
 
                 // Shared, memoized persistence instance — see persistence.js
                 // getSharedPersistence(). First call opens better-sqlite3 +
@@ -1817,5 +1943,8 @@ class St8Server {
 // ─── EXPORTS ─────────────────────────────────────────────────
 
 module.exports = {
-    St8Server
+    St8Server,
+    // Exposed for unit testing (ticket 28). Not part of the runtime API
+    // — internal helpers documented at the top of this file.
+    validateRecordCommitPayload,
 };
