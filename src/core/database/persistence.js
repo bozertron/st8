@@ -904,6 +904,24 @@ class St8Persistence {
         const stmt = this.db.prepare('SELECT * FROM connections WHERE sourceFingerprint = ? OR targetFingerprint = ?');
         return stmt.all(fingerprint, fingerprint);
     }
+
+    /**
+     * Return every row in the connections table. Used by force-checks FC5
+     * to verify that every connection's source AND target fingerprint
+     * still has a row in file_registry (dangling-edge detector).
+     *
+     * Returns an array (possibly empty); never null. Sorted by
+     * (sourceFingerprint, targetFingerprint) so the order is deterministic
+     * across runs — matters for FC5's diff-friendly report output.
+     *
+     * Ticket 18.
+     */
+    getAllConnections() {
+        const stmt = this.db.prepare(
+            'SELECT * FROM connections ORDER BY sourceFingerprint, targetFingerprint'
+        );
+        return stmt.all();
+    }
     
     // ─── FILE INTENT ────────────────────────────────────────
     

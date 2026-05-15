@@ -43,6 +43,7 @@
  */
 
 const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
 const { HOOKS } = require('../hook-registry');
 
@@ -101,15 +102,75 @@ function checkFC3_manifestCoversFiles(ctx) {
   for (const f of files) {
     if (!manifestFingerprints.has(f.fingerprint)) issues.push({ filepath: f.filepath, fingerprint: f.fingerprint });
   }
+  // Ticket 17: classify the failure mode. If file_registry has multiple
+  // rows per filepath, the manifest (per-run, latest-only) cannot cover
+  // them all — that's the cross-run accumulation signature batch 025
+  // surfaced and batch 026 fixed via persistence.pruneFilesNotIn(). If
+  // we ever see this signature again, the link back to the cleanup
+  // mechanism should be obvious in the report.
+  let staleAccumulationDetected = false;
+  if (issues.length > 0) {
+    const filepathCounts = new Map();
+    for (const f of files) {
+      filepathCounts.set(f.filepath, (filepathCounts.get(f.filepath) || 0) + 1);
+    }
+    for (const issue of issues) {
+      if (filepathCounts.get(issue.filepath) > 1) {
+        staleAccumulationDetected = true;
+        break;
+      }
+    }
+  }
+  let message;
+  if (issues.length === 0) {
+    message = `${files.length}/${files.length} files in manifest`;
+  } else if (staleAccumulationDetected) {
+    message = `${issues.length} files in registry but not manifest — STALE ACCUMULATION DETECTED (multiple fingerprints per filepath). The Pass-0 prune in main.js (persistence.pruneFilesNotIn) should have removed these; verify it ran.`;
+  } else {
+    message = `${issues.length} files in registry but not manifest — check manifest-generator output coverage`;
+  }
   return {
     id: 'FC3',
     title: 'Manifest covers every file_registry row',
     ok: issues.length === 0,
     count: files.length,
     issues,
-    message: issues.length === 0 ? `${files.length}/${files.length} files in manifest` : `${issues.length} files in registry but not manifest`,
+    message,
+    staleAccumulationDetected,
   };
 }
+
+// Ticket 4: Explicit allowlist of refs the gap-analyzer hard-codes as
+// architectural endpoint→module mappings. These look filepath-shaped
+// when surfaced in `.st8/gap-analysis.md` but aren't expected to live in
+// file_registry as user-authored files — they're "known intentional
+// mentions" that FC4 should ignore.
+//
+// Previously FC4 used a coarse prefix-skip on `src/`, `backend/`, `lib/`,
+// `/api/`. The prefix-skip swallowed real broken `src/...` refs along
+// with the intended cross-tree refs (a false-negative generator —
+// ticket 4 raised this exact trade-off).
+//
+// The allowlist is mirrored from
+// src/features/analysis/gap-analyzer.js#_analyzeArchitecture's
+// `endpointModuleMap`. If that map changes, this list should be updated
+// in lockstep — ideally by exporting the map from gap-analyzer and
+// importing it here, but that requires a cross-module API which is out
+// of scope for this ticket. For now the duplication is documented.
+//
+// Also kept: `/api/...` URL-shape skip (these aren't filepaths at all
+// and would never appear in file_registry by design).
+const FC4_KNOWN_ARCH_REFS = new Set([
+  // Endpoint-handler modules from gap-analyzer's endpointModuleMap.
+  'src/features/indexing/indexer.js',
+  'src/core/database/persistence.js',
+  'src/features/prd/generator.js',
+  'src/features/analysis/gap-analyzer.js',
+  // Architectural component refs the gap-analyzer also mentions explicitly.
+  'src/core/notification-bus.js',
+  'src/features/watcher/file-watcher.js',
+  'src/features/schema-cards/emitter.js',
+]);
 
 function checkFC4_gapReportRefsExist(ctx) {
   const gapPath = path.join(ctx.targetDir, '.st8', 'gap-analysis.md');
@@ -125,11 +186,14 @@ function checkFC4_gapReportRefsExist(ctx) {
   const issues = [];
   for (const ref of referenced) {
     // Skip API endpoint refs (like /api/connection-state.json) — those look
-    // file-shaped but are URLs. Also skip refs that look like external/sample
-    // paths (backend/X.js retained in hard-coded mappings — those are
-    // tested by check-conventions, not here).
+    // file-shaped but are URLs, never present in file_registry.
     if (ref.startsWith('/api/')) continue;
-    if (ref.startsWith('src/') || ref.startsWith('backend/') || ref.startsWith('lib/')) continue;
+    // Skip refs in the architectural allowlist — known intentional mentions
+    // from gap-analyzer's hardcoded endpointModuleMap. These may or may
+    // not be in file_registry (e.g. when the target project is itself st8,
+    // they are; when target is a different project, they aren't), and
+    // either way they are NOT signals of gap-analyzer drift.
+    if (FC4_KNOWN_ARCH_REFS.has(ref)) continue;
     if (!known.has(ref)) issues.push({ ref });
   }
   return {
@@ -143,10 +207,23 @@ function checkFC4_gapReportRefsExist(ctx) {
 }
 
 function checkFC5_connectionsResolve(ctx) {
-  const connections = ctx.persistence.getAllConnections ? ctx.persistence.getAllConnections() : null;
-  if (!connections) {
-    return { id: 'FC5', title: 'Connections have valid endpoints', ok: true, count: 0, issues: [], message: 'persistence.getAllConnections() not implemented (skipped)' };
+  // Ticket 18: missing getAllConnections used to return ok:true with
+  // a 'skipped' message — a silent-pass cheat. Now that persistence
+  // implements getAllConnections, the legitimate path is always taken
+  // for the real persistence. If the method is missing (a custom test
+  // double or stripped-down persistence), FAIL the check so the gap
+  // is visible — not silently green.
+  if (typeof ctx.persistence.getAllConnections !== 'function') {
+    return {
+      id: 'FC5',
+      title: 'Connections have valid endpoints',
+      ok: false,
+      count: 0,
+      issues: [{ reason: 'persistence.getAllConnections() not implemented — cannot verify connection endpoints' }],
+      message: 'persistence.getAllConnections() not implemented (FAIL — was silent-pass before ticket 18)',
+    };
   }
+  const connections = ctx.persistence.getAllConnections();
   const files = ctx.persistence.getAllFiles();
   const known = new Set(files.map((f) => f.fingerprint));
   const issues = [];
@@ -237,8 +314,10 @@ async function runForceChecks(ctx) {
 
   const reportPath = path.join(ctx.targetDir, '.st8', 'force-check.md');
   try {
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    fs.writeFileSync(reportPath, lines.join('\n') + '\n');
+    // Async write — runs inside an async INDEX_COMPLETE handler, so we avoid
+    // blocking the event loop on a large report. Ticket 19.
+    await fsp.mkdir(path.dirname(reportPath), { recursive: true });
+    await fsp.writeFile(reportPath, lines.join('\n') + '\n');
   } catch (err) {
     console.error('[st8:force-check] failed to write report:', err.message);
   }
@@ -251,4 +330,18 @@ function registerForceChecks(registry) {
   registry.register(HOOKS.INDEX_COMPLETE, runForceChecks, { priority: 90, source: 'force-checks' });
 }
 
-module.exports = { registerForceChecks, runForceChecks };
+module.exports = {
+  registerForceChecks,
+  runForceChecks,
+  // Exported for unit testing (ticket 3) — each check is a pure function of
+  // `ctx`, so probes can construct synthetic ctx objects without touching
+  // a real persistence DB or filesystem (except for FC1/FC2/FC3/FC4 which
+  // read the .st8/ directory and connection-state.json under ctx.targetDir).
+  checkFC1_filesHaveCards,
+  checkFC2_cardsHaveFiles,
+  checkFC3_manifestCoversFiles,
+  checkFC4_gapReportRefsExist,
+  checkFC5_connectionsResolve,
+  checkFC6_fingerprintFormat,
+  FC4_KNOWN_ARCH_REFS,
+};
