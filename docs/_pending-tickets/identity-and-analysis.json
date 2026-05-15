@@ -217,7 +217,17 @@
     "filepath": "src/features/analysis/intent-seeder.js",
     "userNote": "needsAIReview / tripleAtCount IS surfaced — found in src/frontend/app.js:430 (badge-ai-review span) and src/frontend/components/file-explorer/file-explorer.js:465 (intent table). Closed line item — not a gap. Including for traceability since the question was in the brief.",
     "severity": "info",
-    "status": "verified"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-3c-executor",
+    "actionsTaken": "Added inline DOWNSTREAM WIRING comment in src/features/analysis/intent-seeder.js (right before the TRIPLE_AT_PATTERN block) documenting that needsAIReview / tripleAtCount ARE surfaced today via the badge-ai-review span in two places:\n  - src/frontend/app.js:466 (constellation file-list)\n  - src/frontend/components/file-explorer/file-explorer.js:465 (explorer intent table)\nThe column was added in the persistence.js:71 ALTER block, populated by flagForAIReview(), and the frontend reads it via getAllFiles() through /api/files.\n\nNo behavior change — pure annotation per the INFO-level scope.",
+    "filesChanged": [
+      "src/features/analysis/intent-seeder.js"
+    ],
+    "commitHash": null,
+    "residualConcerns": "None — the wiring is intact and now self-documented adjacent to the producer code. If a future ticket adds an /api/needs-ai-review-summary surface it would benefit from a similar inline pointer.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "st8.sqlite",
@@ -228,7 +238,7 @@
     "executedBy": "wave-3c-executor",
     "actionsTaken": "DEFERRED — upstream-resolved by persistence-and-database cluster.\n\nThis ticket is a duplicate of persistence-and-database ticket 0 (verbatim concern: ST8_SCHEMA is a single CREATE-TABLE-IF-NOT-EXISTS string, post-hoc ALTERs for needsAIReview/tripleAtCount/aiContentInjected/templateVariables/hasUnfilledVariables, no _migrations table, no version tracking, no idempotent runner). The persistence cluster reviewed and defer-confirmed that ticket on 2026-05-15 (Wave 1B) with the verdict captured at docs/_pending-tickets/persistence-and-database.for-review.json index 0 — see also docs/_pending-roadmap/persistence-and-database.md P1.1 (SQLite migration framework) for the spec.\n\nFollowing the Wave 2A pattern for upstream-resolved tickets: rather than re-execute the same multi-day migration framework here, we cross-link to the canonical owner so the next reviewer can see at a glance which cluster owns the work.\n\nWhat the persistence cluster has already shipped that makes the eventual fix cleaner (per the Wave 1B defer review):\n  - EXPECTED_SCHEMA + introspectSchema() at src/core/database/persistence.js (L245+, L431+) — the assertion surface after each migration step.\n  - PRAGMA foreign_keys = ON at boot — ALTERs must be FK-safe or wrap PRAGMA OFF.\n  - deleteTicketsForFile cascade pattern as a template for any FK-bearing tables a migration introduces.\n\nThe identity-and-analysis cluster does NOT need to ship its own framework — the persistence framework will cover ST8_SCHEMA wholesale (file_registry, file_intent, file_mutation_log, connections, tickets, activity_log, prd_projects, ai_content, st8_settings).",
     "filesChanged": [],
-    "commitHash": null,
+    "commitHash": "cf7d01930889d136050d882e30ace9b21fbaeac3",
     "residualConcerns": "Same as upstream: until persistence P1.1 lands, ALTER-driven schema changes remain ad-hoc and DBs created before a column-add do not get the new column unless they go through the introspection-diff warning path. Surfaces at boot as [st8:persistence:drift] warnings (Wave 1A payoff).",
     "verdict": null,
     "reviewNote": null

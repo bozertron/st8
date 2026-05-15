@@ -231,6 +231,19 @@ class IntentSeeder {
             const { imports, exports, comments } = this._parseFileContent(file.filepath, content);
 
             // Detect @@@ symbols in the already-read content.
+            //
+            // ─── DOWNSTREAM WIRING (identity-and-analysis ticket 13) ───
+            // tripleAtCount + needsAIReview persist via flagForAIReview()
+            // and ARE surfaced in the UI today (verified Wave 3C):
+            //   - src/frontend/app.js:466 renders `<span class="badge-ai-review">@@@</span>`
+            //     next to the filename in the constellation file-list when
+            //     `file.needsAIReview` is true.
+            //   - src/frontend/components/file-explorer/file-explorer.js:465
+            //     renders the same badge inside the explorer intent table.
+            // Both badges read off the file row returned by /api/files,
+            // which is sourced from persistence.getAllFiles() (the column
+            // was added in the ALTER block at persistence.js:71). No gap —
+            // recorded here so future readers don't re-flag.
             const TRIPLE_AT_PATTERN = /(?:^|\s)@@@(?:\s|$)|<!--\s*@@@\s*-->|@@@AI_REVIEW/gm;
             const tripleAtMatches = content ? (content.match(TRIPLE_AT_PATTERN) || []) : [];
             const tripleAtCount = tripleAtMatches.length;
