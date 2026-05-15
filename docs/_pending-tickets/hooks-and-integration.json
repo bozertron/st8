@@ -10,8 +10,8 @@
     "filesChanged": [],
     "commitHash": "bec7145",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Confirmed: `grep -n target_fingerprint src/core/server/app.js` returns nothing. commitHash bec7145 matches Wave 1A's upstream fix, not a Wave 2A duplicate — the executor correctly did NOT redo the fix. The persistence-side validator means the regression is now loud, not silent. Cross-cluster handling is sound."
   },
   {
     "filepath": "src/core/server/app.js",
@@ -24,8 +24,8 @@
     "filesChanged": ["src/core/server/app.js"],
     "commitHash": "008afbc",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Read git show 008afbc -- src/core/server/app.js. New JSDoc accurately describes the COMMIT_RECORDED payload, names activity_log (not mutation_log) with the FK rationale inline, and cross-references batch 025. Matches the HOOKS map's documented payload signature in hook-registry.js:57. Comment-only edit, no code path change."
   },
   {
     "filepath": "src/core/server/app.js",
@@ -38,8 +38,8 @@
     "filesChanged": ["src/core/server/app.js"],
     "commitHash": "05cc3e4",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified: `grep -n HOOKS.TICKET_CREATED src/core/server/app.js` shows the bare reference at line 1612 with no `||` fallback. Constant exists in hook-registry.js line 65. Surrounding comment was updated to remove the stale 'v1 mechanism that may be reshaped' note. Clean dead-code removal."
   },
   {
     "filepath": "src/core/hooks/force-checks.js",
@@ -82,8 +82,8 @@
     "filesChanged": ["src/core/server/app.js", "scripts/git-hooks/post-commit"],
     "commitHash": "50276d4",
     "residualConcerns": "Two related lifecycle observations surfaced during verification, both pre-existing and outside Wave 2A's scope:\n  (1) The server only wires SIGINT to stop() in main.js — SIGTERM does not call stop(), so a `kill <pid>` of the st8 server leaves the port file stale.\n  (2) start.js spawns the backend via `spawn('node', ..., { shell: true })`, and SIGINT to start.js does NOT consistently propagate through the shell wrapper to the actual node child — so even SIGINT-to-start.js can leave the port file behind in some shells. This affects more than just port-file cleanup (the sonic-daemon child can also fail to wind down).\nBoth are roadmap-shaped process-lifecycle issues that belong in main.js / start.js, not this cluster. The hook tolerates stale port files in the sense that it will POST to a port that doesn't accept connections — curl times out per ST8_TIMEOUT_S and the hook returns 0 by design. No data loss, just a slightly slower no-op when the server is down. Wave 2D's broader audit pass may want to file these.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Live probe confirmed both sides: (1) `node src/core/server/main.js . --serve --port 3851` writes .st8/server.port='3851\\n' on listen, (2) direct SIGINT to that PID triggers stop() and removes the file cleanly. SIGINT through start.js (shell:true wrapper) does NOT propagate — file remained stale — exactly as residualConcerns flags. Port resolution priority (env > file > 3847) and integer validation in post-commit verified by read. Solid implementation; the two flagged lifecycle gaps (shell:true SIGINT propagation, missing SIGTERM handler in main.js:436) are real and correctly attributed to a different cluster (lifecycle / start.js). 2D should pick them up."
   },
   {
     "filepath": "scripts/git-hooks/post-commit",
@@ -96,8 +96,8 @@
     "filesChanged": ["scripts/git-hooks/post-commit"],
     "commitHash": "153f993",
     "residualConcerns": "The awk fallback's escape_json reads a single line at a time from awk's default record mode. `git log -1 --pretty=%s` is single-line by spec (the %s subject placeholder is just the first line of the commit message), so this is fine. If someone re-uses escape_json for a multi-line field in the future — e.g. `--pretty=%B` (full message body) — the awk function as written only escapes within each record. Documented inside the function with a `Preserve trailing newlines between input records` comment.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Both paths verified by read. jq path (lines 70-79) uses --arg + --argjson, structurally safe. awk fallback (lines 84-111) iterates U+0000..U+001F with short forms for 8/9/10/12/13 and \\uXXXX otherwise. Live probe: piped `hello\\b\\f\\vworld\"with\\back` through the awk escape_json — produced `hello\\b\\f\\u000bworld\\\"with\\\\back` which python json.loads round-trips correctly. The NUL caveat about bash `$(...)` stripping is honest. residualConcern about multi-line awk record mode is a minor real footgun for future reuse, correctly noted."
   },
   {
     "filepath": "scripts/git-hooks/post-commit",
@@ -110,8 +110,8 @@
     "filesChanged": ["scripts/git-hooks/post-commit"],
     "commitHash": "5b582a5",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified the pipeline `{ git log -1 --pretty=%s | head -c 200 | iconv -c -f UTF-8 -t UTF-8; } || true` at line 56. Live probe: 300-byte string of `你` (3-byte char × 100), head -c 200 produces 200 bytes that fail UTF-8 validation, iconv -c produces 198 bytes that pass. The `|| true` wrapper preventing iconv's expected non-zero exit from bailing the hook is exactly the right fix — without it, the `set -u` + the original `|| exit 0` pattern would have silently dropped the SUBJECT, leaving a NULL field. Good catch on the secondary bug."
   },
   {
     "filepath": "scripts/git-hooks/install.sh",
@@ -124,8 +124,8 @@
     "filesChanged": ["scripts/git-hooks/install.sh"],
     "commitHash": "55d1f63",
     "residualConcerns": "The chained-hook recipe printed on refuse tells the user to manually edit the new hook to call their .user hook. A more polished approach would be to ship a dispatcher script that auto-calls every `post-commit.*` sibling — that's a roadmap item, not a Wave-2A-shaped fix (it changes the surface area of what 'installed' means).",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Tested all 6 scenarios in /tmp/install-test fresh repo: (1) clean install → exit 0 + symlink created; (2) idempotent re-run → exit 0; (3) pre-existing regular file → exit 3 with full chained-hook recipe, original file preserved; (4) --force → overwrites with stderr warning, exit 0; (5) bogus --whatever → exit 2 with 'unknown argument'. Exit codes 0/2/3 are meaningful and documented in the script header. Symlink-pointing-elsewhere case also refuses correctly. Clean implementation."
   },
   {
     "filepath": "src/core/hooks/default-subscribers.js",
@@ -186,8 +186,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "The roadmap P3 'activity_log → hook replay tool' is the durable answer to subscribers that need at-least-once delivery. Until it ships, subscribers added today see at-most-once delivery for TICKET_CREATED and COMMIT_RECORDED. Document on per-subscriber basis whether they're tolerant of missed events.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "The userNote ends with 'Document or add a retry queue.' — a soft directive. Executor chose neither: no doc edit, no retry queue, no comment annotation. Analysis is sound (persistence-first design is correct, roadmap item P3 closes the gap), and residualConcerns honestly captures the at-most-once tradeoff. With zero current TICKET_CREATED/COMMIT_RECORDED subscribers, there's nothing to retrofit. Marking defer-confirmed rather than kickback: the documentary gap could have been closed with a 3-line note in hooks-and-integration.md, but the existing 'no firers'-style table entries already make the contract observable, and the roadmap P3 carries the durable answer. 2D may want to add an explicit 'delivery semantics' subsection to the component doc."
   },
   {
     "filepath": "src/core/server/app.js",
@@ -200,8 +200,8 @@
     "filesChanged": ["src/core/server/app.js", "src/core/hook-registry.js"],
     "commitHash": "4154733",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Verified by reading app.js lines 1600-1614. The 8 explicit fields are: id, fingerprint, filepath, userNote, sha256Hash, statusAtCreation, identityBundle, createdAt. The spread `...payload` is GONE, replaced with the explicit `ticketPayload` object. hook-registry.js line 65 now enumerates the same 8 fields in the payload-shape comment (was `...` previously). Naming reconciliation note about statusAtCreation vs payload.status is honest and correct. Tight, contract-narrowing change with zero subscribers to break."
   },
   {
     "filepath": "src/core/server/app.js",
@@ -214,8 +214,8 @@
     "filesChanged": ["src/core/server/app.js"],
     "commitHash": "93b3673",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Both GET sites annotated correctly: _handleTickets GET at lines 1541-1545 and _handleTicketsCount at lines 1630-1632. Both reference TICKETS_QUERIED by name with the 'don't add the constant prematurely' guidance. `grep -n TICKETS_QUERIED src/core/hook-registry.js` returns nothing — no premature constant was added. Right call."
   },
   {
     "filepath": "src/core/hook-registry.js",
@@ -228,8 +228,8 @@
     "filesChanged": ["src/core/hook-registry.js"],
     "commitHash": "04cee9b",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Probed against a fresh HookRegistry: listAllHooks() on empty registry returns all 9 canonical names (commit:recorded, file:after-change, file:before-change, file:indexed, index:complete, index:start, lifecycle:transition, prd:generate, ticket:created) each with count:0/sources:[]/runOrder:[]. listHooks() on the same empty registry returns [] (back-compat preserved for gap-analyzer / force-checks consumers). Overlay logic correct — registered hooks supersede the seed."
   },
   {
     "filepath": "src/core/hook-registry.js",
@@ -242,8 +242,8 @@
     "filesChanged": ["src/core/hook-registry.js"],
     "commitHash": "4e3f040",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Probed: registered handlers with priorities [99, 1, 50] out of order. introspectExecuteOrder() returned ['test-early', 'test-mid', 'test-late'] (priority-ascending). listHooks()[0].runOrder matches. introspectExecuteOrder('does-not-exist') returns []. listAllHooks() zero-sub entries carry empty runOrder:[]. execute()'s own sort (line 97 on register) was already priority-correct, so this is introspection-only — no behavioral risk."
   },
   {
     "filepath": "src/core/server/main.js",
