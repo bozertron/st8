@@ -140,6 +140,9 @@ class HookRegistry extends EventEmitter {
 
   /**
    * Introspection — list every registered hook + its subscribers.
+   *
+   * Hooks declared in the canonical HOOKS map but with zero subscribers are
+   * NOT returned here — see `listAllHooks()` for that view.
    */
   listHooks() {
     const out = [];
@@ -151,6 +154,28 @@ class HookRegistry extends EventEmitter {
       });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Introspection — list every CANONICAL hook from the HOOKS map joined with
+   * its registered subscriber count. Hooks with zero subscribers appear with
+   * `count: 0` and `sources: []`. Useful for debugging plugin load order or
+   * verifying that all expected defaults registered.
+   *
+   * Returns the same shape as listHooks() but with full coverage of the
+   * canonical map plus any extra hooks registered under non-HOOKS names.
+   */
+  listAllHooks() {
+    const byName = new Map();
+    // Seed with the canonical map so zero-subscriber hooks appear too.
+    for (const canonicalName of Object.values(HOOKS)) {
+      byName.set(canonicalName, { name: canonicalName, count: 0, sources: [] });
+    }
+    // Overlay actually-registered hooks (including any non-canonical names).
+    for (const entry of this.listHooks()) {
+      byName.set(entry.name, entry);
+    }
+    return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /**
