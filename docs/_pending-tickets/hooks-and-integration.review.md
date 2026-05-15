@@ -107,3 +107,225 @@ Wave 2A executor was honest. Twelve tickets, eleven code-or-doc fixes
 plus one defensible observation-only call. residualConcerns flag four
 real follow-ups, two of which I'm escalating cross-cluster. Annotations
 written; JSON file NOT renamed (Wave 2D's job).
+
+---
+
+## Wave 2B Review
+
+Reviewer: wave-2b-reviewer
+Reviewed: 2026-05-15
+Tickets in scope: indices 5, 6, 25 (3 total) — the deepest structural
+tickets in the cluster.
+Commits audited: `e4f3a4b`, `2878ab2`, `d65f14c` (Wave 2B authorship in
+range `1f1aad6..ef1bc79`).
+
+### Verdict counts
+
+- **ack:** 3
+- **defer-confirmed:** 0
+- **kickback:** 0
+
+### Commit-by-commit verification
+
+| Ticket | Commit | Verdict | Verification |
+|---|---|---|---|
+| 5 | `2878ab2` | ack | LIFECYCLE_TRANSITION fires in `_handleConceptFile` (app.js:874) and `_handleProductionPromote` (app.js:1117). PRD_GENERATE fires in `_handlePrd` (app.js:1008) BEFORE generation. All three use lazy-require. Live probe: POST /api/concept-file returned 200 + lifecyclePhase=CONCEPT; GET /api/prd returned 200; no `hook fire failed` lines in server log. **Cross-cluster gap surfaced**: `_handleMvpLock` (app.js:897-984) performs a real CONCEPT/DEVELOPMENT → LOCKED transition without firing the hook. Not a kickback (out of ticket-5 scope, which targeted the four declared-but-unfired CONSTANTS) but flagged for Wave 4. |
+| 6 | `d65f14c` | ack | Enumerated every side effect of the original 215-line callback (git show 1f1aad6:src/core/server/main.js L209-419). All accounted for in the new code with no silent gaps. See deep-audit section below. |
+| 25 | `e4f3a4b` | ack | Microbench replicated: 1000 fires through empty registry = 1.00 ms (1.003 µs/fire), so 283 fires ≈ 0.28 ms. Executor's 0.82 ms is in the same order of magnitude (includes verbose-disabled overhead). Fast-path code checks BOTH `_hooks.get(name)` empty AND `listenerCount(name) === 0`. Returns the canonical `{ok:0, fail:0, errors:[]}` shape. Live probe via `r.execute(HOOKS.PRD_GENERATE, {})` confirms. |
+
+### Deep audit — ticket 6 (the 215-line decomp)
+
+**Original side effects (enumerated from `git show 1f1aad6:src/core/server/main.js`):**
+
+| # | Side effect | Old location | New location |
+|---|---|---|---|
+| 1 | Filter by code extension | L213-216 (callback top) | main.js L330 (callback top) — preserved |
+| 2a | DELETE: splice from result.files | L233 | _applyFileChange L53 |
+| 2b | DELETE: persistence.logMutation | L240-247 | _applyFileChange L56-64 |
+| 2c | DELETE: SSE publish | L249-256 (was BEFORE card unlink) | P=30 sse-broadcaster |
+| 2d | DELETE: unlink card on disk | L258-265 | P=20 schema-card-emitter L176-190 |
+| 2e | DELETE: persistence.deleteFile | L267 | _applyFileChange L65 |
+| 2f | DELETE: console.log "Removed" | L268 | _applyFileChange L66 |
+| 3a | CREATE: read+hash+stat+fingerprint | L275-280 | _applyFileChange L73-77 |
+| 3b | CREATE: push to result.files | L302 | _applyFileChange L96 |
+| 3c | CREATE: persistence.upsertFile | L303 | _applyFileChange L97 |
+| 3d | CREATE: persistence.logMutation | L305-312 | _applyFileChange L99-107 |
+| 3e | CREATE: SSE publish (was BEFORE card) | L313-319 | P=30 sse-broadcaster |
+| 3f | CREATE: emitter.emitCard | L321-336 | P=20 schema-card-emitter L194-217 |
+| 4a | EDIT: hash + skip-if-same | L353-359 | _applyFileChange L117-118 |
+| 4b | EDIT: persistence.upsertFile | L361-364 | _applyFileChange L121-123 |
+| 4c | EDIT: persistence.logMutation | L366-373 | _applyFileChange L125-133 |
+| 4d | EDIT: SSE publish (was BEFORE card) | L375-381 | P=30 sse-broadcaster |
+| 4e | EDIT: AST + emitter.emitCard | L383-396 | P=20 schema-card-emitter |
+| 5a | Post-batch: writeManifests | L402 | main.js L378 (inline, AFTER for-loop — correct) |
+| 5b | Post-batch: IntentSeeder.seedAll | L408-414 | main.js L381-387 (inline, AFTER for-loop) |
+| 5c | Post-batch: GapAnalyzer.writeReport | L417-422 | main.js L389-395 (inline, AFTER for-loop) |
+| 5d | Post-batch: console.log "Incremental" | L404 | main.js L379 |
+
+**Zero side effects lost. No ai-content invalidation existed in the original (executor honestly inferred this).**
+
+**End-to-end probe** (`/tmp/st8-2b-probe`, port 3949):
+- `echo "x=1" > test.js` → CREATE: `test.js.json` written, `[st8:notify] + test.js — CREATE`, post-batch fired once.
+- `echo "x=2" >> test.js` → EDIT: card updated, `[st8:notify] ✎ test.js — EDIT`, post-batch fired once.
+- `rm test.js` → DELETE: card unlinked, `[st8:notify] − test.js — DELETE`, persistence row removed, post-batch fired once.
+- Post-batch invariant verified: manifest + seeder + gap-analyzer ran exactly ONCE per debounced batch, not N-multiplied. Executor's residualConcerns reasoning holds.
+
+**Subscriber inspection** (default-subscribers.js L157-235):
+- P=20 `file-after-change/schema-card-emitter` — guards on `file && mutation`, handles CREATE+EDIT (emit) and DELETE (unlink), wraps emit in its own try/catch.
+- P=30 `file-after-change/sse-broadcaster` — guards on `file && mutation`, publishes canonical payload `{fingerprint, filepath, mutationType, actor, sha256Hash}`.
+- Source tags use `file-after-change/` prefix → introspection (`listAllHooks().runOrder`) is self-documenting.
+
+**Line count** (onFileChange callback L329-397): 69 lines including comments and braces, ~40 LOC of real code. Matches executor's claim.
+
+### Per-emit try/catch deviation — verdict
+
+The executor kept the per-emit try/catch in the schema-card-emitter
+subscriber, deviating from the brief's "no wrapping" rule. Their
+justification: *"without it, a single bad emit silences SSE for that
+change."*
+
+I probed registry behavior with a P=15 thrower + P=20/P=30 observers:
+
+    order: [ 'thrower-fired', 'p20', 'p30' ]
+    res:   {"ok":2,"fail":1,"errors":[{"source":"thrower","error":"boom"}]}
+
+The registry catches throws and continues to subsequent subscribers.
+The executor's stated justification is therefore **technically wrong** —
+registry-level isolation already guarantees the SSE broadcaster runs
+even if the card emit throws.
+
+The try/catch is **convenience** (provides a better error message:
+`[st8] Failed to emit schema card for X (type): err.message`) rather
+than **load-bearing**. The deviation is benign — at worst it duplicates
+the registry's existing isolation. Not a kickback because (a) the
+deviation does not introduce a regression, (b) the executor was
+transparent about deviating from the brief's rule, and (c) the gap-analyzer
+subscriber already has the same "internal try/catch + registry catch"
+belt-and-braces pattern, so this is precedent-consistent.
+
+**Recommendation for the founder/Wave 2D:** the executor's reason was
+incorrect; the actual reason ("better error message context") is the
+same justification the docs already give for wrapping. The brief's
+"no wrapping" rule deserves a footnote: convenience-wrapping with a
+loud `console.error` is OK; silent swallow is not.
+
+### Honesty gaps (minor)
+
+1. **`_applyFileChange` is module-scoped but not exported.** Executor
+   wrote "Lives at module scope (not inside main()) so it is unit-testable
+   in isolation." But `src/core/server/main.js` has zero `module.exports`,
+   so the helper is module-private and not actually reachable from a test
+   file. The decomp still helps readability — it just hasn't unlocked
+   testability yet. Minor honesty drift, not a kickback.
+2. **Per-emit try/catch reasoning is wrong.** Discussed above.
+3. **SSE-vs-card ordering claim is wrong.** Executor claimed P=20-before-P=30
+   "preserves pre-decomp visible behavior." It does not — the original
+   CREATE/EDIT/DELETE all published SSE BEFORE writing the card. The
+   new order (card → SSE) is arguably nicer but IS a behavioral change.
+   With zero current SSE consumers that read the card via the bus event,
+   live blast radius is zero. Flag for any future SSE consumer.
+
+None of these justify a kickback. The decomp itself preserves every
+behavior end-to-end, and the executor's residualConcerns honestly
+captures the bigger structural tradeoffs (batch-shaped post-loop,
+result.files closure, FC4 fragility).
+
+### residualConcerns audit
+
+All executor-flagged residualConcerns map to real follow-ups:
+
+1. **Ticket 5 — bruno-oscar gaps** (lifecycle cluster) — confirmed by
+   reading src/features/lifecycle/bruno-oscar.js: `runBrunoCall` and
+   `archiveFile` flip brunoStatus without touching lifecyclePhase. Real
+   gap, correctly attributed to lifecycle cluster.
+2. **Ticket 5 — PRD_GENERATE empty options** — accurate; harmless
+   forward-compat placeholder.
+3. **Ticket 6 — batch-shaped post-loop kept inline** — accurate; the
+   N-multiplication for gap-analyzer is real (it scans every card on
+   disk). FILE_AFTER_CHANGE_BATCH is the right future fix.
+4. **Ticket 6 — result.files closure ownership** — accurate; pre-existing
+   design choice the decomp inherits.
+5. **Ticket 6 — FC4 fragility** — accurate; orthogonal to this work.
+6. **Ticket 6 — per-emit try/catch deviation** — see above; honest
+   about the deviation, wrong about the reason.
+7. **Ticket 25 — fast path zero-help with one subscriber** — accurate.
+
+### No-cheats sweep
+
+- `git diff 880f287..ef1bc79 -- src/ scripts/`: no new TODO/FIXME/XXX,
+  no commented-out original blocks, no console.log debris, no
+  silently-swallowing catches added. Every new try/catch logs with a
+  module-tagged `[st8:*]` prefix.
+- Verbose log path in fast-path correctly says "(0 subscribers — fast path)"
+  so traces are honest about which branch ran.
+- No subscriber bodies are half-written; both new FILE_AFTER_CHANGE
+  subscribers are complete.
+- File renaming: NOT performed (correct — Wave 2D handles).
+
+### Cluster shape for downstream waves
+
+**Safe for 2C (test infra + perf + auth + validation) to build on.**
+The 2B changes:
+
+- `HookRegistry.execute` fast path is purely additive — does not alter
+  the multi-subscriber path. Existing INDEX_COMPLETE subscribers, the
+  force-checks chain, and the new FILE_AFTER_CHANGE chain all run
+  through the unchanged loop.
+- `_applyFileChange` lives at module scope; 2C's test-infra work can
+  add a `module.exports = { _applyFileChange }` line and write unit
+  tests against the three branches without touching the orchestrator.
+- New FILE_AFTER_CHANGE subscribers are independent of each other and
+  guard on `file && mutation`, so 2C's auth/validation hooks could
+  register at higher priorities (P<20) without colliding.
+- The two lazy-require sites (`_handleConceptFile`, `_handleProductionPromote`,
+  `_handlePrd`) extend the established pattern — no new circular-dep
+  risk.
+
+### Cross-cluster flags for founder
+
+- **Lifecycle cluster (Wave 4): MVP-lock unwired.** `_handleMvpLock`
+  in src/core/server/app.js:897-984 performs a real CONCEPT/DEVELOPMENT
+  → LOCKED phase transition (line 939) without firing
+  `LIFECYCLE_TRANSITION`. Ticket 5's scope was "wire the four
+  declared-but-unfired CONSTANTS" and that's done correctly. But the
+  hook-coverage gap remains for MVP-lock plus the two bruno-oscar
+  archive sites the executor already flagged. Wave 4 should extend.
+- **Lifecycle cluster (Wave 4): bruno-oscar archive-staging.** Already
+  flagged in ticket 5's residualConcerns. `runBrunoCall` →
+  brunoStatus='flagged' and `archiveFile` → brunoStatus='archived' both
+  represent real phase work that should fire `LIFECYCLE_TRANSITION`.
+  The hook contract is in place; bruno-oscar just needs to start using
+  it when the phase semantics are nailed down.
+- **Documentation cluster: SSE-vs-card ordering changed.** New code
+  publishes SSE AFTER writing the card; old code published SSE BEFORE.
+  Update any future SSE consumer doc accordingly. Zero current
+  consumers; no live impact.
+
+### Cluster running total
+
+Across the 15 tickets reviewed so far (12 from Wave 2A + 3 from Wave 2B):
+
+- **ack:** 14
+- **defer-confirmed:** 1 (Wave 2A ticket 20 — observation-only)
+- **kickback:** 0
+
+Open Wave 2C and Wave 2D tickets in the JSON remain untouched.
+
+### Bottom line
+
+Wave 2B executor was rigorous on the deepest structural work in the
+cluster. All 215 lines of the old onFileChange callback traced to the
+new decomp with zero side effects lost. The fast-path optimization is
+provably safe and well-measured. The three new publishers all fire
+cleanly and use the established lazy-require pattern.
+
+Three minor honesty gaps surfaced (helper marked "unit-testable" but
+not exported; per-emit try/catch reasoning is wrong even though the
+deviation itself is benign; SSE-vs-card ordering claim is wrong). None
+reach kickback threshold. The executor's residualConcerns are
+substantive and honest — including the bigger structural tradeoffs
+(batch-shaped post-loop, result.files closure ownership, FILE_AFTER_CHANGE_BATCH
+as the right future fix).
+
+JSON annotations written; JSON file NOT renamed (final reviewer's job).
+Cluster is safe for Wave 2C to build on.
