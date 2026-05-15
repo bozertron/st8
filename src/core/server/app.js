@@ -1568,12 +1568,25 @@ class St8Server {
                 });
 
                 // Fire the hook so subscribers (future Sonic indexer,
-                // phreak's badge counter, etc.) can react.
+                // phreak's badge counter, etc.) can react. The payload is
+                // an EXPLICIT shape — do not spread the raw request body
+                // here, since clients can post arbitrary extra fields that
+                // would silently land in the hook context and confuse
+                // subscribers expecting a fixed contract.
                 try {
                     const { hookRegistry, HOOKS } = require('../hook-registry');
-                    // HOOKS.TICKET_CREATED is part of the canonical map.
+                    const ticketPayload = {
+                        id: ticket.id,
+                        fingerprint: payload.fingerprint,
+                        filepath: payload.filepath,
+                        userNote: payload.userNote || '',
+                        sha256Hash: payload.sha256Hash || null,
+                        statusAtCreation: payload.status || null,
+                        identityBundle: payload.identityBundle || null,
+                        createdAt: ticket.createdAt,
+                    };
                     await hookRegistry.execute(HOOKS.TICKET_CREATED, {
-                        ticket: { id: ticket.id, ...payload, createdAt: ticket.createdAt },
+                        ticket: ticketPayload,
                     });
                 } catch (hookErr) {
                     console.error('[st8:tickets] hook fire failed:', hookErr.message);

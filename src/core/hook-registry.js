@@ -61,7 +61,8 @@ const HOOKS = Object.freeze({
 
   // Ticket created from a particle click + user note. Subscribers:
   // future Sonic ticket-indexer; phreak> TUI badge counter; etc.
-  TICKET_CREATED: 'ticket:created',             // { ticket: {id, fingerprint, filepath, userNote, ...} }
+  // Payload contract is explicit — publisher is _handleTickets in app.js.
+  TICKET_CREATED: 'ticket:created',             // { ticket: {id, fingerprint, filepath, userNote, sha256Hash, statusAtCreation, identityBundle, createdAt} }
 });
 
 class HookRegistry extends EventEmitter {
