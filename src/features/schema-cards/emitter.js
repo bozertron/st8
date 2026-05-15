@@ -86,6 +86,25 @@ class SchemaCardEmitter {
 
     /**
      * Emit schema cards for all files.
+     *
+     * MULTI-FINGERPRINT NOTE (identity-and-analysis ticket 9):
+     * file_registry permits multiple rows per filepath (different
+     * birthTimestamp → different fingerprint, e.g. when a file is
+     * deleted and recreated). Schema cards are keyed by FILEPATH on
+     * disk (_cardFilename(filepath) → flat filename + .json), so two
+     * registry rows for the same filepath would produce the SAME card
+     * filename and the second emit would overwrite the first — and
+     * which "second" depends on getAllFiles() row order, which is
+     * non-deterministic for same-filepath rows.
+     *
+     * Resolution: this method DEDUPLICATES by filepath before emitting,
+     * keeping the row with the newest birthTimestamp (the "current"
+     * identity per the file-identity contract; older identities live
+     * on in mutation_log + file_registry for history). The prune sweep
+     * below uses the same deduplicated key set, so stale cards from
+     * superseded fingerprints are cleaned up via the registry-prune
+     * (`pruneFilesNotIn`) in main.js, not here.
+     *
      * @param {object} persistence - St8Persistence instance (must be initialized)
      */
     emitAllCards(persistence) {
@@ -93,8 +112,24 @@ class SchemaCardEmitter {
         // used a dynamic path.join() that the AST rewriter cannot see.
         const { extractImportsAndExports } = require('../../shared/utils/ast-parser');
 
-        const files = persistence.getAllFiles();
+        const allFiles = persistence.getAllFiles();
         const allIntents = persistence.getAllIntents();
+
+        // Deduplicate by filepath, keeping the newest birthTimestamp. If
+        // birthTimestamps are equal (or absent), getAllFiles' order wins.
+        const byFilepath = new Map();
+        for (const f of allFiles) {
+            const existing = byFilepath.get(f.filepath);
+            if (!existing) {
+                byFilepath.set(f.filepath, f);
+                continue;
+            }
+            const a = existing.birthTimestamp || '';
+            const b = f.birthTimestamp || '';
+            if (b > a) byFilepath.set(f.filepath, f);
+        }
+        const files = Array.from(byFilepath.values());
+
         let emitted = 0;
         let errors = 0;
 
