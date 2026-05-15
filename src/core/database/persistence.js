@@ -867,6 +867,52 @@ class St8Persistence {
         return { purgedMutations: count };
     }
 
+    // ─── MUTATION LOG RETENTION ─────────────────────────────
+    //
+    // Policy (ticket 10, Wave 1B):
+    //   * KEEP FOREVER:   mutationType in ('PRODUCTION', 'PURGE') —
+    //                     lifecycle-transition markers that must remain
+    //                     queryable for the lifetime of the project.
+    //   * PRUNE AFTER N:  every other mutationType (CONCEPT and content-
+    //                     change strings) older than `retentionDays` days.
+    //                     Default 30 days, overridable per call.
+    //
+    // The cutoff comparison uses the `timestamp` column (TEXT, ISO format
+    // via SQLite's CURRENT_TIMESTAMP). SQLite compares ISO timestamps as
+    // strings, which sorts identically to chronological order — no need
+    // to round-trip through Date math.
+    //
+    // Returns { prunedRows, retentionDays, cutoff } so the caller (the
+    // hook subscriber) can log the result without re-querying.
+    pruneMutationLogRetention(retentionDays = 30) {
+        if (!Number.isFinite(retentionDays) || retentionDays < 0) {
+            throw new RangeError(
+                `[st8:persistence] pruneMutationLogRetention: retentionDays must be a non-negative finite number, got ${retentionDays}`
+            );
+        }
+
+        // Compute cutoff in ISO format. CURRENT_TIMESTAMP in SQLite
+        // produces 'YYYY-MM-DD HH:MM:SS' (space separator, no TZ). We
+        // match that format so the string comparison is well-defined.
+        const cutoffMs = Date.now() - retentionDays * 86400 * 1000;
+        const cutoffIso = new Date(cutoffMs)
+            .toISOString()
+            .replace('T', ' ')
+            .replace(/\.\d{3}Z$/, '');
+
+        const stmt = this.db.prepare(
+            `DELETE FROM file_mutation_log
+             WHERE mutationType NOT IN ('PRODUCTION', 'PURGE')
+               AND timestamp < ?`
+        );
+        const info = stmt.run(cutoffIso);
+        return {
+            prunedRows: info.changes || 0,
+            retentionDays,
+            cutoff: cutoffIso,
+        };
+    }
+
     // ─── ACTIVITY LOG ───────────────────────────────────────
     
     logActivity(activity) {

@@ -101,6 +101,48 @@ function registerDefaultSubscribers(registry) {
     }
   }, { priority: 40, source: 'intent-seeder' });
 
+  // P=50 — file_mutation_log retention (ticket 10, Wave 1B).
+  //
+  // Policy:
+  //   * KEEP forever:  mutationType in ('PRODUCTION','PURGE')
+  //   * PRUNE after:   30 days for everything else (CONCEPT / content
+  //                    mutations) — bounded by file_mutation_log's
+  //                    append-only growth path.
+  //
+  // Gated to once-per-24h via the st8_settings table
+  // ('persistence' / 'mutationLogLastPruneAt') so the prune runs at
+  // most once per calendar day even if the indexer is re-run many
+  // times. The gate is keyed in UTC ms.
+  //
+  // Failure isolation: wrapped in try/catch — a prune error must not
+  // poison the rest of the INDEX_COMPLETE chain.
+  const MUTATION_LOG_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
+  const MUTATION_LOG_RETENTION_DAYS = 30;
+  registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
+    try {
+      const persistence = ctx.persistence;
+      if (!persistence || typeof persistence.pruneMutationLogRetention !== 'function') {
+        return; // older persistence without the helper — no-op.
+      }
+
+      const now = Date.now();
+      const lastRaw = persistence.getSetting('persistence', 'mutationLogLastPruneAt');
+      const lastMs = typeof lastRaw === 'number' ? lastRaw : Number(lastRaw) || 0;
+      if (lastMs && now - lastMs < MUTATION_LOG_PRUNE_INTERVAL_MS) {
+        // Already pruned within the last 24h — skip silently.
+        return;
+      }
+
+      const result = persistence.pruneMutationLogRetention(MUTATION_LOG_RETENTION_DAYS);
+      persistence.upsertSetting('persistence', 'mutationLogLastPruneAt', now);
+      console.log(
+        `[st8] file_mutation_log retention: pruned ${result.prunedRows} row(s) older than ${result.retentionDays}d (cutoff ${result.cutoff})`
+      );
+    } catch (err) {
+      console.error('[st8] file_mutation_log retention failed:', err.message);
+    }
+  }, { priority: 50, source: 'mutation-log-retention' });
+
   // ─── FILE_INDEXED — fires per-file during the Pass-1 upsert loop ───
   // No default subscribers in this batch; the per-file emission stays in
   // the batched INDEX_COMPLETE path so cards see the full connection
