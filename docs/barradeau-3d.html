@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Barradeau 3D Buildings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #0A0A0B; 
+            overflow: hidden;
+            font-family: 'Futura', 'Avenir', sans-serif;
+        }
+        canvas { display: block; }
+        
+        #ui {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            color: rgba(201, 169, 98, 0.7);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            max-width: 600px;
+        }
+        
+        button {
+            background: transparent;
+            border: 1px solid rgba(201, 169, 98, 0.3);
+            color: #C9A962;
+            padding: 10px 20px;
+            font-family: 'Futura', 'Avenir', sans-serif;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: rgba(201, 169, 98, 0.1);
+            border-color: #C9A962;
+        }
+        
+        #stats {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            color: rgba(26, 188, 156, 0.6);
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            text-align: right;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="ui">
+        <div>BARRADEAU 3D WOVEN BUILDINGS</div>
+        <div style="margin-top: 8px; opacity: 0.5;">particles placed along structural edges</div>
+    </div>
+    
+    <div id="controls">
+        <button id="btn-tower">TOWER</button>
+        <button id="btn-cathedral">CATHEDRAL</button>
+        <button id="btn-skyscraper">SKYSCRAPER</button>
+        <button id="btn-neighborhood">NEIGHBORHOOD</button>
+        <button id="btn-randomize">RANDOMIZE</button>
+    </div>
+    
+    <div id="stats">
+        <div>particles: <span id="particle-count">0</span></div>
+        <div>edges: <span id="edge-count">0</span></div>
+        <div>fps: <span id="fps">60</span></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // ═══════════════════════════════════════════════════════════
+        // DELAUNAY 2D (for footprint triangulation)
+        // ═══════════════════════════════════════════════════════════
+        class Delaunay2D {
+            static triangulate(points) {
+                if (points.length < 3) return [];
+                
+                const minX = Math.min(...points.map(p => p.x));
+                const minY = Math.min(...points.map(p => p.y));
+                const maxX = Math.max(...points.map(p => p.x));
+                const maxY = Math.max(...points.map(p => p.y));
+                
+                const dx = maxX - minX;
+                const dy = maxY - minY;
+                const deltaMax = Math.max(dx, dy) * 2;
+                
+                const p1 = { x: minX - deltaMax, y: minY - deltaMax };
+                const p2 = { x: minX + deltaMax * 2, y: minY - deltaMax };
+                const p3 = { x: minX + dx / 2, y: maxY + deltaMax };
+                
+                let triangles = [{ p1, p2, p3 }];
+                
+                for (const point of points) {
+                    const badTriangles = [];
+                    
+                    for (const tri of triangles) {
+                        if (this.inCircumcircle(point, tri)) {
+                            badTriangles.push(tri);
+                        }
+                    }
+                    
+                    const polygon = [];
+                    for (const tri of badTriangles) {
+                        const edges = [
+                            [tri.p1, tri.p2],
+                            [tri.p2, tri.p3],
+                            [tri.p3, tri.p1]
+                        ];
+                        
+                        for (const edge of edges) {
+                            let shared = false;
+                            for (const other of badTriangles) {
+                                if (other === tri) continue;
+                                if (this.hasEdge(edge, other)) {
+                                    shared = true;
+                                    break;
+                                }
+                            }
+                            if (!shared) polygon.push(edge);
+                        }
+                    }
+                    
+                    triangles = triangles.filter(t => !badTriangles.includes(t));
+                    
+                    for (const edge of polygon) {
+                        triangles.push({ p1: edge[0], p2: edge[1], p3: point });
+                    }
+                }
+                
+                return triangles.filter(tri => 
+                    tri.p1 !== p1 && tri.p1 !== p2 && tri.p1 !== p3 &&
+                    tri.p2 !== p1 && tri.p2 !== p2 && tri.p2 !== p3 &&
+                    tri.p3 !== p1 && tri.p3 !== p2 && tri.p3 !== p3
+                );
+            }
+            
+            static inCircumcircle(p, tri) {
+                const ax = tri.p1.x - p.x, ay = tri.p1.y - p.y;
+                const bx = tri.p2.x - p.x, by = tri.p2.y - p.y;
+                const cx = tri.p3.x - p.x, cy = tri.p3.y - p.y;
+                
+                return (ax*ax + ay*ay) * (bx*cy - cx*by) -
+                       (bx*bx + by*by) * (ax*cy - cx*ay) +
+                       (cx*cx + cy*cy) * (ax*by - bx*ay) > 0;
+            }
+            
+            static hasEdge(edge, tri) {
+                const edges = [[tri.p1, tri.p2], [tri.p2, tri.p3], [tri.p3, tri.p1]];
+                return edges.some(e => 
+                    (e[0] === edge[0] && e[1] === edge[1]) ||
+                    (e[0] === edge[1] && e[1] === edge[0])
+                );
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // BARRADEAU 3D BUILDING GENERATOR
+        // Core insight: particles along edges, density by edge length
+        // ═══════════════════════════════════════════════════════════
+        class BarradeauBuilding {
+            constructor() {
+                this.particles = [];
+                this.edges = [];
+            }
+            
+            // Generate building from 2D footprint
+            generate(footprint2D, config = {}) {
+                const {
+                    height = 20,
+                    layers = 12,
+                    particlesPerUnit = 0.5,  // Particles per unit length of edge
+                    taper = 0.02,            // How much to narrow per layer
+                    verticalNoise = 0.3,
+                    densityFalloff = true    // Barradeau's key: fewer particles on longer edges
+                } = config;
+                
+                this.particles = [];
+                this.edges = [];
+                
+                // Triangulate the footprint
+                const triangles = Delaunay2D.triangulate(footprint2D);
+                
+                // Extract unique edges with lengths
+                const edgeMap = new Map();
+                for (const tri of triangles) {
+                    const triEdges = [[tri.p1, tri.p2], [tri.p2, tri.p3], [tri.p3, tri.p1]];
+                    
+                    for (const [a, b] of triEdges) {
+                        const key = a.x < b.x || (a.x === b.x && a.y < b.y)
+                            ? `${a.x},${a.y}-${b.x},${b.y}`
+                            : `${b.x},${b.y}-${a.x},${a.y}`;
+                        
+                        if (!edgeMap.has(key)) {
+                            edgeMap.set(key, { a, b, length: Math.hypot(b.x - a.x, b.y - a.y) });
+                        }
+                    }
+                }
+                
+                const edges2D = Array.from(edgeMap.values());
+                const maxEdgeLength = Math.max(...edges2D.map(e => e.length));
+                
+                // For each layer, extrude edges and place particles
+                for (let layer = 0; layer < layers; layer++) {
+                    const y = (layer / layers) * height;
+                    const scale = 1 - layer * taper;
+                    const layerOpacity = 1 - (layer / layers) * 0.7;
+                    
+                    // Barradeau insight: at higher layers, only render shorter edges
+                    const lengthThreshold = densityFalloff 
+                        ? maxEdgeLength * (1 - layer / layers * 0.6)
+                        : maxEdgeLength;
+                    
+                    for (const edge of edges2D) {
+                        // Skip long edges at higher layers (Barradeau's technique)
+                        if (edge.length > lengthThreshold) continue;
+                        
+                        // Scale and lift the edge
+                        const a3D = {
+                            x: edge.a.x * scale,
+                            y: y + (Math.random() - 0.5) * verticalNoise,
+                            z: edge.a.y * scale  // 2D Y becomes 3D Z
+                        };
+                        const b3D = {
+                            x: edge.b.x * scale,
+                            y: y + (Math.random() - 0.5) * verticalNoise,
+                            z: edge.b.y * scale
+                        };
+                        
+                        // Store 3D edge
+                        this.edges.push({ a: a3D, b: b3D, length: edge.length });
+                        
+                        // Place particles along edge
+                        // Density inversely proportional to edge length (Barradeau)
+                        const densityMultiplier = densityFalloff 
+                            ? 1 + (1 - edge.length / maxEdgeLength) * 2
+                            : 1;
+                        const numParticles = Math.max(2, Math.floor(
+                            edge.length * particlesPerUnit * densityMultiplier
+                        ));
+                        
+                        for (let i = 0; i <= numParticles; i++) {
+                            const t = i / numParticles;
+                            this.particles.push({
+                                x: a3D.x + (b3D.x - a3D.x) * t + (Math.random() - 0.5) * 0.1,
+                                y: a3D.y + (b3D.y - a3D.y) * t + (Math.random() - 0.5) * 0.1,
+                                z: a3D.z + (b3D.z - a3D.z) * t + (Math.random() - 0.5) * 0.1,
+                                opacity: layerOpacity,
+                                edgeLength: edge.length / maxEdgeLength  // Normalized for color
+                            });
+                        }
+                    }
+                }
+                
+                return this;
+            }
+            
+            // Get Three.js geometry
+            getPointsGeometry() {
+                const positions = new Float32Array(this.particles.length * 3);
+                const colors = new Float32Array(this.particles.length * 3);
+                const sizes = new Float32Array(this.particles.length);
+                
+                const colorBase = new THREE.Color(0x1ABC9C);  // Teal
+                const colorAccent = new THREE.Color(0xC9A962); // Gold
+                
+                for (let i = 0; i < this.particles.length; i++) {
+                    const p = this.particles[i];
+                    const i3 = i * 3;
+                    
+                    positions[i3] = p.x;
+                    positions[i3 + 1] = p.y;
+                    positions[i3 + 2] = p.z;
+                    
+                    // Color: shorter edges (denser) = more gold, longer = more teal
+                    const mixedColor = colorBase.clone().lerp(colorAccent, 1 - p.edgeLength);
+                    colors[i3] = mixedColor.r;
+                    colors[i3 + 1] = mixedColor.g;
+                    colors[i3 + 2] = mixedColor.b;
+                    
+                    sizes[i] = 0.3 + p.opacity * 0.4;
+                }
+                
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                return geometry;
+            }
+            
+            // Get edge lines geometry
+            getLinesGeometry() {
+                const positions = [];
+                
+                for (const edge of this.edges) {
+                    positions.push(edge.a.x, edge.a.y, edge.a.z);
+                    positions.push(edge.b.x, edge.b.y, edge.b.z);
+                }
+                
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                
+                return geometry;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // FOOTPRINT GENERATORS
+        // ═══════════════════════════════════════════════════════════
+        const Footprints = {
+            tower() {
+                const points = [];
+                const size = 4;
+                
+                // Octagonal base
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    points.push({ x: Math.cos(angle) * size, y: Math.sin(angle) * size });
+                }
+                
+                // Inner ring
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+                    points.push({ x: Math.cos(angle) * size * 0.5, y: Math.sin(angle) * size * 0.5 });
+                }
+                
+                // Center
+                points.push({ x: 0, y: 0 });
+                
+                return points;
+            },
+            
+            cathedral() {
+                const points = [];
+                
+                // Nave
+                const naveW = 3, naveL = 10;
+                for (let i = 0; i <= 8; i++) {
+                    const t = i / 8;
+                    points.push({ x: -naveW, y: -naveL / 2 + t * naveL });
+                    points.push({ x: naveW, y: -naveL / 2 + t * naveL });
+                }
+                
+                // Transepts
+                const transeptY = 2;
+                for (let i = 0; i <= 4; i++) {
+                    const t = i / 4;
+                    points.push({ x: -naveW - t * 4, y: transeptY - 1.5 });
+                    points.push({ x: -naveW - t * 4, y: transeptY + 1.5 });
+                    points.push({ x: naveW + t * 4, y: transeptY - 1.5 });
+                    points.push({ x: naveW + t * 4, y: transeptY + 1.5 });
+                }
+                
+                // Apse
+                for (let i = 0; i <= 8; i++) {
+                    const angle = Math.PI + (i / 8) * Math.PI;
+                    points.push({ 
+                        x: Math.cos(angle) * 3.5, 
+                        y: naveL / 2 + Math.sin(angle) * 2 
+                    });
+                }
+                
+                // Interior columns
+                for (let i = 0; i < 6; i++) {
+                    const y = -naveL / 2 + 1 + (i / 5) * (naveL - 2);
+                    points.push({ x: -naveW + 1, y });
+                    points.push({ x: naveW - 1, y });
+                }
+                
+                return points;
+            },
+            
+            skyscraper() {
+                const points = [];
+                
+                // L-shaped footprint
+                const sections = [
+                    { x: 0, y: 0, w: 6, h: 8 },
+                    { x: 3, y: -4, w: 4, h: 4 }
+                ];
+                
+                for (const s of sections) {
+                    const density = 5;
+                    for (let i = 0; i <= density; i++) {
+                        const t = i / density;
+                        points.push({ x: s.x - s.w/2 + t * s.w, y: s.y - s.h/2 });
+                        points.push({ x: s.x - s.w/2 + t * s.w, y: s.y + s.h/2 });
+                    }
+                    for (let i = 1; i < density; i++) {
+                        const t = i / density;
+                        points.push({ x: s.x - s.w/2, y: s.y - s.h/2 + t * s.h });
+                        points.push({ x: s.x + s.w/2, y: s.y - s.h/2 + t * s.h });
+                    }
+                }
+                
+                // Core
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                    points.push({ x: Math.cos(angle) * 1.5, y: Math.sin(angle) * 1.5 });
+                }
+                
+                return points;
+            },
+            
+            neighborhood() {
+                const points = [];
+                
+                const buildings = [
+                    { x: -8, y: -5, w: 4, h: 3 },
+                    { x: -8, y: 2, w: 3, h: 4 },
+                    { x: 0, y: -6, w: 5, h: 4 },
+                    { x: 0, y: 2, w: 4, h: 5 },
+                    { x: 8, y: -4, w: 3, h: 5 },
+                    { x: 8, y: 4, w: 4, h: 3 },
+                    { x: -3, y: -1, w: 2, h: 2 },
+                    { x: 4, y: 0, w: 2, h: 3 },
+                ];
+                
+                for (const b of buildings) {
+                    // Perimeter
+                    const d = 3;
+                    for (let i = 0; i <= d; i++) {
+                        const t = i / d;
+                        points.push({ x: b.x - b.w/2 + t * b.w, y: b.y - b.h/2 });
+                        points.push({ x: b.x - b.w/2 + t * b.w, y: b.y + b.h/2 });
+                    }
+                    for (let i = 1; i < d; i++) {
+                        const t = i / d;
+                        points.push({ x: b.x - b.w/2, y: b.y - b.h/2 + t * b.h });
+                        points.push({ x: b.x + b.w/2, y: b.y - b.h/2 + t * b.h });
+                    }
+                    // Center
+                    points.push({ x: b.x, y: b.y });
+                }
+                
+                return points;
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════
+        // THREE.JS SETUP
+        // ═══════════════════════════════════════════════════════════
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x0A0A0B);
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0A0A0B, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+        camera.position.set(25, 20, 25);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        // Post-processing
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        composer.addPass(new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.2, 0.4, 0.1
+        ));
+
+        // ═══════════════════════════════════════════════════════════
+        // PARTICLE MATERIAL
+        // ═══════════════════════════════════════════════════════════
+        const particleMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 }
+            },
+            vertexShader: `
+                attribute float size;
+                attribute vec3 color;
+                varying vec3 vColor;
+                uniform float uTime;
+                
+                void main() {
+                    vColor = color;
+                    
+                    vec3 pos = position;
+                    // Gentle breathing
+                    pos.y += sin(uTime * 0.5 + position.x * 0.3) * 0.05;
+                    
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_PointSize = size * (150.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                
+                void main() {
+                    vec2 center = gl_PointCoord - 0.5;
+                    float dist = length(center);
+                    if (dist > 0.5) discard;
+                    
+                    float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                    alpha = pow(alpha, 1.5);
+                    
+                    gl_FragColor = vec4(vColor, alpha * 0.8);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0xFFFFFF,
+            transparent: true,
+            opacity: 0.04,
+            blending: THREE.AdditiveBlending
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // BUILDING MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+        let currentPoints = null;
+        let currentLines = null;
+        const builder = new BarradeauBuilding();
+
+        function generateBuilding(footprintFn, config = {}) {
+            // Clear previous
+            if (currentPoints) scene.remove(currentPoints);
+            if (currentLines) scene.remove(currentLines);
+            
+            // Generate
+            const footprint = footprintFn();
+            builder.generate(footprint, {
+                height: config.height || 20,
+                layers: config.layers || 15,
+                particlesPerUnit: config.density || 0.8,
+                taper: config.taper || 0.015,
+                ...config
+            });
+            
+            // Create meshes
+            currentPoints = new THREE.Points(builder.getPointsGeometry(), particleMaterial);
+            currentLines = new THREE.LineSegments(builder.getLinesGeometry(), lineMaterial);
+            
+            scene.add(currentPoints);
+            scene.add(currentLines);
+            
+            // Update stats
+            document.getElementById('particle-count').textContent = builder.particles.length.toLocaleString();
+            document.getElementById('edge-count').textContent = builder.edges.length.toLocaleString();
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // UI
+        // ═══════════════════════════════════════════════════════════
+        document.getElementById('btn-tower').addEventListener('click', () => {
+            generateBuilding(Footprints.tower, { height: 30, layers: 20, taper: 0.025 });
+        });
+        
+        document.getElementById('btn-cathedral').addEventListener('click', () => {
+            generateBuilding(Footprints.cathedral, { height: 15, layers: 12, taper: 0.01 });
+        });
+        
+        document.getElementById('btn-skyscraper').addEventListener('click', () => {
+            generateBuilding(Footprints.skyscraper, { height: 40, layers: 25, taper: 0.008 });
+        });
+        
+        document.getElementById('btn-neighborhood').addEventListener('click', () => {
+            generateBuilding(Footprints.neighborhood, { height: 8, layers: 8, taper: 0.02, density: 0.6 });
+        });
+        
+        document.getElementById('btn-randomize').addEventListener('click', () => {
+            const types = [Footprints.tower, Footprints.cathedral, Footprints.skyscraper];
+            const fn = types[Math.floor(Math.random() * types.length)];
+            generateBuilding(fn, {
+                height: 10 + Math.random() * 30,
+                layers: 8 + Math.floor(Math.random() * 15),
+                taper: 0.005 + Math.random() * 0.03,
+                density: 0.4 + Math.random() * 0.8
+            });
+        });
+
+        // Start with cathedral
+        generateBuilding(Footprints.cathedral, { height: 18, layers: 15 });
+
+        // ═══════════════════════════════════════════════════════════
+        // ANIMATION
+        // ═══════════════════════════════════════════════════════════
+        const clock = new THREE.Clock();
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = clock.getElapsedTime();
+            particleMaterial.uniforms.uTime.value = time;
+            
+            controls.update();
+            composer.render();
+            
+            // FPS
+            frameCount++;
+            if (performance.now() - lastFpsTime > 500) {
+                document.getElementById('fps').textContent = Math.round(frameCount * 2);
+                frameCount = 0;
+                lastFpsTime = performance.now();
+            }
+        }
+        
+        animate();
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
