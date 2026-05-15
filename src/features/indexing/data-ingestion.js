@@ -61,12 +61,31 @@ const path = __importStar(require("path"));
 const safeFs_js_1 = require("../../shared/utils/safe-fs.js");
 const ioChan_js_1 = require("../../shared/utils/io-chan.js");
 // ============ I-01 TIER 3: SOTA HEALTH MONITORING + CIRCUIT BREAKER ============
-const CIRCUIT_BREAKER_CONFIG = {
+//
+// Both configs were module-private constants pre-ticket-16. Now exposed
+// via configureDataIngestion() + getDataIngestionConfig() so:
+//   (a) tests can shrink failureThreshold / maxRetries to make
+//       circuit-breaker behaviour observable in a single test pass
+//       without sleeping 30 s.
+//   (b) runtime callers (operators on slow / large codebases where
+//       parsers genuinely take longer than 30 s to settle) can raise
+//       resetTimeoutMs without forking the file.
+//
+// `let` not `const` so configureDataIngestion() can mutate. Default
+// values preserve historical behaviour for any caller that doesn't
+// invoke the configure entry point.
+//
+// SAFE-TUNE BOUNDS — configureDataIngestion validates inputs:
+//   failureThreshold ≥ 1
+//   resetTimeoutMs   ≥ 0
+//   maxRetries       ≥ 0   (0 = no retry, attempt once and surrender)
+//   baseDelayMs      ≥ 0
+let CIRCUIT_BREAKER_CONFIG = {
     failureThreshold: 3,
     resetTimeoutMs: 30000,
     halfOpenMaxAttempts: 1,
 };
-const ADAPTIVE_RETRY_CONFIG = {
+let ADAPTIVE_RETRY_CONFIG = {
     baseDelayMs: 200,
     maxRetries: 3,
     errorDelayMap: {
@@ -79,6 +98,109 @@ const ADAPTIVE_RETRY_CONFIG = {
     },
     skipErrors: ['ENOENT', 'ENOTDIR', 'EISDIR'], // No point retrying these
 };
+const DATA_INGESTION_DEFAULTS = Object.freeze({
+    circuitBreaker: Object.freeze({ failureThreshold: 3, resetTimeoutMs: 30000, halfOpenMaxAttempts: 1 }),
+    adaptiveRetry: Object.freeze({ baseDelayMs: 200, maxRetries: 3 }),
+});
+
+/**
+ * Replace circuit-breaker + adaptive-retry settings at runtime.
+ *
+ * Pass only the keys you want to change; omitted keys keep their
+ * current values. Returns the resulting effective config so callers
+ * can log what they ended up with.
+ *
+ * @param {{circuitBreaker?: object, adaptiveRetry?: object}} opts
+ * @returns {{circuitBreaker: object, adaptiveRetry: object}}
+ */
+function configureDataIngestion(opts = {}) {
+    const cb = opts.circuitBreaker || {};
+    const ar = opts.adaptiveRetry || {};
+    if (cb.failureThreshold !== undefined) {
+        if (!Number.isFinite(cb.failureThreshold) || cb.failureThreshold < 1) {
+            throw new RangeError(`configureDataIngestion: failureThreshold must be ≥ 1, got ${cb.failureThreshold}`);
+        }
+        CIRCUIT_BREAKER_CONFIG.failureThreshold = cb.failureThreshold;
+    }
+    if (cb.resetTimeoutMs !== undefined) {
+        if (!Number.isFinite(cb.resetTimeoutMs) || cb.resetTimeoutMs < 0) {
+            throw new RangeError(`configureDataIngestion: resetTimeoutMs must be ≥ 0, got ${cb.resetTimeoutMs}`);
+        }
+        CIRCUIT_BREAKER_CONFIG.resetTimeoutMs = cb.resetTimeoutMs;
+    }
+    if (cb.halfOpenMaxAttempts !== undefined) {
+        if (!Number.isFinite(cb.halfOpenMaxAttempts) || cb.halfOpenMaxAttempts < 1) {
+            throw new RangeError(`configureDataIngestion: halfOpenMaxAttempts must be ≥ 1, got ${cb.halfOpenMaxAttempts}`);
+        }
+        CIRCUIT_BREAKER_CONFIG.halfOpenMaxAttempts = cb.halfOpenMaxAttempts;
+    }
+    if (ar.baseDelayMs !== undefined) {
+        if (!Number.isFinite(ar.baseDelayMs) || ar.baseDelayMs < 0) {
+            throw new RangeError(`configureDataIngestion: baseDelayMs must be ≥ 0, got ${ar.baseDelayMs}`);
+        }
+        ADAPTIVE_RETRY_CONFIG.baseDelayMs = ar.baseDelayMs;
+    }
+    if (ar.maxRetries !== undefined) {
+        if (!Number.isFinite(ar.maxRetries) || ar.maxRetries < 0) {
+            throw new RangeError(`configureDataIngestion: maxRetries must be ≥ 0, got ${ar.maxRetries}`);
+        }
+        ADAPTIVE_RETRY_CONFIG.maxRetries = ar.maxRetries;
+    }
+    if (ar.errorDelayMap !== undefined) {
+        if (typeof ar.errorDelayMap !== 'object' || ar.errorDelayMap === null) {
+            throw new TypeError('configureDataIngestion: errorDelayMap must be an object');
+        }
+        ADAPTIVE_RETRY_CONFIG.errorDelayMap = { ...ar.errorDelayMap };
+    }
+    if (ar.skipErrors !== undefined) {
+        if (!Array.isArray(ar.skipErrors)) {
+            throw new TypeError('configureDataIngestion: skipErrors must be an array');
+        }
+        ADAPTIVE_RETRY_CONFIG.skipErrors = ar.skipErrors.slice();
+    }
+    return getDataIngestionConfig();
+}
+
+/**
+ * Snapshot the current effective config. Returns a deep copy so
+ * callers can mutate the result without poisoning module state.
+ */
+function getDataIngestionConfig() {
+    return {
+        circuitBreaker: { ...CIRCUIT_BREAKER_CONFIG },
+        adaptiveRetry: {
+            baseDelayMs: ADAPTIVE_RETRY_CONFIG.baseDelayMs,
+            maxRetries: ADAPTIVE_RETRY_CONFIG.maxRetries,
+            errorDelayMap: { ...ADAPTIVE_RETRY_CONFIG.errorDelayMap },
+            skipErrors: ADAPTIVE_RETRY_CONFIG.skipErrors.slice(),
+        },
+    };
+}
+
+/**
+ * Reset to factory defaults — used by tests and operators who want to
+ * undo a tuning experiment.
+ */
+function resetDataIngestionConfig() {
+    CIRCUIT_BREAKER_CONFIG = {
+        failureThreshold: DATA_INGESTION_DEFAULTS.circuitBreaker.failureThreshold,
+        resetTimeoutMs: DATA_INGESTION_DEFAULTS.circuitBreaker.resetTimeoutMs,
+        halfOpenMaxAttempts: DATA_INGESTION_DEFAULTS.circuitBreaker.halfOpenMaxAttempts,
+    };
+    ADAPTIVE_RETRY_CONFIG = {
+        baseDelayMs: DATA_INGESTION_DEFAULTS.adaptiveRetry.baseDelayMs,
+        maxRetries: DATA_INGESTION_DEFAULTS.adaptiveRetry.maxRetries,
+        errorDelayMap: {
+            'EACCES': 3, 'EPERM': 3, 'EMFILE': 5,
+            'ENOENT': 0, 'ENOTDIR': 0, 'EISDIR': 0,
+        },
+        skipErrors: ['ENOENT', 'ENOTDIR', 'EISDIR'],
+    };
+}
+exports.configureDataIngestion = configureDataIngestion;
+exports.getDataIngestionConfig = getDataIngestionConfig;
+exports.resetDataIngestionConfig = resetDataIngestionConfig;
+exports.DATA_INGESTION_DEFAULTS = DATA_INGESTION_DEFAULTS;
 /** Health monitor: tracks per-parser success/failure rates */
 const healthMonitor = new Map();
 function getOrCreateHealthEntry(parserName) {
