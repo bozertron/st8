@@ -13,7 +13,6 @@
 | `ai-signal.toml` | 3 | - | - |
 | `connection-state.json` | 1329 | - | - |
 | `coordination.js` | 210 | - | - |
-| `fake-stream.js` | 96 | vendor/fake-stream.js | - |
 | `file-explorer.js` | 748 | - | - |
 | `graph-visualizer.js` | 456 | Try to load D3 from CDN | - |
 | `package.json` | 28 | - | - |
@@ -23,8 +22,10 @@
 | `st8.code-workspace` | 7 | - | - |
 | `st8.html` | 2587 | - | - |
 | `start.js` | 148 | ST8 — Startup Script | path, fs, child_process, open |
-| `void-engine.html` | 44 | - | - |
-| `void-engine.js` | 338 | the-editorial-engine.ts | - |
+
+Removed from this inventory (no longer in repo, intentionally):
+- `fake-stream.js` — fake LLM response stream; founder removed during pre-refactor "stubs and simulators" cleanup
+- `void-engine.html`, `void-engine.js` — void-engine moved to a separate project per founder direction
 
 ---
 
@@ -185,7 +186,7 @@ writeManifests() + intentSeeder.seedAll() + gapAnalyzer.writeReport()
 |-----------|------------------|----------|
 | `standard` | Standard file browsing | Deactivates split mode |
 | `logic-analyzer` | Full stack view | Activates split mode |
-| `pretext-dev` | NOT handled | void-engine.js would activate |
+| `pretext-dev` | NOT handled | safe no-op (void-engine removed from this project) |
 
 **Key:** Full Stack Logic Analyzer = `logic-analyzer` workspace type
 

@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-05-14T13:27:50.519Z",
+  "source": "st8.html",
+  "target": "src/frontend/app.js",
+  "ranges": [
+    {
+      "lines": [
+        1784,
+        1788
+      ],
+      "label": "escapeHtml utility (was script block 2)"
+    },
+    {
+      "lines": [
+        1797,
+        2584
+      ],
+      "label": "Main application (panels, wizard, file list, toasts, SSE)"
+    }
+  ],
+  "sourceLinesUsed": 793
+}

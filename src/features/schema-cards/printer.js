@@ -1,0 +1,294 @@
+#!/usr/bin/env node
+
+/**
+ * ST8 Schema Card Printer — Human-Readable Fallback
+ *
+ * Emits .txt files to .planning/st8_identity_system/ directory.
+ * This is the fallback output for when the st8 visual system is offline.
+ * Files follow naming convention: {timestamp}_{sanitized-filename}.txt
+ *
+ * Each file contains:
+ * - Identity header (fingerprint, birth timestamp, lifecycle phase)
+ * - Content version (sha256Hash)
+ * - Exports (name, kind, signature, returnType)
+ * - Imports (source, specifiers, importType)
+ * - Connections (importedBy, imports)
+ * - Intent (purpose, dependsOnBehavior, valueStatement)
+ * - Mutation summary (count, last mutation type/actor/timestamp)
+ */
+
+'use strict';
+
+const path = require('path');
+const fs = require('fs');
+
+class SchemaCardPrinter {
+    constructor(targetDir, options = {}) {
+        this.targetDir = targetDir;
+        // Default output: .planning/st8_identity_system/
+        this.outputDir = options.outputDir ||
+            path.join(targetDir, '.planning', 'st8_identity_system');
+        this._ensureOutputDir();
+    }
+
+    _ensureOutputDir() {
+        if (!fs.existsSync(this.outputDir)) {
+            fs.mkdirSync(this.outputDir, { recursive: true });
+        }
+    }
+
+    /**
+     * Print a schema card as a human-readable .txt file.
+     * @param {object} card - St8SchemaCard object
+     */
+    printCard(card) {
+        // Guard: skip non-code files that should never get .txt cards
+        const skipExtensions = ['.txt', '.json', '.sqlite-wal', '.sqlite-shm'];
+        const lowerPath = card.filepath.toLowerCase();
+        for (const ext of skipExtensions) {
+            if (lowerPath.endsWith(ext)) {
+                return null;
+            }
+        }
+        // Guard: skip files inside .st8/schema-cards (emitted JSON cards)
+        if (card.filepath.includes('.st8/schema-cards')) {
+            return null;
+        }
+        // Guard: skip files from directories that should be ignored
+        const ignoredPrefixes = ['.archive/', '.planning/', '.st8/', 'vendor/', 'snapshots/'];
+        for (const prefix of ignoredPrefixes) {
+            if (card.filepath.startsWith(prefix) || card.filepath.includes('/' + prefix)) {
+                return null;
+            }
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const safeName = card.filepath.replace(/\//g, '_').replace(/\\/g, '_');
+        const filename = `${timestamp}_${safeName}.txt`;
+        const outputPath = path.join(this.outputDir, filename);
+
+        const lines = [];
+
+        lines.push('═'.repeat(72));
+        lines.push(`  ST8 IDENTITY CARD — ${card.filepath}`);
+        lines.push('═'.repeat(72));
+        lines.push('');
+
+        // Identity
+        lines.push('┌─ IDENTITY ──────────────────────────────────────────────────┐');
+        lines.push(`  Fingerprint:      ${card.fingerprint}`);
+        lines.push(`  Filepath:         ${card.filepath}`);
+        lines.push(`  Filename:         ${card.filename}`);
+        lines.push(`  Birth Timestamp:  ${card.birthTimestamp}`);
+        lines.push(`  Lifecycle Phase:  ${card.lifecyclePhase}`);
+        lines.push(`  Is Entry Point:   ${card.isEntryPoint}`);
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Content Version
+        lines.push('┌─ CONTENT VERSION ──────────────────────────────────────────┐');
+        lines.push(`  SHA-256 Hash:     ${card.sha256Hash}`);
+        lines.push(`  File Size:        ${card.fileSizeBytes} bytes`);
+        lines.push(`  Last Modified:    ${card.lastModified}`);
+        lines.push(`  Last Indexed:     ${card.lastIndexed}`);
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Classification
+        lines.push('┌─ CLASSIFICATION ───────────────────────────────────────────┐');
+        lines.push(`  Status:           ${card.status}`);
+        lines.push(`  Reachability:     ${card.reachabilityScore}`);
+        lines.push(`  Impact Radius:    ${card.impactRadius}`);
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Exports
+        lines.push('┌─ EXPORTS ──────────────────────────────────────────────────┐');
+        if (card.exports && card.exports.length > 0) {
+            for (const exp of card.exports) {
+                const sig = exp.signature ? ` — ${exp.signature}` : '';
+                const ret = exp.returnType ? `: ${exp.returnType}` : '';
+                lines.push(`  ${exp.kind.padEnd(12)} ${exp.name}${sig}${ret}`);
+            }
+        } else {
+            lines.push('  (none)');
+        }
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Imports
+        lines.push('┌─ IMPORTS ──────────────────────────────────────────────────┐');
+        if (card.imports && card.imports.length > 0) {
+            for (const imp of card.imports) {
+                const names = imp.specifiers && imp.specifiers.length > 0
+                    ? ` {${imp.specifiers.map(s => s.name || s).join(', ')}}`
+                    : '';
+                lines.push(`  ${(imp.importType || 'named').padEnd(12)} ${imp.source}${names}`);
+            }
+        } else {
+            lines.push('  (none)');
+        }
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Connections
+        lines.push('┌─ CONNECTIONS ──────────────────────────────────────────────┐');
+        if (card.connections) {
+            if (card.connections.importedBy && card.connections.importedBy.length > 0) {
+                lines.push(`  Imported by:      ${card.connections.importedBy.join(', ')}`);
+            }
+            if (card.connections.imports && card.connections.imports.length > 0) {
+                lines.push(`  Imports:          ${card.connections.imports.join(', ')}`);
+            }
+            if ((!card.connections.importedBy || card.connections.importedBy.length === 0) &&
+                (!card.connections.imports || card.connections.imports.length === 0)) {
+                lines.push('  (none)');
+            }
+        } else {
+            lines.push('  (none)');
+        }
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Intent
+        lines.push('┌─ INTENT ───────────────────────────────────────────────────┐');
+        if (card.intent) {
+            lines.push(`  Purpose:          ${card.intent.purpose || '(not set)'}`);
+            lines.push(`  Depends On:       ${card.intent.dependsOnBehavior || '(not set)'}`);
+            lines.push(`  Value Statement:  ${card.intent.valueStatement || '(not set)'}`);
+        } else {
+            lines.push('  (not set)');
+        }
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        // Mutations
+        lines.push('┌─ MUTATIONS ────────────────────────────────────────────────┐');
+        lines.push(`  Total Mutations:  ${card.mutationCount || 0}`);
+        if (card.lastMutation && card.lastMutation.type) {
+            lines.push(`  Last Mutation:    ${card.lastMutation.type} by ${card.lastMutation.actor}`);
+            lines.push(`  Last Timestamp:   ${card.lastMutation.timestamp}`);
+        }
+        lines.push('└──────────────────────────────────────────────────────────────┘');
+        lines.push('');
+
+        lines.push(`Generated: ${new Date().toISOString()}`);
+        lines.push('');
+
+        fs.writeFileSync(outputPath, lines.join('\n'));
+
+        // Also write/update a "latest" version (overwrites on each emission)
+        const latestPath = path.join(this.outputDir, `LATEST_${safeName}.txt`);
+        fs.writeFileSync(latestPath, lines.join('\n'));
+
+        return { path: outputPath, latestPath };
+    }
+
+    /**
+     * Prune old timestamped .txt card files, keeping only the N most recent per base file.
+     * LATEST_* files are never pruned — they serve as the current snapshot.
+     *
+     * @param {number} maxPerFile - Maximum timestamped files to keep per base filename (default 10)
+     * @returns {{ pruned: number, kept: number }}
+     */
+    pruneOldCards(maxPerFile = 10) {
+        let pruned = 0;
+        let kept = 0;
+
+        try {
+            const allFiles = fs.readdirSync(this.outputDir);
+
+            // Filter to timestamped card files (ISO prefix pattern), exclude LATEST_ files
+            const timestampedFiles = allFiles.filter(f => {
+                // Must end with .txt
+                if (!f.endsWith('.txt')) return false;
+                // Skip LATEST_ files (current snapshot, never pruned)
+                if (f.startsWith('LATEST_')) return false;
+                // Must start with ISO timestamp: YYYY-MM-DDTHH-MM-SS-MMMZ_
+                return /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}/.test(f);
+            });
+
+            // Group by base filename (strip timestamp prefix)
+            // Timestamp format: "2026-05-13T12-34-56-789Z_" → 24 chars
+            const groups = {};
+            for (const file of timestampedFiles) {
+                // Extract base name after timestamp prefix
+                const match = file.match(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}[^_]+_(.+)\.txt$/);
+                if (!match) continue;
+                const baseName = match[1];
+                if (!groups[baseName]) groups[baseName] = [];
+                groups[baseName].push(file);
+            }
+
+            // Sort each group by filename descending (newest first due to ISO timestamp sort)
+            // and delete files beyond the maxPerFile limit
+            for (const [baseName, files] of Object.entries(groups)) {
+                // Sort descending — newest filenames (lexicographically largest) first
+                files.sort((a, b) => b.localeCompare(a));
+
+                if (files.length <= maxPerFile) {
+                    kept += files.length;
+                    continue;
+                }
+
+                // Keep the first maxPerFile, prune the rest
+                const toKeep = files.slice(0, maxPerFile);
+                const toPrune = files.slice(maxPerFile);
+                kept += toKeep.length;
+
+                for (const file of toPrune) {
+                    try {
+                        fs.unlinkSync(path.join(this.outputDir, file));
+                        pruned++;
+                    } catch (err) {
+                        console.error(`[st8:printer] Failed to prune ${file}:`, err.message);
+                    }
+                }
+            }
+
+            if (pruned > 0) {
+                console.log(`[st8:printer] Pruned ${pruned} old card files, kept ${kept}`);
+            }
+        } catch (err) {
+            console.error('[st8:printer] Error during card pruning:', err.message);
+        }
+
+        return { pruned, kept };
+    }
+
+    /**
+     * Print all schema cards from .st8/schema-cards/ directory.
+     */
+    printAllFromCards(schemaCardsDir) {
+        if (!fs.existsSync(schemaCardsDir)) {
+            console.error('[st8:printer] Schema cards directory not found:', schemaCardsDir);
+            return { printed: 0, errors: 0 };
+        }
+
+        const files = fs.readdirSync(schemaCardsDir).filter(f => f.endsWith('.json'));
+        let printed = 0;
+        let errors = 0;
+
+        for (const file of files) {
+            try {
+                const card = JSON.parse(fs.readFileSync(path.join(schemaCardsDir, file), 'utf-8'));
+                const result = this.printCard(card);
+                if (result !== null) {
+                    printed++;
+                }
+            } catch (err) {
+                console.error(`[st8:printer] Error printing ${file}:`, err.message);
+                errors++;
+            }
+        }
+
+        console.log(`[st8:printer] Printed ${printed} cards, ${errors} errors`);
+
+        // Prune old timestamped card files to prevent unbounded disk growth
+        const pruned = this.pruneOldCards();
+
+        return { printed, errors, pruned };
+    }
+}
+
+module.exports = { SchemaCardPrinter };

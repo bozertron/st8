@@ -1,0 +1,16 @@
+{
+  "batch": "background-indexer",
+  "generatedAt": "2026-05-14T13:40:19.146Z",
+  "ok": 1,
+  "fail": 0,
+  "results": [
+    {
+      "from": "lib/commands/backgroundIndexer.js",
+      "to": "src/features/indexing/background-indexer.js",
+      "status": "ok",
+      "action": "copied",
+      "sha256": "153dfb21e00b81fdea02641499237e82fdcab4e192596bbc69912fe2505cc428",
+      "lines": 812
+    }
+  ]
+}

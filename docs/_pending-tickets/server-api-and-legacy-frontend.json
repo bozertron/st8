@@ -1,0 +1,178 @@
+{
+  "cluster": "server-api-and-legacy-frontend",
+  "generated": "2026-05-15",
+  "tickets": [
+    {
+      "id": "API-001",
+      "title": "No /api/llm-call endpoint exists",
+      "severity": "P1",
+      "scope": "API",
+      "file": "src/core/server/app.js",
+      "lineHint": "83-158 (switch table)",
+      "summary": "The route table has no /api/llm-call. Without it the LLM-collaborator loop has nowhere to POST a prompt. Cross-cluster dupe with settings-and-providers — flagged here from the API-surface angle.",
+      "evidence": "Grep across the switch in _handleApiRequest() returns zero matches for llm-call.",
+      "proposed": "Add a POST handler that takes {provider, model, messages, settingsCategory?}, looks up provider credentials via persistence.getSettingsByCategory(), and proxies."
+    },
+    {
+      "id": "API-002",
+      "title": "Ticket lifecycle endpoints (claim / resolve) are missing",
+      "severity": "P1",
+      "scope": "API",
+      "file": "src/core/server/app.js",
+      "lineHint": "1501-1599 (_handleTickets, _handleTicketsCount)",
+      "summary": "Only POST / GET on /api/tickets and GET /api/tickets/count are exposed. St8Persistence has the lifecycle primitives (createTicket, getOpenTickets, countOpenTickets) but no claim() / resolve() HTTP wrappers. The LLM-collaborator loop cannot close the workflow over HTTP.",
+      "evidence": "Switch only handles '/api/tickets' and '/api/tickets/count' — no regex match for '/api/tickets/<id>/...'.",
+      "proposed": "Add POST /api/tickets/:id/claim and POST /api/tickets/:id/resolve. Fire HOOKS.TICKET_CLAIMED / TICKET_RESOLVED."
+    },
+    {
+      "id": "API-003",
+      "title": "/api/connection-state.json reads file, not SQLite — can lag a pass",
+      "severity": "P2",
+      "scope": "API consistency",
+      "file": "src/core/server/app.js",
+      "lineHint": "202-224 (_serveManifest)",
+      "summary": "_serveManifest reads the on-disk connection-state.json. main.js writes the manifest as part of the INDEX_COMPLETE subscriber chain, AFTER all SQLite upserts are committed. During the gap between SQLite commit and manifest write, /api/connection-state.json returns stale data while /api/needs-ai-review (DB-backed) returns fresh data — inconsistent.",
+      "evidence": "Compare app.js:212 (fs.readFileSync(manifestPath)) with the DB-backed _handleNeedsAIReview (app.js:1296).",
+      "proposed": "Either (a) generate the manifest JSON on demand from SQLite, or (b) document the staleness contract and add an `?fresh=1` query flag that triggers a regeneration."
+    },
+    {
+      "id": "API-004",
+      "title": "/api/exec referenced by terminal.js but absent from route table",
+      "severity": "P2",
+      "scope": "API ghost route",
+      "file": "src/frontend/components/terminal/terminal.js",
+      "lineHint": "90 (fetch('/api/exec'))",
+      "summary": "terminal.js phreakExecute falls back to POST /api/exec when the EPO client is disconnected. /api/exec is not in app.js's switch — the request 404s.",
+      "evidence": "grep '/api/exec' app.js returns no hits.",
+      "proposed": "Either implement /api/exec (carefully sandboxed) or remove the dead fallback path. Same for the PHREAK_API constant on line 43 ('/api/v1/exec' — already commented as dead)."
+    },
+    {
+      "id": "FRONT-001",
+      "title": "graph-viewer.js loads D3 from a CDN",
+      "severity": "P2",
+      "scope": "Legacy frontend",
+      "file": "src/frontend/components/graph-viewer/graph-viewer.js",
+      "lineHint": "18-40 (loadD3)",
+      "summary": "loadD3() injects <script src='https://d3js.org/d3.v7.min.js'>. This breaks the desktop-first / offline stance the founder set during Sonic integration. Also a CSP-shape liability.",
+      "proposed": "Bundle D3 locally OR replace the connection graph with a particles/Three.js node-graph view (see roadmap P2)."
+    },
+    {
+      "id": "FRONT-002",
+      "title": "terminal.js depends on window.renderFileList — global is undefined",
+      "severity": "P2",
+      "scope": "Cross-component dead coupling",
+      "file": "src/frontend/components/terminal/terminal.js",
+      "lineHint": "624 (window.renderFileList(filtered))",
+      "summary": "_isolateFiles() calls window.renderFileList(), and _clearVoid() targets #void-file-list. Neither exists in the current frontend tree — these were part of the founder's pre-session 'void file list' pop-out which never landed in the carousel layout. The terminal silently no-ops.",
+      "proposed": "Either (a) delete the dead branches (isolate-RED, isolate-YELLOW, isolate-GREEN, ALL, clear-void), or (b) implement #void-file-list as a third carousel slide and wire renderFileList into a shared service."
+    },
+    {
+      "id": "FRONT-003",
+      "title": "file-explorer.js error-banner hoist uses MutationObserver — fragile",
+      "severity": "P3",
+      "scope": "Legacy frontend",
+      "file": "src/frontend/app.js",
+      "lineHint": "59-69 (hoist + new MutationObserver)",
+      "summary": "The shell uses a MutationObserver to detect when .explorer-error-banner appears inside the explorer host, then forcibly moves it into the column titlebar. Any change to where the banner renders inside file-explorer.js (e.g. wrapping in a new div) breaks the presentation silently.",
+      "proposed": "Either have file-explorer.js emit a CustomEvent the shell listens for, or expose a slot/portal in the explorer's render contract."
+    },
+    {
+      "id": "FRONT-004",
+      "title": "file-explorer.js _toggleHidden references undefined LS_SHOW_HIDDEN",
+      "severity": "P3",
+      "scope": "Dead code",
+      "file": "src/frontend/components/file-explorer/file-explorer.js",
+      "lineHint": "178-185 (_toggleHidden)",
+      "summary": "_toggleHidden() calls localStorage.setItem(LS_SHOW_HIDDEN, ...) but LS_SHOW_HIDDEN is never declared. The function is also never wired into the rendered UI (no button calls it).",
+      "proposed": "Remove _toggleHidden and the showHidden state, or define LS_SHOW_HIDDEN and add a toggle button."
+    },
+    {
+      "id": "FRONT-005",
+      "title": "graph-viewer modal has no Escape handler and no focus trap",
+      "severity": "P3",
+      "scope": "A11y / UX",
+      "file": "src/frontend/components/graph-viewer/graph-viewer.js",
+      "lineHint": "357-438 (showGraphPopup)",
+      "summary": "showGraphPopup() appends a .graph-popup-overlay to document.body; close is only the diamond button. No Escape key close, no focus trap, no aria-modal — inconsistent with .panel-overlay (used by PRD wizard) which sets role='dialog' aria-modal='true'.",
+      "proposed": "Migrate showGraphPopup to the same .panel-overlay pattern used by the PRD wizard, or add an Escape handler + aria attributes."
+    },
+    {
+      "id": "FRONT-006",
+      "title": "PRD wizard kept as modal — not migrated to slide-carousel",
+      "severity": "P3",
+      "scope": "Frontend consistency",
+      "file": "src/frontend/index.html",
+      "lineHint": "125 (.panel-overlay#overlay-prd-wizard)",
+      "summary": "The PRD wizard remains a modal panel-overlay rather than a fourth carousel slide. Frontend agent explicitly kept it — re-flagging from the API/legacy angle because file-explorer.js:362 hard-codes onclick='window.openPRDWizard()' which assumes the modal pattern stays.",
+      "proposed": "Decide: keep as modal (and document why) or migrate to a 4th slide. Either way file-explorer.js shouldn't need to know which it is."
+    },
+    {
+      "id": "API-005",
+      "title": "/api/tickets and /api/record-commit have no body-size limit",
+      "severity": "P2",
+      "scope": "API hardening",
+      "file": "src/core/server/app.js",
+      "lineHint": "1447-1499 (record-commit), 1510-1583 (tickets)",
+      "summary": "17 POST handlers cap the body at 1KB; two others cap at 2KB. /api/record-commit and /api/tickets accept arbitrarily large bodies — they read `req.on('data', chunk => body += chunk)` with no MAX_BODY_SIZE guard. The pattern was added later and skipped the convention.",
+      "proposed": "Backfill the MAX_BODY_SIZE check (4KB is reasonable for a commit payload with filesChanged; 8KB for tickets with identityBundle)."
+    },
+    {
+      "id": "API-006",
+      "title": "/api/files traversal protection uses path.relative — verify every other route",
+      "severity": "P2",
+      "scope": "Security audit",
+      "file": "src/core/server/app.js",
+      "lineHint": "519-534 (insideHome / insideTarget)",
+      "summary": "_handleFileList correctly uses path.relative() to enforce path boundaries. The earlier startsWith()-based check was insecure. We should audit every other route that takes a path-shaped input — _handleIndex (`{path}`), _handleVerify (`{path}`), _handleConceptFile (`{filepath}`), _handleMarkReviewed (`{filepath}`), and _serveStaticFile (line 174 uses startsWith() — same insecure pattern that was fixed elsewhere).",
+      "proposed": "Replace startsWith() checks with path.relative() in _serveStaticFile and audit all path-accepting handlers for traversal."
+    },
+    {
+      "id": "API-007",
+      "title": "Body parsing is duplicated across ~17 handlers",
+      "severity": "P3",
+      "scope": "DRY",
+      "file": "src/core/server/app.js",
+      "lineHint": "many (MAX_BODY_SIZE / req.on('data') boilerplate)",
+      "summary": "Every POST handler reimplements the same data/end/close/413 dance with subtle drift (record-commit and tickets omit the cap; some catch close-event leaks, others don't — only _handleSettings has a close handler that closes the persistence; the rest can leak DB connections on client abort).",
+      "proposed": "Extract a readJsonBody(req, res, {maxSize}) helper that returns a Promise<object|null>. Wrap each handler."
+    },
+    {
+      "id": "API-008",
+      "title": "No OpenAPI / Swagger document for the route table",
+      "severity": "P2",
+      "scope": "Discoverability",
+      "file": "src/core/server/app.js",
+      "summary": "There is no machine-readable description of the 23 routes. The inventory in this cluster doc is hand-authored. New consumers (Sonic, an LLM collaborator) have no way to introspect the surface.",
+      "proposed": "Either generate openapi.json from a route descriptor (refactor the switch into a table-driven registry) or check in a manual openapi.yaml and add a /api/openapi.json route."
+    },
+    {
+      "id": "API-009",
+      "title": "REST conventions are mixed",
+      "severity": "P3",
+      "scope": "API design",
+      "file": "src/core/server/app.js",
+      "summary": "/api/prd-projects/<name> uses path params via regex (line 1089) but everything else is verb-flat. /api/tickets is GET-list / POST-create, but ticket-by-id has no GET handler. /api/templates is collection-style, /api/file-intent is action-style. Conventions drift per author.",
+      "proposed": "Document an API style guide (use resource-style for entities, action-style for verbs) and reconcile over the next refactor pass."
+    },
+    {
+      "id": "BOOT-001",
+      "title": "main.js per-file HOOKS.FILE_INDEXED in a tight loop — no batching",
+      "severity": "P3",
+      "scope": "Boot performance",
+      "file": "src/core/server/main.js",
+      "lineHint": "128-158 (Pass 1 upsert loop)",
+      "summary": "FILE_INDEXED fires synchronously inside the per-file await loop. If any subscriber registers I/O (Louis lock check, real-time UI) it serialises the indexer. No subscribers exist today but the hot loop is a tripwire.",
+      "proposed": "Document the perf contract for FILE_INDEXED subscribers (must be < 5ms or registered async) OR change main.js to fire BULK_INDEXED with the file array after Pass 1."
+    },
+    {
+      "id": "FRONT-007",
+      "title": "terminal.js phone state machine has no external consumers beyond status line",
+      "severity": "P3",
+      "scope": "Dead-ish API",
+      "file": "src/frontend/components/terminal/terminal.js",
+      "lineHint": "36 (phoneOffHook), 1042-1045 (togglePhoneOffHook)",
+      "summary": "phoneOffHook is read only by app.js:103-111 (status line update). It suppresses signal pop-ups inside the terminal but is otherwise pure UI. The 'phone' metaphor is whimsical but undocumented for new contributors.",
+      "proposed": "Either lean into it (route SSE notifications through the phone state machine globally — close the loop with the founder's signal/provisioned concept) or simplify to a 'mute notifications' toggle."
+    }
+  ]
+}

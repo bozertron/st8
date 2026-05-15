@@ -1,0 +1,134 @@
+[
+  {
+    "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
+    "userNote": "Inline-style attribute soup — `ensureOverlay()` builds the entire dive-in DOM (`#dive-in-header`, `#dive-in-filepath`, `#dive-in-meta`, `#dive-in-close`, `#dive-in-notes`, `#dive-in-canvas-host`) with cssText/style= strings. There is no `components/dive-in/dive-in.css`. Hover states, responsive sizing, and theming via `--panel-accent` are all missing because the styles live in JS strings. Move to a dedicated `dive-in.css` and let the markup carry classes only.",
+    "severity": "high",
+    "status": "RED"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
+    "userNote": "Missing `components/dive-in/dive-in.css` entirely — hover/active states on the close diamond, the Notes/Make Ticket button, responsive layout for small viewports, and prefers-reduced-motion overrides (the autoRotate + shader shimmer keep running with no reduce-motion respect) all have nowhere to live.",
+    "severity": "high",
+    "status": "RED"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/app.js",
+    "userNote": "The 5-second `setInterval` in `bootConstellation` re-fetches `/api/connection-state.json` and re-colors every particle on every tick. This is wasteful and also already-covered: `initMutationStream` connects to `/api/mutations` SSE for the toast handler, and per-file mutation events arrive there. Wire `St8Constellation.updateFileStatus(fingerprint, status)` into the SSE `onmessage` callback and drop the poll.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/app.js",
+    "userNote": "Dead code: `if (window.unloadVoidEngine) window.unloadVoidEngine()` and `window.loadVoidEngine().then(...)` calls inside `st8WorkspaceChanged`. The HTML comment at the top of `index.html` says void-engine has moved to a separate project; the loader is gone, so these branches are guarded no-ops. Delete them along with the `pretext-dev` workspace branch, or restore the loader if the founder wants pretext-dev back.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/styles/carousel.css",
+    "userNote": "The `.dock-diamond` block (lines 199–230, with hover/active states) is dead CSS — no element in `index.html` or any component carries that class. The original intent (per the comment, batch 027 design) was outer-edge dock diamonds replacing the file-explorer icon and `phreak>` text button in `.dock-row`. Either wire the markup or delete the rules.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/constellation/particles.lib.js",
+    "userNote": "particles.js is loaded as a global-side-effect script via `<script src=...>` in `index.html`, then `constellation.js` reaches into `window.pJSDom[i].pJS.particles.array` to decorate each particle. There is no module boundary — anyone can mutate `pJSDom`. A thin adapter module (`particles-adapter.js`) that exports `mountParticles(host, config) → { particles, destroy }` would localize the global-leak and make swapping the renderer (or upgrading particles.js) a one-file change.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/index.html",
+    "userNote": "Importmap browser-support edge case: `<script type=\"importmap\">` requires Chrome 89+ / Safari 16.4+ / Firefox 108+. There is no fallback shim (e.g. es-module-shims) and no detection. On older browsers, `dive-in.js` will fail to resolve `'three'` and the dive-in silently breaks. Either add `es-module-shims` for graceful degradation or hard-fail with a clear console error early.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/app.js",
+    "userNote": "Keyboard nav for the slide carousel is one-button-deep: only ESC works (returns flanking panels to st8). No Left/Right arrow nav, no Tab focus management between panels, no Home/End shortcuts. The PRD wizard modal has no focus-trap. Accessibility is below par for a developer tool that lives behind the keyboard.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/index.html",
+    "userNote": "The PRD wizard (`#overlay-prd-wizard`) still uses the pre-refactor `.panel-overlay.open` modal pattern — an absolute-positioned full-screen blur over the whole carousel — while the rest of the app has moved to slide-based panels. Stylistically inconsistent. Decide: (a) convert to a slide-in 4th panel, or (b) repurpose `.panel-overlay` as the canonical \"transient modal\" pattern and document it.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
+    "userNote": "Status-color map duplication: `STATUS_COLOR` is defined here as `{r, g, b}` floats and AGAIN in `dive-in.js` as hex `0x...` integers. The two are kept in sync by convention only — when the founder adds a new state (LOCKED was added recently), both files need updating. Extract to a shared `components/status-colors.js` exporting both a `tokens` map and `toThree(hex)` helpers, and import from both wrappers.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/styles/tokens.css",
+    "userNote": "Purple (`#9D4EDD`) is used in both `constellation.js` STATUS_COLOR (`COMBAT` state) and `dive-in.js` STATUS_COLOR — but there is no `--purple` or `--purple-rgb` token in `tokens.css`. Once COMBAT state goes live this hue will need rgba() usage (glows, fills) and currently has no token to compose from. Add `--purple: #9D4EDD` and `--purple-rgb: 157, 78, 221`.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
+    "userNote": "`BUILDING_CONFIG.emergenceMs: 2500` is defined but never referenced — the emergence animation (scatter-to-position + teal-to-status color, per the founder's brief and the docstring) is not implemented. Geometry is built and rendered in its final form; no entrance animation. Either implement the emergence pass or remove the dead config knob.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
+    "userNote": "The `window.addEventListener('resize', ...)` inside `initScene` is never removed — `hide()` only stops the anim loop. If the dive-in module is ever HMR-reloaded or destroyed, the listener leaks. Same for the `document.addEventListener('keydown', ...)` ESC handler in `ensureOverlay`. Track these for a destroy() teardown path.",
+    "severity": "low",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
+    "userNote": "`nearestParticle(x, y, maxRadius)` is an O(N) linear scan every click. Fine for ~1000 files but linear in file count. With repos like `node_modules/` in scope (tens of thousands), click latency becomes user-visible. Add a coarse spatial bucket (e.g. 8×8 grid over the canvas) keyed in `bindFilesToParticles()`. Low priority until file count crosses ~5k.",
+    "severity": "low",
+    "status": "GREEN"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/app.js",
+    "userNote": "`makeTicketFromNotes` reads from `window._st8FileIndex` which is populated only inside the SUCCESS branch of `bootConstellation()`'s manifest fetch. If the fetch fails (offline, backend down, race condition at boot), the index is `undefined` and the ticket payload's `fingerprint/sha256Hash/status` fields are all `undefined` — the backend rejects with `fingerprint + filepath required`. Add a defensive re-fetch or fall back to `window.VoidFileExplorer.getIndexedFingerprints()`.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/app.js",
+    "userNote": "Visual feedback after ticket creation calls `window.showCopyFeedback` — but `showCopyFeedback` is defined as a local `function` (not on window) on line 529. The `window.showCopyFeedback` global check will always be falsy, so the success branch silently falls through to `console.info` with no toast in the UI. Either expose `showCopyFeedback` on `window` or call it directly.",
+    "severity": "high",
+    "status": "RED"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
+    "userNote": "`setStatus(file, status)` calls `buildForFile(currentFile)` which fully tears down and rebuilds the geometry (`new BarradeauBuilding(file).build()` + Delaunay etc.). For an in-flight color change, this is overkill — only the `color` BufferAttribute needs to be rewritten. Cache the builder and update colors in-place.",
+    "severity": "low",
+    "status": "GREEN"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
+    "userNote": "When the dive-in overlay is hidden via `hide()`, the autoRotate camera continues to spin in the suspended state (the next `show()` resumes from wherever the camera ended up). Reset `controls.target` and `camera.position` on each `show()` if a different file is loaded, or expose a knob.",
+    "severity": "low",
+    "status": "GREEN"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/styles/carousel.css",
+    "userNote": "`.panels-strip` uses `transform: translateX(var(--strip-offset))` with the strip at `width: 300vw`. On very small viewports or zoom levels, this can produce horizontal scrollbars on the document body if `.panels-viewport` overflow protection breaks down. `body { overflow-x: hidden }` is missing — present in `base.css`? Verify; if not, add it.",
+    "severity": "low",
+    "status": "GREEN"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
+    "userNote": "`destroy()` calls `state.pJS.fn.vendors.destroypJS()` with a buggy guard: `typeof state.pJS.fn && typeof state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function'`. The first two `typeof` checks return strings like `'object'` which are always truthy — the guard is effectively just the last check. Harmless but misleading; tighten to `state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function'`.",
+    "severity": "low",
+    "status": "GREEN"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/index.html",
+    "userNote": "`#shelf-content` is empty in the markup and never populated by `app.js`. The intent (per the carousel.css comment and the founder's batch-027 design) was for the lower 1/8 to host contextual content — LLM chat input, workspace nav, ticket badge. Right now it's just dead grid-center space between the two diamonds.",
+    "severity": "med",
+    "status": "YELLOW"
+  },
+  {
+    "filepath": "/home/user/st8/src/frontend/app.js",
+    "userNote": "`bootConstellation()` runs at script-parse time (top-level in app.js), not on DOMContentLoaded. `index.html` puts `<script src=\"app.js\">` at the END of `<body>`, so the DOM is parsed by then — but if the script load order is ever changed, or someone adds `defer`/`async` differently, the `document.getElementById('stage')` lookup races. Wrap in a DOMContentLoaded handler defensively.",
+    "severity": "low",
+    "status": "GREEN"
+  }
+]

@@ -1,0 +1,337 @@
+{
+  "generatedAt": "2026-05-14T13:52:04.016Z",
+  "staged": 46,
+  "alreadyStaged": 0,
+  "missingOriginal": 0,
+  "total": 46,
+  "results": [
+    {
+      "from": "lib/utils/safeFs.js",
+      "to": "src/shared/utils/safe-fs.js",
+      "batch": "shared",
+      "status": "staged",
+      "ogbPath": "OGB/lib/utils/safeFs.js.txt"
+    },
+    {
+      "from": "lib/utils/ioChan.js",
+      "to": "src/shared/utils/io-chan.js",
+      "batch": "shared",
+      "status": "staged",
+      "ogbPath": "OGB/lib/utils/ioChan.js.txt"
+    },
+    {
+      "from": "lib/utils/astParser.js",
+      "to": "src/shared/utils/ast-parser.js",
+      "batch": "shared",
+      "status": "staged",
+      "ogbPath": "OGB/lib/utils/astParser.js.txt"
+    },
+    {
+      "from": "lib/utils/groundPlane.js",
+      "to": "src/shared/utils/ground-plane.js",
+      "batch": "shared",
+      "status": "staged",
+      "ogbPath": "OGB/lib/utils/groundPlane.js.txt"
+    },
+    {
+      "from": "backend/st8-types.js",
+      "to": "src/shared/types/st8-types.js",
+      "batch": "shared",
+      "status": "staged",
+      "ogbPath": "OGB/backend/st8-types.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/types.js",
+      "to": "src/shared/types/integr8-types.js",
+      "batch": "shared",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/types.js.txt"
+    },
+    {
+      "from": "backend/persistence.js",
+      "to": "src/core/database/persistence.js",
+      "batch": "core-database",
+      "status": "staged",
+      "ogbPath": "OGB/backend/persistence.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/databasePersister.js",
+      "to": "src/core/database/graph-persister.js",
+      "batch": "core-database",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/databasePersister.js.txt"
+    },
+    {
+      "from": "backend/brunoOscar.js",
+      "to": "src/features/lifecycle/bruno-oscar.js",
+      "batch": "lifecycle-watcher",
+      "status": "staged",
+      "ogbPath": "OGB/backend/brunoOscar.js.txt"
+    },
+    {
+      "from": "backend/fileWatcher.js",
+      "to": "src/features/watcher/file-watcher.js",
+      "batch": "lifecycle-watcher",
+      "status": "staged",
+      "ogbPath": "OGB/backend/fileWatcher.js.txt"
+    },
+    {
+      "from": "backend/schemaCardEmitter.js",
+      "to": "src/features/schema-cards/emitter.js",
+      "batch": "schema-cards",
+      "status": "staged",
+      "ogbPath": "OGB/backend/schemaCardEmitter.js.txt"
+    },
+    {
+      "from": "backend/schemaCardPrinter.js",
+      "to": "src/features/schema-cards/printer.js",
+      "batch": "schema-cards",
+      "status": "staged",
+      "ogbPath": "OGB/backend/schemaCardPrinter.js.txt"
+    },
+    {
+      "from": "backend/manifestGenerator.js",
+      "to": "src/features/schema-cards/manifest-generator.js",
+      "batch": "schema-cards",
+      "status": "staged",
+      "ogbPath": "OGB/backend/manifestGenerator.js.txt"
+    },
+    {
+      "from": "backend/prdGenerator.js",
+      "to": "src/features/prd/generator.js",
+      "batch": "prd",
+      "status": "staged",
+      "ogbPath": "OGB/backend/prdGenerator.js.txt"
+    },
+    {
+      "from": "backend/templateEngine.js",
+      "to": "src/features/prd/template-engine.js",
+      "batch": "prd",
+      "status": "staged",
+      "ogbPath": "OGB/backend/templateEngine.js.txt"
+    },
+    {
+      "from": "backend/gapAnalyzer.js",
+      "to": "src/features/analysis/gap-analyzer.js",
+      "batch": "analysis",
+      "status": "staged",
+      "ogbPath": "OGB/backend/gapAnalyzer.js.txt"
+    },
+    {
+      "from": "backend/intentSeeder.js",
+      "to": "src/features/analysis/intent-seeder.js",
+      "batch": "analysis",
+      "status": "staged",
+      "ogbPath": "OGB/backend/intentSeeder.js.txt"
+    },
+    {
+      "from": "lib/commands/insightStore.js",
+      "to": "src/features/analysis/insight-store.js",
+      "batch": "analysis",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/insightStore.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/relationshipAnalyzer.js",
+      "to": "src/features/analysis/relationship-analyzer.js",
+      "batch": "integr8-core",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/relationshipAnalyzer.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/pathGenerator.js",
+      "to": "src/features/analysis/path-generator.js",
+      "batch": "integr8-core",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/pathGenerator.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/reportGenerator.js",
+      "to": "src/features/analysis/report-generator.js",
+      "batch": "integr8-core",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/reportGenerator.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/tomlSerializer.js",
+      "to": "src/features/integr8/toml-serializer.js",
+      "batch": "integr8-core",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/tomlSerializer.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/migrationExecutor.js",
+      "to": "src/features/integr8/migration-executor.js",
+      "batch": "integr8-core",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/migrationExecutor.js.txt"
+    },
+    {
+      "from": "lib/commands/overview.js",
+      "to": "src/features/indexing/overview.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/overview.js.txt"
+    },
+    {
+      "from": "lib/commands/storeParser.js",
+      "to": "src/features/indexing/store-parser.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/storeParser.js.txt"
+    },
+    {
+      "from": "lib/commands/routeParser.js",
+      "to": "src/features/indexing/route-parser.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/routeParser.js.txt"
+    },
+    {
+      "from": "lib/commands/commandParser.js",
+      "to": "src/features/indexing/command-parser.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/commandParser.js.txt"
+    },
+    {
+      "from": "lib/commands/typeParser.js",
+      "to": "src/features/indexing/type-parser.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/typeParser.js.txt"
+    },
+    {
+      "from": "lib/commands/uiParser.js",
+      "to": "src/features/indexing/ui-parser.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/uiParser.js.txt"
+    },
+    {
+      "from": "lib/commands/parserPersistence.js",
+      "to": "src/features/indexing/parser-persistence.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/parserPersistence.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/dataIngestion.js",
+      "to": "src/features/indexing/data-ingestion.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/dataIngestion.js.txt"
+    },
+    {
+      "from": "lib/commands/integr8/index.js",
+      "to": "src/features/integr8/index.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/integr8/index.js.txt"
+    },
+    {
+      "from": "lib/commands/graphBuilder.js",
+      "to": "src/features/graph/builder.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/graphBuilder.js.txt"
+    },
+    {
+      "from": "lib/commands/graphTraversal.js",
+      "to": "src/features/graph/traversal.js",
+      "batch": "indexing-parsers",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/graphTraversal.js.txt"
+    },
+    {
+      "from": "backend/indexer.js",
+      "to": "src/features/indexing/indexer.js",
+      "batch": "indexing-engine",
+      "status": "staged",
+      "ogbPath": "OGB/backend/indexer.js.txt"
+    },
+    {
+      "from": "backend/notificationBus.js",
+      "to": "src/core/notification-bus.js",
+      "batch": "indexing-engine",
+      "status": "staged",
+      "ogbPath": "OGB/backend/notificationBus.js.txt"
+    },
+    {
+      "from": "backend/index.js",
+      "to": "src/core/server/main.js",
+      "batch": "server-and-entry",
+      "status": "staged",
+      "ogbPath": "OGB/backend/index.js.txt"
+    },
+    {
+      "from": "backend/server.js",
+      "to": "src/core/server/app.js",
+      "batch": "server-and-entry",
+      "status": "staged",
+      "ogbPath": "OGB/backend/server.js.txt"
+    },
+    {
+      "from": "backend/verify-persistence-fixes.js",
+      "to": "src/core/database/verify-persistence-fixes.js",
+      "batch": "server-and-entry",
+      "status": "staged",
+      "ogbPath": "OGB/backend/verify-persistence-fixes.js.txt"
+    },
+    {
+      "from": "coordination.js",
+      "to": "src/frontend/services/coordination.js",
+      "client": true,
+      "batch": "frontend-components",
+      "status": "staged",
+      "ogbPath": "OGB/coordination.js.txt"
+    },
+    {
+      "from": "settings-reader.js",
+      "to": "src/frontend/services/state.js",
+      "client": true,
+      "batch": "frontend-components",
+      "status": "staged",
+      "ogbPath": "OGB/settings-reader.js.txt"
+    },
+    {
+      "from": "file-explorer.js",
+      "to": "src/frontend/components/file-explorer/file-explorer.js",
+      "client": true,
+      "batch": "frontend-components",
+      "status": "staged",
+      "ogbPath": "OGB/file-explorer.js.txt"
+    },
+    {
+      "from": "graph-visualizer.js",
+      "to": "src/frontend/components/graph-viewer/graph-viewer.js",
+      "client": true,
+      "batch": "frontend-components",
+      "status": "staged",
+      "ogbPath": "OGB/graph-visualizer.js.txt"
+    },
+    {
+      "from": "phreak-terminal.js",
+      "to": "src/frontend/components/terminal/terminal.js",
+      "client": true,
+      "batch": "frontend-components",
+      "status": "staged",
+      "ogbPath": "OGB/phreak-terminal.js.txt"
+    },
+    {
+      "from": "settings-ui.js",
+      "to": "src/frontend/components/settings/settings.js",
+      "client": true,
+      "batch": "frontend-components",
+      "status": "staged",
+      "ogbPath": "OGB/settings-ui.js.txt"
+    },
+    {
+      "from": "lib/commands/backgroundIndexer.js",
+      "to": "src/features/indexing/background-indexer.js",
+      "batch": "background-indexer",
+      "status": "staged",
+      "ogbPath": "OGB/lib/commands/backgroundIndexer.js.txt"
+    }
+  ]
+}

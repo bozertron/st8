@@ -1,0 +1,68 @@
+/*
+ * PRD Wizard + Variable Editor
+ * Extracted from st8.html lines 1625–1662, 1664–1686.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── PRD WIZARD ────────────────────────────────────────── */
+  .prd-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .prd-field label {
+    color: var(--cyan);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .prd-input, .prd-select {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    padding: 8px;
+  }
+  .prd-btn-create {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 10px 20px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    border-radius: 3px;
+    width: 100%;
+  }
+  .prd-btn-create:hover {
+    background: var(--gold);
+    color: var(--void);
+  }
+
+  /* ─── VARIABLE EDITOR ───────────────────────────────────── */
+  .var-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .var-field label {
+    color: var(--cyan);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .var-input {
+    background: #0a0a0b;
+    border: 1px solid rgba(201, 116, 143, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 14px;
+    padding: 8px;
+  }
+</style>

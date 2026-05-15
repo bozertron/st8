@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!--
+ ST8 — Full Stack Logic Analyzer (slim shell)
+
+ This file replaces the 2587-line st8.html monolith with a thin host that
+ loads:
+   - 15 component / global stylesheets from src/frontend/styles/ and
+     src/frontend/components/*/
+   - 5 component JavaScript modules from src/frontend/components/*/
+     and src/frontend/services/
+   - The main application bundle src/frontend/app.js (extracted from
+     st8.html's third inline <script>).
+
+ The original st8.html is preserved at the repo root, unchanged, so the
+ un-migrated UI keeps working until this shell is verified in a browser.
+
+ Differences vs. the original (all intentional):
+   - void-engine loader removed (void-engine moved to a separate project,
+     per founder direction). The window.loadVoidEngine call sites inside
+     app.js remain — they're guarded with if-checks and become safe no-ops.
+   - settings-reader.js (formerly src/frontend/services/state.js) was
+     dead code — never script-loaded by the original st8.html, had its
+     own hardcoded DEFAULT_VOIDFLOW that duplicated settings.js's defaults
+     (silent divergence risk). Retired to OGB/src/frontend/services/state.js.txt.
+
+ Load order (preserved from original):
+   1. Component scripts (file-explorer, terminal, graph-viewer, settings,
+      coordination) — they expose window.* globals.
+   2. app.js — the main application bundle (uses the globals above).
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>st8</title>
+
+<!-- Fonts must load first (other CSS references font-family by name) -->
+<link rel="stylesheet" href="styles/fonts.css" />
+
+<!-- Design tokens (CSS custom properties) come next; everything below uses them -->
+<link rel="stylesheet" href="styles/tokens.css" />
+
+<!-- Base reset + reduced-motion overrides -->
+<link rel="stylesheet" href="styles/base.css" />
+
+<!-- Layout / shell -->
+<link rel="stylesheet" href="styles/void.css" />
+<link rel="stylesheet" href="styles/chat.css" />
+<link rel="stylesheet" href="styles/file-list.css" />
+<link rel="stylesheet" href="styles/notes-popup.css" />
+<link rel="stylesheet" href="styles/dock.css" />
+<link rel="stylesheet" href="styles/panels.css" />
+
+<!-- Component-local styles -->
+<link rel="stylesheet" href="components/graph-viewer/graph-viewer.css" />
+<link rel="stylesheet" href="components/settings/settings.css" />
+<link rel="stylesheet" href="components/file-explorer/file-explorer.css" />
+<link rel="stylesheet" href="components/terminal/terminal.css" />
+<link rel="stylesheet" href="components/notifications/toast.css" />
+<link rel="stylesheet" href="components/prd-wizard/prd-wizard.css" />
+<link rel="stylesheet" href="styles/carousel.css" />
+</head>
+<body>
+  <!-- Mutation notification toasts (SSE-driven) -->
+  <div class="mutation-toast-container" id="mutation-toasts" aria-live="polite" aria-label="Mutation notifications"></div>
+
+  <!-- ─── 3-panel carousel ─────────────────────────────────────
+       Three panels live side-by-side inside a 300vw strip. Slide between
+       them via the diamonds in the shelf below (or the outer dock).
+       Mounted ONCE — never torn down — so Three.js / particles.js state
+       in the st8 panel survives slides. -->
+  <div class="panels-viewport">
+    <div class="panels-strip" id="panels-strip" data-active="st8">
+
+      <!-- ─── LEFT: File Explorer ─── -->
+      <section class="panel-column" data-panel="explorer">
+        <div class="panel-frame">
+          <div class="panel-titlebar">
+            <span class="panel-title">FILE EXPLORER</span>
+            <span aria-hidden="true">&nbsp;</span>
+          </div>
+          <div class="panel-body" id="explorer-host"></div>
+        </div>
+      </section>
+
+      <!-- ─── CENTER: st8 main (the void replacement) ─── -->
+      <section class="panel-column" data-panel="st8">
+        <div class="panel-frame">
+          <div class="panel-titlebar">
+            <span class="panel-title">ST8 — FULL STACK CIRCUIT ANALYZER</span>
+            <span aria-hidden="true">&nbsp;</span>
+          </div>
+          <div class="panel-body" id="stage"></div>
+        </div>
+      </section>
+
+      <!-- ─── RIGHT: phreak> terminal ─── -->
+      <section class="panel-column" data-panel="phreak">
+        <div class="panel-frame">
+          <div class="panel-titlebar">
+            <span class="panel-title">PHREAK&gt;</span>
+            <span aria-hidden="true">&nbsp;</span>
+          </div>
+          <div class="panel-body" id="phreak-host"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ─── Shelf (lower 1/8) ────────────────────────────────────
+       The dock + LLM chat input + contextual content live here.
+       The slide diamonds at left/right are contextual: only the
+       diamonds that lead to an ADJACENT panel are interactive,
+       and only the one in the direction of an adjacent panel is
+       visible. Center (st8) shows both; flanking panels each show
+       the diamond on the side closest to st8. -->
+  <footer class="shelf" id="shelf" data-active="st8">
+    <button class="slide-diamond slide-left" aria-label="Slide left" title="Slide left">◇</button>
+    <div class="shelf-content" id="shelf-content"></div>
+    <button class="slide-diamond slide-right" aria-label="Slide right" title="Slide right">◇</button>
+  </footer>
+
+  <!-- PRD Project Wizard -->
+  <div class="panel-overlay" id="overlay-prd-wizard" data-panel="prd-wizard" role="dialog" aria-modal="true" aria-label="PRD Project Wizard">
+    <div class="panel-frame" style="width: min(500px, 92vw); height: min(600px, 86vh);">
+      <div class="panel-titlebar">
+        <span class="panel-title">PRD PROJECT WIZARD</span>
+        <button class="panel-close" data-close="prd-wizard" aria-label="Close">◇</button>
+      </div>
+      <div class="panel-body" style="padding: 24px;">
+        <div class="prd-field">
+          <label>PROJECT NAME</label>
+          <input type="text" id="prd-name" class="prd-input" placeholder="e.g., st8-launch">
+        </div>
+        <div class="prd-field">
+          <label>TEMPLATE</label>
+          <select id="prd-template" class="prd-select">
+            <option value="">Select template...</option>
+          </select>
+        </div>
+        <div id="prd-variables-container"></div>
+        <button class="prd-btn-create" id="prd-create-btn" onclick="createPRDProject()">CREATE PROJECT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Component modules — each exposes window.* globals consumed by app.js below -->
+  <script src="components/file-explorer/file-explorer.js"></script>
+  <script src="components/terminal/terminal.js"></script>
+  <script src="components/graph-viewer/graph-viewer.js"></script>
+  <script src="components/settings/settings.js"></script>
+  <script src="services/coordination.js"></script>
+
+  <!-- Constellation (flat file view) — Phase B
+       particles.lib.js is the unmodified vendored library; constellation.js
+       is our thin st8-specific wrapper that maps files to particles. -->
+  <script src="components/constellation/particles.lib.js"></script>
+  <script src="components/constellation/constellation.js"></script>
+
+  <!-- Dive-in (Three.js + Barradeau) — Phase C
+       Vendored Three.js + addons live under components/dive-in/three/.
+       The dive-in module is ESM; we use an importmap so its
+       `import 'three'` and `import 'three/addons/...'` resolve to the
+       local vendored files (no CDN). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./components/dive-in/three/three.module.js",
+      "three/addons/": "./components/dive-in/three/"
+    }
+  }
+  </script>
+  <script type="module" src="components/dive-in/dive-in.js"></script>
+
+  <!-- Main application bundle (extracted from st8.html's third inline <script>) -->
+  <script src="app.js"></script>
+</body>
+</html>

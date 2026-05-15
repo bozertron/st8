@@ -1,0 +1,453 @@
+#!/usr/bin/env node
+
+/**
+ * ST8 Backend — Main Entry Point
+ * 
+ * Ties together indexer, persistence, manifest generator, file watcher, and server.
+ * 
+ * Usage: node index.js <target-directory> [--watch] [--serve] [--port PORT]
+ */
+
+'use strict';
+
+const path = require('path');
+const { indexDirectory } = require('../../features/indexing/indexer');
+const { St8Persistence } = require('../database/persistence');
+const { writeManifests } = require('../../features/schema-cards/manifest-generator');
+const { FileWatcher } = require('../../features/watcher/file-watcher');
+const { St8Server } = require('./app');
+const { generateFingerprint, MutationType, ActorType } = require('../../shared/types/st8-types');
+const { SchemaCardEmitter } = require('../../features/schema-cards/emitter');
+const { SchemaCardPrinter } = require('../../features/schema-cards/printer');
+const { notificationBus } = require('../notification-bus');
+const { GapAnalyzer } = require('../../features/analysis/gap-analyzer');
+const { IntentSeeder } = require('../../features/analysis/intent-seeder');
+const { hookRegistry, HOOKS } = require('../hook-registry');
+const { registerDefaultSubscribers } = require('../hooks/default-subscribers');
+const { registerForceChecks } = require('../hooks/force-checks');
+
+// ─── GLOBAL ERROR HANDLERS ───────────────────────────────────
+// Prevent process crash from unhandled rejections
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[st8] Unhandled Promise Rejection:', reason);
+    // Don't crash — log and continue
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('[st8] Uncaught Exception:', err.message);
+    // For uncaught exceptions, we should exit gracefully
+    process.exit(1);
+});
+
+// ─── MAIN ────────────────────────────────────────────────────
+
+async function main() {
+    const args = process.argv.slice(2);
+    
+    if (args.length === 0 || args[0] === '--help') {
+        console.log('ST8 Backend — Full Stack Logic Analyzer');
+        console.log('');
+        console.log('Usage: node index.js <target-directory> [options]');
+        console.log('');
+        console.log('Options:');
+        console.log('  --watch       Watch for file changes and re-index');
+        console.log('  --serve       Start HTTP server for manifests');
+        console.log('  --port PORT   Server port (default: 3847)');
+        console.log('  --help        Show this help message');
+        console.log('');
+        console.log('Examples:');
+        console.log('  node index.js /path/to/project');
+        console.log('  node index.js /path/to/project --watch');
+        console.log('  node index.js /path/to/project --watch --serve');
+        process.exit(0);
+    }
+    
+    const targetDir = path.resolve(args[0]);
+    const watchMode = args.includes('--watch');
+    const serveMode = args.includes('--serve');
+    const portArg = args.indexOf('--port');
+    const port = portArg !== -1 ? parseInt(args[portArg + 1]) : 3847;
+    
+    console.log('╔══════════════════════════════════════════════════════════════╗');
+    console.log('║  ST8 — Full Stack Logic Analyzer                           ║');
+    console.log('╚══════════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`Target: ${targetDir}`);
+    console.log(`Watch:  ${watchMode ? 'enabled' : 'disabled'}`);
+    console.log(`Serve:  ${serveMode ? 'enabled' : 'disabled'}`);
+    console.log('');
+    
+    // Initialize persistence
+    const persistence = new St8Persistence();
+    await persistence.initialize();
+    
+    // Run initial indexing
+    console.log('[st8] Running initial indexing...');
+    const result = await indexDirectory(targetDir, { write: true });
+
+    // Initialize schema card emitter + printer (hoisted for file watcher access)
+    const emitter = new SchemaCardEmitter(targetDir);
+    const printer = new SchemaCardPrinter(targetDir);
+    notificationBus.setPrinter(printer);
+
+    // Wire st8's built-in modules as default subscribers to the hook
+    // registry. After this call, INDEX_COMPLETE will drive manifest
+    // generation, schema-card emission, gap analysis, and intent seeding
+    // as discrete subscribers instead of inline procedural code.
+    registerDefaultSubscribers(hookRegistry);
+
+    // Force-check pass at P=90 — runs after the other 4 subscribers, writes
+    // .st8/force-check.md with cross-tool integrity verdicts. Catches
+    // emitter/manifest/gap-analyzer drift before it propagates.
+    registerForceChecks(hookRegistry);
+
+    // Fire INDEX_START so any future module that wants pre-pass setup
+    // (e.g. clear stale .st8/ artifacts) has a hook point.
+    await hookRegistry.execute(HOOKS.INDEX_START, { targetDir, persistence });
+
+    // Store in SQLite
+    if (result.files && result.files.length > 0) {
+        console.log('[st8] Storing results in SQLite...');
+
+        // Pass 0: Prune stale rows. file_registry accumulates across runs
+        // (especially when the target dir changes), causing FC3 force-check
+        // failures because the manifest is per-run while the registry isn't.
+        // Drop any row whose filepath isn't in the current pass's results.
+        // Cascades through connections + intent + mutation_log via deleteFile.
+        const currentFilepaths = new Set(result.files.map((f) => f.filepath));
+        const pruneResult = persistence.pruneFilesNotIn(currentFilepaths);
+        if (pruneResult.prunedCount > 0) {
+            console.log(`[st8] Pruned ${pruneResult.prunedCount} stale file_registry row(s) from prior runs`);
+        }
+
+        // Pass 1: Upsert all files first (so foreign keys exist for connections).
+        // Per file, fire FILE_INDEXED so subscribers can react as each file's
+        // identity lands in the registry — this is the "identification built
+        // into the indexer" hook point (HOOK-ARCHITECTURE-RESEARCH §6).
+        for (const file of result.files) {
+            persistence.upsertFile({
+                fingerprint: file.fingerprint,     // NOW uses stable identity
+                filepath: file.filepath,
+                filename: file.filename,
+                sha256Hash: file.sha256Hash,
+                fileSizeBytes: file.fileSizeBytes,
+                status: file.status,
+                reachabilityScore: file.reachabilityScore,
+                impactRadius: file.impactRadius,
+                lifecyclePhase: file.lifecyclePhase || 'DEVELOPMENT',
+                birthTimestamp: file.birthTimestamp || new Date().toISOString(),
+                lastModified: file.lastModified,
+                isEntryPoint: false
+            });
+
+            // Log CREATE mutation for each file
+            persistence.logMutation({
+                fingerprint: file.fingerprint,
+                sha256Hash: file.sha256Hash,
+                mutationType: MutationType.CREATE,
+                changedFields: '{}',
+                actor: ActorType.INDEXER,
+                metadata: '{}'
+            });
+
+            // Hook: file's identity has landed. No default subscribers yet, but
+            // this is the extension point for Louis lock checks, real-time UI
+            // updates, etc.
+            await hookRegistry.execute(HOOKS.FILE_INDEXED, { file, targetDir, persistence });
+        }
+
+        // Pass 2: Wire connections (all files now exist in DB)
+        for (const file of result.files) {
+            if (file.imports && file.imports.length > 0) {
+                for (const imp of file.imports) {
+                    const targetFile = result.files.find(f =>
+                        f.filepath.endsWith(imp.source) ||
+                        f.filepath.includes(imp.source.replace(/^\.\//, ''))
+                    );
+                    if (targetFile) {
+                        persistence.insertConnection({
+                            sourceFingerprint: file.fingerprint,
+                            targetFingerprint: targetFile.fingerprint,
+                            connectionType: 'IMPORT',
+                            importSpecifier: imp.source,
+                            isResolved: true,
+                            confidenceScore: 1.0
+                        });
+                    }
+                }
+            }
+        }
+        
+        persistence.logActivity({
+            source: ActorType.INDEXER,
+            action: 'INDEX_COMPLETE',
+            details: {
+                totalFiles: result.files.length,
+                statusCounts: result.manifest.metadata.statusCounts
+            }
+        });
+
+        // Fire the INDEX_COMPLETE hook — built-in subscribers (registered
+        // above via registerDefaultSubscribers) handle manifest generation,
+        // schema-card emission, gap analysis, and intent seeding. Any future
+        // module can register additional handlers without touching main.js.
+        await hookRegistry.execute(HOOKS.INDEX_COMPLETE, {
+            result,
+            targetDir,
+            persistence,
+            emitter,
+            printer,
+        });
+    }
+    
+    // Start file watcher if requested
+    const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go', '.md', '.txt', '.json']);
+    let watcher = null;
+    if (watchMode) {
+        console.log('[st8] Starting file watcher...');
+        watcher = new FileWatcher(targetDir, {
+            debounceMs: 500,
+            onFileChange: async (changes) => {
+                // Filter to only process code files
+                const codeChanges = changes.filter(c => {
+                    const ext = path.extname(c.path).toLowerCase();
+                    return CODE_EXTENSIONS.has(ext);
+                });
+                
+                if (codeChanges.length === 0) return;
+                
+                console.log(`[st8] Code files changed: ${codeChanges.length}`);
+                
+                let anyChanged = false;
+                
+                for (const change of codeChanges) {
+                    const relativePath = path.relative(targetDir, change.path);
+                    
+                    if (change.type === 'unlink') {
+                        // DELETE PATH — remove from array and DB without reading file
+                        try {
+                            const idx = result.files.findIndex(f => f.filepath === relativePath);
+                            if (idx !== -1) {
+                                const removed = result.files[idx];
+                                result.files.splice(idx, 1);
+
+                                // Log DELETE mutation before removing from DB
+                                persistence.logMutation({
+                                    fingerprint: removed.fingerprint,
+                                    sha256Hash: removed.sha256Hash,
+                                    mutationType: 'DELETE',
+                                    changedFields: JSON.stringify({ filepath: [removed.filepath, null] }),
+                                    actor: ActorType.WATCHER,
+                                    metadata: '{}'
+                                });
+
+                                // Publish SSE notification for deletion
+                                notificationBus.publish({
+                                    fingerprint: removed.fingerprint,
+                                    filepath: removed.filepath,
+                                    mutationType: 'DELETE',
+                                    actor: ActorType.WATCHER,
+                                    sha256Hash: removed.sha256Hash
+                                });
+
+                                // Delete stale schema card from disk
+                                try {
+                                    const cardPath = path.join(targetDir, '.st8', 'schema-cards', removed.filepath.replace(/\//g, '_').replace(/\\/g, '_') + '.json');
+                                    if (require('fs').existsSync(cardPath)) {
+                                        require('fs').unlinkSync(cardPath);
+                                    }
+                                } catch (cardErr) {
+                                    console.error(`[st8] Failed to delete schema card for ${removed.filepath}:`, cardErr.message);
+                                }
+
+                                persistence.deleteFile(removed.filepath);
+                                anyChanged = true;
+                                console.log(`[st8] Removed deleted file: ${removed.filepath}`);
+                            }
+                        } catch (err) {
+                            console.error(`[st8] Failed to remove file ${relativePath}:`, err.message);
+                        }
+                    } else if (change.type === 'add') {
+                        try {
+                            const content = require('fs').readFileSync(change.path);
+                            const hash = require('crypto').createHash('sha256').update(content).digest('hex');
+                            const stat = require('fs').statSync(change.path);
+                            const birthTimestamp = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
+                            const fingerprint = generateFingerprint(relativePath, birthTimestamp);
+
+                            const newFile = {
+                                fingerprint: fingerprint,
+                                filepath: relativePath,
+                                filename: path.basename(change.path),
+                                sha256Hash: hash,
+                                fileSizeBytes: stat.size,
+                                lastModified: stat.mtime.toISOString(),
+                                birthTimestamp: birthTimestamp,
+                                imports: [],
+                                importedBy: [],
+                                status: 'RED',
+                                reachabilityScore: 0.0,
+                                impactRadius: 0,
+                                lifecyclePhase: 'DEVELOPMENT',
+                                isEntryPoint: false
+                            };
+
+                            result.files.push(newFile);
+                            persistence.upsertFile(newFile);
+
+                            persistence.logMutation({
+                                fingerprint: fingerprint,
+                                sha256Hash: hash,
+                                mutationType: MutationType.CREATE,
+                                changedFields: '{}',
+                                actor: ActorType.WATCHER,
+                                metadata: '{}'
+                            });
+
+                            notificationBus.publish({
+                                fingerprint: fingerprint,
+                                filepath: relativePath,
+                                mutationType: MutationType.CREATE,
+                                actor: ActorType.WATCHER,
+                                sha256Hash: hash
+                            });
+
+                            // Emit schema card for new file (parity with 'change' handler)
+                            try {
+                                const fullPath = path.join(targetDir, relativePath);
+                                let astResult = { imports: [], exports: [] };
+                                try {
+                                    const { extractImportsAndExports } = require('../../shared/utils/ast-parser');
+                                    astResult = extractImportsAndExports(fullPath);
+                                } catch (e) { /* AST parse failed - use empty */ }
+
+                                const lastMutation = persistence.getLastMutation(fingerprint);
+                                emitter.emitCard(newFile, astResult,
+                                    { importedBy: [], imports: [] }, null,
+                                    { count: persistence.getMutationCount(fingerprint),
+                                      lastMutation: lastMutation ? { type: lastMutation.mutationType, actor: lastMutation.actor, timestamp: lastMutation.timestamp } : { type: '', actor: '', timestamp: '' } });
+                            } catch (cardErr) {
+                                console.error(`[st8] Failed to emit schema card for new file ${relativePath}:`, cardErr.message);
+                            }
+
+                            anyChanged = true;
+                        } catch (err) {
+                            console.error(`[st8] Failed to index new file ${relativePath}:`, err.message);
+                        }
+                    } else {
+                        const changedFile = result.files.find(f => f.filepath === relativePath);
+                        if (changedFile) {
+                            try {
+                                const newHash = require('crypto')
+                                    .createHash('sha256')
+                                    .update(require('fs').readFileSync(change.path))
+                                    .digest('hex');
+                                if (newHash !== changedFile.sha256Hash) {
+                                    const oldHash = changedFile.sha256Hash;
+                                    changedFile.sha256Hash = newHash;
+                                    changedFile.lastModified = new Date().toISOString();
+                                    persistence.upsertFile(changedFile);
+
+                                    persistence.logMutation({
+                                        fingerprint: changedFile.fingerprint,
+                                        sha256Hash: newHash,
+                                        mutationType: MutationType.EDIT,
+                                        changedFields: JSON.stringify({ sha256Hash: [oldHash, newHash] }),
+                                        actor: ActorType.WATCHER,
+                                        metadata: '{}'
+                                    });
+
+                                    notificationBus.publish({
+                                        fingerprint: changedFile.fingerprint,
+                                        filepath: relativePath,
+                                        mutationType: MutationType.EDIT,
+                                        actor: ActorType.WATCHER,
+                                        sha256Hash: newHash
+                                    });
+
+                                    // Extract AST before emitting schema card
+                                    const fullPath = path.join(targetDir, changedFile.filepath);
+                                    let astResult = { imports: [], exports: [] };
+                                    try {
+                                        const { extractImportsAndExports } = require('../../shared/utils/ast-parser');
+                                        astResult = extractImportsAndExports(fullPath);
+                                    } catch (e) { /* AST parse failed - use empty */ }
+
+                                    // Emit updated schema card
+                                    const lastMutation = persistence.getLastMutation(changedFile.fingerprint);
+                                    const card = emitter.emitCard(changedFile, astResult,
+                                        { importedBy: [], imports: [] }, null,
+                                        { count: persistence.getMutationCount(changedFile.fingerprint),
+                                          lastMutation: lastMutation ? { type: lastMutation.mutationType, actor: lastMutation.actor, timestamp: lastMutation.timestamp } : { type: '', actor: '', timestamp: '' } });
+
+                                    anyChanged = true;
+                                }
+                            } catch (err) {
+                                console.error(`[st8] Failed to hash ${relativePath}:`, err.message);
+                            }
+                        }
+                    }
+                }
+                
+                // Only regenerate manifest if something actually changed
+                if (anyChanged) {
+                    const { writeManifests } = require('../../features/schema-cards/manifest-generator');
+                    writeManifests(result.files, targetDir);
+                    console.log('[st8] Incremental re-index complete');
+
+                    // Re-run intent seeding for new/changed files
+                    try {
+                        const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
+                        const seeder = new IntentSeeder(persistence, schemaCardsDir, targetDir);
+                        seeder.seedAll();
+                    } catch (err) {
+                        console.error('[st8] Incremental intent seeding failed:', err.message);
+                    }
+
+                    // Re-run gap analysis to reflect current state
+                    try {
+                        const schemaCardsDir = path.join(targetDir, '.st8', 'schema-cards');
+                        const analyzer = new GapAnalyzer(schemaCardsDir, persistence);
+                        analyzer.writeReport(path.join(targetDir, '.st8', 'gap-analysis.md'));
+                    } catch (err) {
+                        console.error('[st8] Incremental gap analysis failed:', err.message);
+                    }
+                }
+            }
+        });
+        watcher.start();
+    }
+    
+    // Start server if requested
+    let server = null;
+    if (serveMode) {
+        console.log('[st8] Starting HTTP server...');
+        server = new St8Server({ port, targetDir });
+        server.start();
+    }
+    
+    console.log('');
+    console.log('[st8] Ready!');
+    console.log('');
+    
+    // Keep process alive if watching or serving
+    if (watchMode || serveMode) {
+        process.on('SIGINT', () => {
+            console.log('\n[st8] Shutting down...');
+            if (watcher) watcher.stop();
+            if (server) server.stop();
+            persistence.close();
+            process.exit(0);
+        });
+    } else {
+        persistence.close();
+    }
+}
+
+// ─── RUN ─────────────────────────────────────────────────────
+
+main().catch(err => {
+    console.error('[st8] Fatal error:', err);
+    process.exit(1);
+});

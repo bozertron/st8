@@ -1,0 +1,8 @@
+{
+  "batch": "background-indexer",
+  "generatedAt": "2026-05-14",
+  "description": "Move backgroundIndexer.js to src/features/indexing/. The file currently throws at module load with Cannot find module './sonicClient.js' — references three siblings that were stripped from lib/commands during an earlier cleanup (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js, all originally from maestro-scaffolder-tool). The verify step is expected to report WARN — both old and new throw identically. The 5 other relative requires (databasePersister, dataIngestion, parserPersistence, insightStore, integr8/types) will rewrite cleanly via history. Sonic is https://github.com/valeriansaliou/sonic — backend search engine; the client lib is what's missing.",
+  "moves": [
+    { "from": "lib/commands/backgroundIndexer.js", "to": "src/features/indexing/background-indexer.js" }
+  ]
+}

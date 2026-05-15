@@ -1,0 +1,266 @@
+{
+  "completedBatches": [
+    {
+      "batch": "shared",
+      "completedAt": "2026-05-14",
+      "moves": [
+        {
+          "from": "lib/utils/safeFs.js",
+          "to": "src/shared/utils/safe-fs.js"
+        },
+        {
+          "from": "lib/utils/ioChan.js",
+          "to": "src/shared/utils/io-chan.js"
+        },
+        {
+          "from": "lib/utils/astParser.js",
+          "to": "src/shared/utils/ast-parser.js"
+        },
+        {
+          "from": "lib/utils/groundPlane.js",
+          "to": "src/shared/utils/ground-plane.js"
+        },
+        {
+          "from": "backend/st8-types.js",
+          "to": "src/shared/types/st8-types.js"
+        },
+        {
+          "from": "lib/commands/integr8/types.js",
+          "to": "src/shared/types/integr8-types.js"
+        }
+      ]
+    },
+    {
+      "batch": "core-database",
+      "completedAt": "2026-05-14T12:44:01.904Z",
+      "moves": [
+        {
+          "from": "backend/persistence.js",
+          "to": "src/core/database/persistence.js"
+        },
+        {
+          "from": "lib/commands/integr8/databasePersister.js",
+          "to": "src/core/database/graph-persister.js"
+        }
+      ]
+    },
+    {
+      "batch": "lifecycle-watcher",
+      "completedAt": "2026-05-14T12:48:39.027Z",
+      "moves": [
+        {
+          "from": "backend/brunoOscar.js",
+          "to": "src/features/lifecycle/bruno-oscar.js"
+        },
+        {
+          "from": "backend/fileWatcher.js",
+          "to": "src/features/watcher/file-watcher.js"
+        }
+      ]
+    },
+    {
+      "batch": "schema-cards",
+      "completedAt": "2026-05-14T12:54:05.406Z",
+      "moves": [
+        {
+          "from": "backend/schemaCardEmitter.js",
+          "to": "src/features/schema-cards/emitter.js"
+        },
+        {
+          "from": "backend/schemaCardPrinter.js",
+          "to": "src/features/schema-cards/printer.js"
+        },
+        {
+          "from": "backend/manifestGenerator.js",
+          "to": "src/features/schema-cards/manifest-generator.js"
+        }
+      ]
+    },
+    {
+      "batch": "prd",
+      "completedAt": "2026-05-14T12:55:40.646Z",
+      "moves": [
+        {
+          "from": "backend/prdGenerator.js",
+          "to": "src/features/prd/generator.js"
+        },
+        {
+          "from": "backend/templateEngine.js",
+          "to": "src/features/prd/template-engine.js"
+        }
+      ]
+    },
+    {
+      "batch": "analysis",
+      "completedAt": "2026-05-14T12:57:02.636Z",
+      "moves": [
+        {
+          "from": "backend/gapAnalyzer.js",
+          "to": "src/features/analysis/gap-analyzer.js"
+        },
+        {
+          "from": "backend/intentSeeder.js",
+          "to": "src/features/analysis/intent-seeder.js"
+        },
+        {
+          "from": "lib/commands/insightStore.js",
+          "to": "src/features/analysis/insight-store.js"
+        }
+      ]
+    },
+    {
+      "batch": "integr8-core",
+      "completedAt": "2026-05-14T13:04:00.835Z",
+      "moves": [
+        {
+          "from": "lib/commands/integr8/relationshipAnalyzer.js",
+          "to": "src/features/analysis/relationship-analyzer.js"
+        },
+        {
+          "from": "lib/commands/integr8/pathGenerator.js",
+          "to": "src/features/analysis/path-generator.js"
+        },
+        {
+          "from": "lib/commands/integr8/reportGenerator.js",
+          "to": "src/features/analysis/report-generator.js"
+        },
+        {
+          "from": "lib/commands/integr8/tomlSerializer.js",
+          "to": "src/features/integr8/toml-serializer.js"
+        },
+        {
+          "from": "lib/commands/integr8/migrationExecutor.js",
+          "to": "src/features/integr8/migration-executor.js"
+        }
+      ]
+    },
+    {
+      "batch": "indexing-parsers",
+      "completedAt": "2026-05-14T13:08:35.752Z",
+      "moves": [
+        {
+          "from": "lib/commands/overview.js",
+          "to": "src/features/indexing/overview.js"
+        },
+        {
+          "from": "lib/commands/storeParser.js",
+          "to": "src/features/indexing/store-parser.js"
+        },
+        {
+          "from": "lib/commands/routeParser.js",
+          "to": "src/features/indexing/route-parser.js"
+        },
+        {
+          "from": "lib/commands/commandParser.js",
+          "to": "src/features/indexing/command-parser.js"
+        },
+        {
+          "from": "lib/commands/typeParser.js",
+          "to": "src/features/indexing/type-parser.js"
+        },
+        {
+          "from": "lib/commands/uiParser.js",
+          "to": "src/features/indexing/ui-parser.js"
+        },
+        {
+          "from": "lib/commands/parserPersistence.js",
+          "to": "src/features/indexing/parser-persistence.js"
+        },
+        {
+          "from": "lib/commands/integr8/dataIngestion.js",
+          "to": "src/features/indexing/data-ingestion.js"
+        },
+        {
+          "from": "lib/commands/integr8/index.js",
+          "to": "src/features/integr8/index.js"
+        },
+        {
+          "from": "lib/commands/graphBuilder.js",
+          "to": "src/features/graph/builder.js"
+        },
+        {
+          "from": "lib/commands/graphTraversal.js",
+          "to": "src/features/graph/traversal.js"
+        }
+      ]
+    },
+    {
+      "batch": "indexing-engine",
+      "completedAt": "2026-05-14T13:11:04.153Z",
+      "moves": [
+        {
+          "from": "backend/indexer.js",
+          "to": "src/features/indexing/indexer.js"
+        },
+        {
+          "from": "backend/notificationBus.js",
+          "to": "src/core/notification-bus.js"
+        }
+      ]
+    },
+    {
+      "batch": "server-and-entry",
+      "completedAt": "2026-05-14T13:16:11.839Z",
+      "moves": [
+        {
+          "from": "backend/index.js",
+          "to": "src/core/server/main.js"
+        },
+        {
+          "from": "backend/server.js",
+          "to": "src/core/server/app.js"
+        },
+        {
+          "from": "backend/verify-persistence-fixes.js",
+          "to": "src/core/database/verify-persistence-fixes.js"
+        }
+      ]
+    },
+    {
+      "batch": "frontend-components",
+      "completedAt": "2026-05-14T13:21:33.107Z",
+      "moves": [
+        {
+          "from": "coordination.js",
+          "to": "src/frontend/services/coordination.js",
+          "client": true
+        },
+        {
+          "from": "settings-reader.js",
+          "to": "src/frontend/services/state.js",
+          "client": true
+        },
+        {
+          "from": "file-explorer.js",
+          "to": "src/frontend/components/file-explorer/file-explorer.js",
+          "client": true
+        },
+        {
+          "from": "graph-visualizer.js",
+          "to": "src/frontend/components/graph-viewer/graph-viewer.js",
+          "client": true
+        },
+        {
+          "from": "phreak-terminal.js",
+          "to": "src/frontend/components/terminal/terminal.js",
+          "client": true
+        },
+        {
+          "from": "settings-ui.js",
+          "to": "src/frontend/components/settings/settings.js",
+          "client": true
+        }
+      ]
+    },
+    {
+      "batch": "background-indexer",
+      "completedAt": "2026-05-14T13:40:19.624Z",
+      "moves": [
+        {
+          "from": "lib/commands/backgroundIndexer.js",
+          "to": "src/features/indexing/background-indexer.js"
+        }
+      ]
+    }
+  ]
+}

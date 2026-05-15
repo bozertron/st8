@@ -1,0 +1,194 @@
+[
+  {
+    "filepath": "/home/user/st8/lib",
+    "userNote": "Empty directory tree (lib/, lib/utils/, lib/commands/, lib/commands/integr8/) — the originals were retired to OGB in batch 019 but the dirs were never rmdir'd. Cosmetic clutter at repo root. stage-originals.js deletes files but not empty parent dirs.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/lib/utils",
+    "userNote": "Empty directory left behind after batch 019 staged its 4 .js files to OGB/lib/utils/. No tooling references this path anymore.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/lib/commands",
+    "userNote": "Empty directory left behind after batches 006/008/017 moved its 11 .js files into src/features/ and batch 019 staged them to OGB.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/lib/commands/integr8",
+    "userNote": "Empty directory left behind after batches 001/002/007/008 moved its 9 .js files into src/features/ + src/shared/ and batch 019 staged them to OGB.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/backend",
+    "userNote": "Directory still exists with 3 non-code files: SCHEMA-CARD-EMITTER-REPORT.md, SECURITY-AUDIT-H1.md, package.json. All 14 backend .js files moved to src/ and staged to OGB in batch 019. Founder explicitly noted in bible batch 019 that these 3 files were 'left for separate decision'.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/backend/SCHEMA-CARD-EMITTER-REPORT.md",
+    "userNote": "Stale report from when schema card emitter lived in backend/. The emitter is now at src/features/schema-cards/emitter.js. Decide: move to docs/, delete (git has history), or leave as-is. Bible batch 019 explicitly tabled this for founder decision.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/backend/SECURITY-AUDIT-H1.md",
+    "userNote": "Stale audit report in old backend/ location. Same fate-decision needed as SCHEMA-CARD-EMITTER-REPORT.md.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/backend/package.json",
+    "userNote": "Stale package.json in old backend/ directory. The active package.json is at repo root. Likely safe to delete but worth confirming no internal tooling cd's into backend/.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_MASTER_INDEX.md",
+    "userNote": "Stale planning doc from the prior 0_-prefix planning wave. References the backend/ + lib/ tree that no longer exists. The src/0_* skeleton was deleted in batch 021 but these root-level planning docs survived. Decide: archive, delete, or rewrite for the new src/ tree.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_FRONTEND_INDEX.md",
+    "userNote": "Stale planning doc — references the original 6 root-level frontend .js files (file-explorer.js, phreak-terminal.js, etc.) that moved to src/frontend/components/ in batch 012 and were retired to OGB in batch 019.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_LINE_COUNT_REPORT.md",
+    "userNote": "Stale line-count report against the old layout. Numbers are anchored to backend/ + lib/ paths that no longer exist.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_BACKEND_INDEX.md",
+    "userNote": "Stale — backend/ directory contains only 3 non-code files now; the 14 .js files documented here have all moved to src/.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_LIB_UTILS_INDEX.md",
+    "userNote": "Stale — lib/utils/ is empty; all 4 utilities moved to src/shared/utils/ in batch 001.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_LIB_COMMANDS_INDEX.md",
+    "userNote": "Stale — lib/commands/ and lib/commands/integr8/ are empty; all 20 files moved into src/features/ across batches 002/006/007/008/017.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_INDEX_JS_INDEX.md",
+    "userNote": "Stale planning doc for backend/index.js, which moved to src/core/server/main.js in batch 010.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_INDEXER_JS_INDEX.md",
+    "userNote": "Stale planning doc for backend/indexer.js, which moved to src/features/indexing/indexer.js in batch 009.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_PERSISTENCE_JS_INDEX.md",
+    "userNote": "Stale planning doc for backend/persistence.js, which moved to src/core/database/persistence.js in batch 002.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_SERVER_JS_INDEX.md",
+    "userNote": "Stale planning doc for backend/server.js, which moved to src/core/server/app.js in batch 010.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_PRESSURE_TEST.md",
+    "userNote": "Pre-refactor planning document. May still have value as historical context but its anchors are obsolete.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/0_LINE_COUNT_REPORT_V2.md",
+    "userNote": "Second-generation line count report, still anchored to the pre-refactor layout. Stale.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/st8_bible.md",
+    "userNote": "Bible has no top-of-file index. 2943 lines as of batch 027 with 27 batch entries scattered between L1712 and L2868. Finding 'where is batch 014 documented?' requires grep. Add a TOC anchor block at the top with line numbers for each major section + each batch.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/scripts/signal-tests/check-invariants.js",
+    "userNote": "Tier 1 signal tests (schema contracts at internal handoffs e.g. indexer→manifestGenerator, parserPersistence→graphPersister) were deferred in batch 021 because Tier 2 + Tier 6 cover most of what Tier 1 would. Re-evaluate only if a regression slips past both. Tracking this here so it isn't forgotten.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/scripts/migration/check-conventions.js",
+    "userNote": "Orphan-detection (check #6) over-reports for frontend files loaded via <script src> from src/frontend/index.html. Today the script skips src/frontend/ entirely (line 336) so this is latent — but if anyone ever adds a <script src='src/features/...'> include directly to the HTML shell, it will be reported as orphan. Make the skip-list configurable, or scan index.html for <script src> tags and treat those as 'referenced'.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/scripts/migration/verify.js",
+    "userNote": "Browser-only detection relies on the manifest's `client: true` flag (line 163). If someone forgets to set it on a frontend file move, verify.js tries to require() the module, which throws on window/document references. The batch 017 both-broken-identically check (line 176-186) mitigates this to a WARN-pass — but it's noisy and conceals real regressions in the same file. Consider auto-detecting client modules by path prefix (anything under src/frontend/) instead of trusting the flag.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/OGB",
+    "userNote": "Batch 019 documents OGB cleanup as 'founder-driven destruction' but provides no automated tooling. After founder destroys OGB/ contents, empty subdirectories remain (OGB/, OGB/backend/, OGB/lib/utils/, OGB/lib/commands/, OGB/lib/commands/integr8/, OGB/src/frontend/services/). Need a cleanup-empty-dirs helper that walks bottom-up and removes empty dirs.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/scripts/migration/manifest.json",
+    "userNote": "manifest.json is OVERWRITTEN each batch — there's no audit trail of what each batch's manifest contained (description, generatedAt, the specific move list at decision-time). move-history.json captures the successful from/to pairs but loses the description + per-batch metadata. Mitigation: archive each batch's manifest.json under scripts/migration/manifest-history/<batch-name>.json on successful verify.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/st8_bible.md",
+    "userNote": "Bible batches reference commit hashes (26 of 27 batches have a Commit: <short-hash> line — only batch 027 sonic-foundation has '(filled in below)' placeholder). There's no script to verify those hashes still exist on the branch and contain the changes the bible claims. Useful as a regression-detector if anyone ever force-pushes or rebases the branch.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/scripts/migration/move-history.json",
+    "userNote": "Given a current path like 'src/features/indexing/background-indexer.js' or an OGB path 'OGB/lib/commands/typeParser.js.txt', there's no reverse-lookup tool to find which batch moved it. Today requires manually grepping the moves arrays in move-history.json. A small CLI: `node scripts/migration/which-batch.js <path>` would scan completedBatches and return the batch name + position.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/src/core/database/persistence.js",
+    "userNote": "FK-cascade gotcha worth documenting: file_registry is FK-referenced by connections, file_intent, file_mutation_log. The pruner (lines 285-294 and 319-327) correctly operates per-fingerprint inside a transaction, deleting children BEFORE the registry row. Don't try to bulk-DELETE from file_registry via filepath — you'll get FK violations because children reference the about-to-be-deleted rows. Add a guard comment at the top of persistence.js explicitly stating 'all file_registry deletes must go through delete*ForFile(fingerprint)' patterns.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/st8.sqlite",
+    "userNote": "No versioned migration system for the SQLite schema. All schema is currently inlined as CREATE TABLE IF NOT EXISTS statements in persistence.js initialize() / migration. If the schema ever needs to evolve (e.g. add a column, change a constraint, drop a deprecated field), there's no infrastructure for ordered migrations. Need a scripts/migrations/<timestamp>-<name>.sql convention + a runner.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/scripts/migration/results.gap-analysis.md",
+    "userNote": "Per bible batch 021, the cumulative gap-check tally still shows 31 findings (down from 282): 25 expected boundary violations (core/server orchestrating features — correct architecture) + 6 orphan candidates needing human review (ground-plane.js, integr8/index.js, migration-executor.js, background-indexer.js, graph/builder.js, graph/traversal.js). Some of those 6 are CLI entry points (intentional orphans); some are dormant pending sonic restoration. Need a documented allowlist in check-conventions.js so the report cleanly distinguishes 'expected orphan' from 'unexpected orphan'.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "/home/user/st8/src/features/indexing/background-indexer.js",
+    "userNote": "Dormant file — throws Cannot find module './sonicClient.js' at module load. Three references to absent siblings (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js) were stripped during the pre-refactor stubs-cleanup. The file is currently a 812-line orphan kept around for future sonic restoration. Bible batch 027 (sonic-foundation) appears to be addressing this — verify whether sonic restoration is complete and whether background-indexer.js is now wired or still dormant.",
+    "severity": "medium",
+    "status": "open"
+  }
+]

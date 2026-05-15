@@ -1,0 +1,109 @@
+/*
+ * Graph Popup
+ * Extracted from st8.html lines 499–601.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── GRAPH POPUP ─────────────────────────────────────────── */
+  .graph-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 11, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .graph-popup {
+    width: min(900px, 95vw);
+    height: min(700px, 90vh);
+    background: #0c0c0e;
+    border: 1px solid var(--pink);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(201, 116, 143, 0.55),
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 40px rgba(201, 116, 143, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .graph-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0d0d10, #0a0a0b);
+  }
+  .graph-popup-title {
+    color: var(--cyan);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    -webkit-text-stroke: 0.5px var(--cyan);
+  }
+  .graph-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-size: 26px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .graph-popup-close:hover { text-shadow: 0 0 10px rgba(212, 175, 55, 0.7); }
+  .graph-popup-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+    background: #0A0A0B;
+  }
+  .graph-popup-body svg {
+    display: block;
+  }
+  .graph-popup-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--pink);
+    background: linear-gradient(to bottom, #0a0a0b, #0d0d10);
+  }
+  .graph-popup-info {
+    color: var(--text);
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+  }
+  .graph-popup-btn {
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 4px 12px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 160ms ease;
+  }
+  .graph-popup-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+  }
+  .graph-popup-filters {
+    display: flex;
+    gap: 6px;
+  }
+  .graph-filter-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .graph-filter-btn:hover {
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.05);
+    color: inherit !important;
+  }

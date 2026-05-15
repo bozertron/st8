@@ -1,0 +1,15 @@
+{
+  "batch": "background-indexer",
+  "generatedAt": "2026-05-14T13:40:19.623Z",
+  "ok": 1,
+  "fail": 0,
+  "summary": [
+    {
+      "from": "lib/commands/backgroundIndexer.js",
+      "to": "src/features/indexing/background-indexer.js",
+      "status": "warn",
+      "reason": "both_broken_same_way",
+      "error": "Cannot find module './sonicClient.js'"
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+/*
+ * File List (right panel)
+ * Extracted from st8.html lines 268–378.
+ * Verbatim from the source — formatting, selectors, values all preserved.
+ */
+
+  /* ─── FILE LIST (right side of split void) ────────────────── */
+  .file-list-header {
+    color: var(--cyan);
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--pink);
+  }
+  .file-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-1);
+    border-radius: 4px;
+    transition: background 160ms ease;
+    cursor: pointer;
+  }
+  .file-list-item:hover {
+    background: rgba(31, 189, 234, 0.07);
+  }
+  .file-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .file-status-dot.green { background: var(--gold); }
+  .file-status-dot.yellow { background: var(--cyan); }
+  .file-status-dot.red { background: var(--pink); }
+  .file-name {
+    flex: 1;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--text);
+    -webkit-text-stroke: 0.5px #E0E0E0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-list-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .file-purpose {
+    font-size: 11px;
+    color: var(--cyan);
+    opacity: 0.7;
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .badge-unknown {
+    background: var(--pink);
+    color: var(--void);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    margin-left: 4px;
+    display: inline-block;
+  }
+  .file-actions {
+    display: flex;
+    gap: var(--space-2);
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+  .file-list-item:hover .file-actions {
+    opacity: 1;
+  }
+  .file-action-btn {
+    background: transparent;
+    border: 1px solid var(--pink);
+    color: var(--cyan);
+    padding: 2px 8px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 160ms ease;
+  }
+  .file-action-btn:hover {
+    background: var(--cyan);
+    color: var(--void);
+  }
+  .file-list-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+    background: rgba(31, 189, 234, 0.05);
+    border-radius: 4px;
+    font-family: 'Poiret One', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .file-summary-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .file-summary-total {
+    margin-left: auto;
+    color: var(--text);
+    opacity: 0.7;
+  }

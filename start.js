@@ -94,7 +94,7 @@ async function installDependencies() {
 async function startBackend() {
     console.log('Starting backend server...');
     
-    const backendPath = path.join(__dirname, 'backend', 'index.js');
+    const backendPath = path.join(__dirname, 'src', 'core', 'server', 'main.js');
     
     const args = [
         CONFIG.targetDir,
