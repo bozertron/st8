@@ -164,7 +164,27 @@ class HookRegistry extends EventEmitter {
     }
     // Also emit as a plain EventEmitter event so existing notificationBus-style
     // consumers can subscribe via .on() if they prefer.
-    try { this.emit(name, ctx); } catch (_) { /* keep going */ }
+    //
+    // EventEmitter dispatches listeners synchronously and a throw from any
+    // listener would propagate out of `this.emit(...)`. Iterating over
+    // `rawListeners(name)` lets us call each listener inside its own
+    // try/catch so:
+    //   1. A throw from one .on() listener does NOT prevent subsequent .on()
+    //      listeners from running.
+    //   2. The throw is counted in summary.fail (parity with .register()
+    //      handler throws).
+    //   3. The throw does not bubble out of execute().
+    // Ticket 15.
+    const listeners = this.rawListeners(name);
+    for (const listener of listeners) {
+      try {
+        listener.call(this, ctx);
+      } catch (err) {
+        summary.fail++;
+        summary.errors.push({ source: 'event-listener', error: err.message });
+        console.error(`[hooks] "${name}" event-listener threw:`, err.message);
+      }
+    }
     return summary;
   }
 
