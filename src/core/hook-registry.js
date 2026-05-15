@@ -48,15 +48,24 @@ const HOOKS = Object.freeze({
   FILE_BEFORE_CHANGE:  'file:before-change',   // { change, targetDir, persistence }
   FILE_AFTER_CHANGE:   'file:after-change',    // { change, file, mutation, schemaCard, targetDir, persistence }
 
-  // Lifecycle transitions (bruno+oscar territory)
-  LIFECYCLE_TRANSITION: 'lifecycle:transition', // { file, oldPhase, newPhase }
+  // Lifecycle transitions — phase changes on a file_registry row's
+  // `lifecyclePhase`. Publishers: _handleConceptFile (null → CONCEPT)
+  // and _handleProductionPromote (DEVELOPMENT → PRODUCTION). Future
+  // publishers: bruno-oscar archive/unarchive (today only updates
+  // brunoStatus, not lifecyclePhase — when oscar gains real phase
+  // transitions it should fire here).
+  LIFECYCLE_TRANSITION: 'lifecycle:transition', // { file: {fingerprint, filepath}, oldPhase, newPhase }
 
   // Commit recorded — fires after a git post-commit hook POSTs to
   // /api/record-commit. Distinct from LIFECYCLE_TRANSITION because the
   // payload is a commit object, not a file-phase change.
   COMMIT_RECORDED: 'commit:recorded',           // { commit: {hash, shortHash, subject, author, timestamp, branch, filesChanged} }
 
-  // PRD generation
+  // PRD generation — fires BEFORE the generator runs so subscribers can
+  // pre-validate, pre-process, or short-circuit. Publisher: _handlePrd
+  // in app.js (GET /api/prd). options is reserved for future query-string
+  // overrides; kept as an explicit empty object today so the contract
+  // stays stable when those land.
   PRD_GENERATE: 'prd:generate',                 // { targetDir, options }
 
   // Ticket created from a particle click + user note. Subscribers:

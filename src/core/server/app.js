@@ -863,6 +863,23 @@ class St8Server {
                     actor: 'DEVELOPER'
                 });
 
+                // Fire LIFECYCLE_TRANSITION: this is the canonical null → CONCEPT
+                // phase transition (file did not exist as a registry row before
+                // this call; registerConceptFile inserts the row with
+                // lifecyclePhase='CONCEPT'). Lazy require avoids the circular
+                // dep with main.js — same pattern as _handleRecordCommit and
+                // _handleTickets.
+                try {
+                    const { hookRegistry, HOOKS } = require('../hook-registry');
+                    await hookRegistry.execute(HOOKS.LIFECYCLE_TRANSITION, {
+                        file: { fingerprint, filepath },
+                        oldPhase: null,
+                        newPhase: 'CONCEPT',
+                    });
+                } catch (hookErr) {
+                    console.error('[st8:concept-file] hook fire failed:', hookErr.message);
+                }
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ status: 'ok', fingerprint, lifecyclePhase: 'CONCEPT' }));
             } catch (err) {
@@ -966,7 +983,7 @@ class St8Server {
         });
     }
 
-    _handlePrd(req, res) {
+    async _handlePrd(req, res) {
         if (req.method !== 'GET') {
             res.writeHead(405, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
@@ -978,6 +995,22 @@ class St8Server {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'No target directory configured' }));
                 return;
+            }
+
+            // Fire PRD_GENERATE BEFORE the generator runs so subscribers can
+            // pre-validate, pre-process, or short-circuit. Payload mirrors
+            // the canonical HOOKS contract { targetDir, options }. No options
+            // are surfaced today (the route is a simple GET); kept as an
+            // empty object so the contract stays stable when query-string
+            // options are added later.
+            try {
+                const { hookRegistry, HOOKS } = require('../hook-registry');
+                await hookRegistry.execute(HOOKS.PRD_GENERATE, {
+                    targetDir: this.targetDir,
+                    options: {},
+                });
+            } catch (hookErr) {
+                console.error('[st8:prd] hook fire failed:', hookErr.message);
             }
 
             const { loadSchemaCards, generatePRD } = require('../../features/prd/generator');
@@ -1044,6 +1077,28 @@ class St8Server {
                 persistence = new St8Persistence();
                 await persistence.initialize();
 
+                // Capture the pre-purge phase + filepath so the
+                // LIFECYCLE_TRANSITION fire below has the real oldPhase rather
+                // than guessing. Lookup is by fingerprint (production-promote's
+                // primary key); inline SQL because the persistence layer
+                // doesn't expose a getFileByFingerprint helper today.
+                let oldPhase = null;
+                let filepath = null;
+                try {
+                    const row = persistence.db.prepare(
+                        'SELECT filepath, lifecyclePhase FROM file_registry WHERE fingerprint = ?'
+                    ).get(fingerprint);
+                    if (row) {
+                        oldPhase = row.lifecyclePhase || null;
+                        filepath = row.filepath || null;
+                    }
+                } catch (lookupErr) {
+                    // Lookup failure is non-fatal — we'll fire the hook with
+                    // oldPhase=null so subscribers at least get the transition
+                    // signal. Log loudly so the gap is observable.
+                    console.error('[st8:promote] pre-purge fingerprint lookup failed:', lookupErr.message);
+                }
+
                 const result = persistence.purgeDevelopmentData(fingerprint);
 
                 notificationBus.publish({
@@ -1051,6 +1106,22 @@ class St8Server {
                     mutationType: 'PRODUCTION',
                     actor: 'DEVELOPER'
                 });
+
+                // Fire LIFECYCLE_TRANSITION for the DEVELOPMENT → PRODUCTION
+                // promotion. purgeDevelopmentData sets lifecyclePhase to
+                // 'PRODUCTION' inside its transaction, so by this point the
+                // row is in the new phase. oldPhase came from the pre-purge
+                // lookup above.
+                try {
+                    const { hookRegistry, HOOKS } = require('../hook-registry');
+                    await hookRegistry.execute(HOOKS.LIFECYCLE_TRANSITION, {
+                        file: { fingerprint, filepath },
+                        oldPhase,
+                        newPhase: 'PRODUCTION',
+                    });
+                } catch (hookErr) {
+                    console.error('[st8:promote] hook fire failed:', hookErr.message);
+                }
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ status: 'ok', purgedMutations: result.purgedMutations }));
