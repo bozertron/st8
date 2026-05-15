@@ -1009,11 +1009,29 @@ class St8Persistence {
         return stmt.all();
     }
 
-    storeAIContent(filepath, content) {
+    /**
+     * Append a new ai_content row. ai_content is an append-log (see the
+     * schema comment block above the table DDL) — each call is a fresh
+     * row, no upsert. The previous storeAIContent comment said "INSERT
+     * OR REPLACE" but there is no UNIQUE constraint on the table, so
+     * OR REPLACE was a no-op — rows accumulated regardless. Renamed
+     * to appendAIContent to make the semantics explicit.
+     */
+    appendAIContent(filepath, content) {
         const stmt = this.db.prepare(
-            'INSERT OR REPLACE INTO ai_content (filepath, content, reviewed, timestamp) VALUES (?, ?, 0, CURRENT_TIMESTAMP)'
+            'INSERT INTO ai_content (filepath, content, reviewed, timestamp) VALUES (?, ?, 0, CURRENT_TIMESTAMP)'
         );
         return stmt.run(filepath, content);
+    }
+
+    /**
+     * @deprecated Use appendAIContent. The old name implied upsert
+     * semantics that the table never supported; preserved as a thin
+     * alias so any future caller written against the documented API
+     * doesn't silently break.
+     */
+    storeAIContent(filepath, content) {
+        return this.appendAIContent(filepath, content);
     }
 
     getAIContent(filepath) {
