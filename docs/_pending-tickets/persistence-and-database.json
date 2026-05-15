@@ -9,19 +9,43 @@
     "filepath": "src/core/database/persistence.js",
     "userNote": "deleteFile(filepath) is FK-unsafe at scale and has NO warning comment. file_registry permits multiple rows per filepath (different birthTimestamp → different fingerprint), but deleteFile picks the first match via getFileByPath (no ORDER BY), cascades only that one fingerprint's children, then `DELETE FROM file_registry WHERE filepath = ?` removes BOTH rows. Connections/intent/mutation_log rows for the other fingerprint(s) become orphans. The JSDoc on pruneFilesNotIn (L298-313) is the only place in the codebase that records this fact. Fix: add a prominent caveat comment on deleteFile, or rewrite it to operate per-fingerprint like pruneFilesNotIn.",
     "severity": "high",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Rewrote deleteFile in src/core/database/persistence.js to iterate every fingerprint for the filepath and cascade per-fingerprint (same shape as pruneFilesNotIn). New getAllFilesByPath helper returns all matching rows ordered by birthTimestamp DESC; deleteFile now uses it to enumerate rows, then for each fingerprint runs deleteConnectionsForFile / deleteIntentForFile / deleteMutationLogForFile / deleteTicketsForFile (the new helper from ticket 9), then `DELETE FROM file_registry WHERE fingerprint = ?`. Return shape stays backwards-compatible: callers still see `.changes` and `.fingerprint` (now the newest one); new `.fingerprints` array surfaces the full set.\n\nVerified end-to-end by running `node start.js .` under PRAGMA foreign_keys = ON — the orphan that the old deleteFile would have left behind would have FK-violated on the very next pruneFilesNotIn pass; instead the live st8.sqlite reports `foreign_key_check` = [] post-run.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "1363afe",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/persistence.js",
     "userNote": "PRAGMA foreign_keys is NEVER turned ON in initialize(). The schema's FOREIGN KEY declarations are documentary only — SQLite will happily accept orphan rows in connections, file_intent, file_mutation_log, tickets. Manual JS-side cascade in deleteFile/pruneFilesNotIn is the only thing keeping referential integrity, and it has the deleteFile foot-gun above. Fix: enable foreign keys, then audit every existing INSERT path to confirm it doesn't break. Likely surface latent orphans on first turn-on.",
     "severity": "high",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Added `this.db.pragma('foreign_keys = ON')` to St8Persistence.initialize() in src/core/database/persistence.js immediately after the WAL/synchronous pragmas, before ST8_SCHEMA is applied.\n\nFirst boot under enforcement surfaced exactly the orphan source the ticket warned about: pruneFilesNotIn threw SQLITE_CONSTRAINT_FOREIGNKEY at persistence.js:337 because tickets had no cascade entry (ticket 9). Resolved in the same commit (1363afe) by adding deleteTicketsForFile and wiring it into both cascade paths. After the fix:\n  - PRAGMA foreign_key_check on the live st8.sqlite returns [].\n  - PRAGMA integrity_check returns ok.\n  - `node start.js .` completes a full indexer pass (281 → 283 files across two runs) with no FK errors.\n  - verify-persistence-fixes 10/10.\n\nNo orphan sources outside this cluster were tripped — main.js's two-pass indexer correctly upserts file_registry rows before inserting connections, intent, and mutations. The activity_log writes use targetFingerprint without an FK by design.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "1363afe",
+    "residualConcerns": "If a future writer ever logs a connection or mutation referencing a fingerprint that hasn't been upserted yet, FK enforcement will throw. The validator added to logActivity in ticket 3 is a model for the same pattern on logMutation / insertConnection; not in scope here.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/server/app.js",
     "userNote": "RE-FLAG FROM DB ANGLE: activity_log.targetFingerprint is the camelCase column declared in ST8_SCHEMA L119. logActivity() reads activity.targetFingerprint (camelCase). But app.js:1558 _handleTickets logs with `target_fingerprint: payload.fingerprint` (snake_case). The fingerprint is silently nulled on every TICKET_CREATED activity row. Already in hooks-and-integration.json; re-raising here because the column naming convention is set by the schema and the bug pattern (snake vs camel) is one we will keep hitting unless the schema column itself is renamed to snake_case for consistency with SQLite norms, or a logActivity input-validator throws on unknown keys.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Two-part fix:\n\n1. src/core/server/app.js:1558 — `target_fingerprint: payload.fingerprint` corrected to `targetFingerprint: payload.fingerprint`, matching the activity_log column and the four other logActivity call sites in app.js (lines 376, 729, 1473) and main.js (none use targetFingerprint, but the convention is uniform).\n\n2. src/core/database/persistence.js logActivity — added an input-key validator. The method now whitelists {source, action, targetFingerprint, details} and throws a descriptive error on any unknown key. Verified the throw fires on the snake_case shape and not on the camelCase shape. The error message tells callers exactly what's wrong: '[st8:persistence] logActivity: unknown key(s) [target_fingerprint]. activity_log columns are camelCase — did you mean targetFingerprint?'\n\nThis is the cross-cluster ticket also flagged in hooks-and-integration.json. The DB-side fix (validator) is what makes this NOT recur — even if a future writer reflexively types snake_case, the call now throws immediately rather than silently NULLing the column.",
+    "filesChanged": ["src/core/server/app.js", "src/core/database/persistence.js"],
+    "commitHash": "bec7145",
+    "residualConcerns": "The hooks-and-integration cluster owns the original ticket; that cluster's reviewer should confirm the fix here resolves their version (the producer site) and decide whether to close out the duplicate or keep it as a paired record.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/verify-persistence-fixes.js",
@@ -33,19 +57,43 @@
     "filepath": "src/core/database/persistence.js",
     "userNote": "ST8_SCHEMA is a 150-line template literal with no boot-time introspection. There is no helper that runs `PRAGMA table_info(...)` / `sqlite_master` and compares to expected columns. Drift between the schema string and the live st8.sqlite (e.g. ALTER-added columns that were never folded into ST8_SCHEMA, or vice-versa) is invisible until something queries the missing column and throws. Build a schema-introspection helper that logs diffs at boot — pairs naturally with the migration framework ticket.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Added a parallel EXPECTED_SCHEMA constant (src/core/database/persistence.js, sits directly above the St8Persistence class) listing every table and its expected column set. Added an introspectSchema() method that runs `SELECT name FROM sqlite_master WHERE type='table'` plus `PRAGMA table_info(<table>)` for every expected table and returns a structured diff: { hasDrift, missingTables, extraTables, missingColumns, extraColumns, report }.\n\ninitialize() now calls introspectSchema() after applying ST8_SCHEMA and emits `[st8:persistence:drift]` warnings on any detected mismatch. Errors during introspection log and continue (the DB is still usable; we just lost the diff signal — no point in failing initialize() over a logging facility).\n\nWhy a parallel constant instead of parsing ST8_SCHEMA? Parsing a 150-line template literal at boot would be fragile (commented-out blocks, multi-line FK clauses, etc.). EXPECTED_SCHEMA is hand-maintained — anyone editing ST8_SCHEMA is expected to edit EXPECTED_SCHEMA in the same edit. The comment block on EXPECTED_SCHEMA spells this out.\n\nVerified:\n  - Fresh in-memory DB: hasDrift=false, report=[].\n  - Live st8.sqlite (after the ticket 2 fix run): hasDrift=false.\n  - Stunted DB probe (file_registry pared to two columns, rogue table injected): hasDrift=true, every expected table flagged missing, file_registry's 22 missing columns enumerated, the rogue table listed as extra.\n\nPairs with the future migration framework (P1.1, Wave 1B): the migration runner mutates the live DB, the introspector confirms the mutation landed.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "477dbee",
+    "residualConcerns": "EXPECTED_SCHEMA only checks column NAMES, not types or defaults — a future change that renames a column's type from INTEGER to TEXT would not be caught. Type-checking is straightforward to add but was out of scope for this ticket's 'log diffs at boot' brief.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/persistence.js",
     "userNote": "The maestro DatabasePersister fallthrough is silently degraded. graph-persister.js exports the class as `exports.DatabasePersister = DatabasePersister`, so the loaded module is the namespace object — `typeof === 'function'` is ALWAYS false, the maestro path NEVER runs, and we always reach the better-sqlite3 fallback. The log line `[st8:persistence] Using better-sqlite3 directly` reads as a normal success message — there is no signal that the primary path failed by design. Either (a) remove the dead branch entirely and document that st8 always uses better-sqlite3 direct, or (b) leave the branch but flip the log levels to make the fallback explicit ('maestro DatabasePersister not callable — falling back to better-sqlite3 direct').",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Chose option (a) per persistence-and-database.md §6 + roadmap P2.6 — the cleaner finish.\n\nChanges to src/core/database/persistence.js:\n  - initialize() unconditionally constructs `new (require('better-sqlite3'))(this.dbPath)`. The new log line records the design rationale on every boot: '[st8:persistence] Initialised better-sqlite3 (st8.sqlite owns its own schema; maestro DatabasePersister is project-scoped to scaffolder_data.sqlite)'.\n  - Dropped the dead loadLibModule, getDatabasePersister, and _databasePersister helpers (and the now-unused `fs` import). They had no callers outside the dead initialize() try-block.\n  - graph-persister.js is left in place because insight-store imports it separately for getSharedDatabasePath() (a different DB file).\n  - Added a comment in the LIB CODE REFERENCES section recording why the helpers were removed, so a future reader doesn't try to re-add them.\n\nVerified: in-memory init prints the new log line; verify-persistence-fixes 10/10; `node start.js .` indexes 283 files end-to-end without error.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "1f238e0",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/persistence.js",
     "userNote": "ai_content has no FK to file_registry — it stores filepath as freeform TEXT. Renames, deletions, and re-creations of files leave ai_content rows pointing at stale paths with no cascade. Was this intentional (content may arrive before the file is indexed) or an oversight? Decide and document. If intentional: add a comment on the table block explaining the design. If oversight: add filepath OR fingerprint FK and a cascade hook in deleteFile/pruneFilesNotIn.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Decision: INTENTIONAL, loose-coupling is correct.\n\nRationale:\n  - grep'd the codebase — storeAIContent / getAIContent currently have NO callers outside their own definitions in persistence.js. The methods are a v0 surface for the @@@ symbol pipeline.\n  - Workflow shape: content can arrive before the file is indexed (e.g. a transcript referencing a file that's about to be created) AND content should outlive the file (deleting the file shouldn't erase the historical record of what was said about that path).\n  - Filepath-only join key reinforces the looseness — even if the file is later re-created with a different fingerprint, the content is keyed to the path.\n\nAction: documented the design in a prominent ST8_SCHEMA comment block above the ai_content CREATE TABLE statement (src/core/database/persistence.js). The comment spells out:\n  - WHY no FK (content-first workflow, content outlives the file).\n  - That ai_content is deliberately NOT in the deleteFile / pruneFilesNotIn cascade.\n  - The exact checklist for reversing this decision if a future contributor wants tight coupling: (a) add fingerprint column + FK, (b) wire cascade hook in two places, (c) update EXPECTED_SCHEMA, (d) write a backfill migration.\n\nFollow-up correction: the initial commit (8f0b27c) used backticks inside the schema comment, which JS parsed as template-string terminators and the module failed to load. Replaced with plain prose in commit 3396fb7. Net change is comment-only; no SQL behavior or code path changed.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "3396fb7",
+    "residualConcerns": "If callers materialize (the @@@ pipeline wires up), revisit. The decision is recorded but not load-bearing yet.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -57,7 +105,15 @@
     "filepath": "src/core/database/persistence.js",
     "userNote": "tickets has no cascade entry in deleteFile or pruneFilesNotIn. Deleting a file_registry row leaves its tickets with a dangling FK. Currently safe only because PRAGMA foreign_keys is off and ticket queries don't JOIN on file_registry. Fix: add deleteTicketsForFile(fingerprint) and call it from both cascade points — same shape as deleteIntentForFile / deleteMutationLogForFile.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Added deleteTicketsForFile(fingerprint) to St8Persistence (src/core/database/persistence.js), shape identical to deleteIntentForFile / deleteMutationLogForFile. Wired into both cascade paths:\n  - deleteFile(): called inside the per-fingerprint loop of the rewritten implementation.\n  - pruneFilesNotIn(): called inside the existing per-fingerprint loop alongside the other three cascade helpers.\n\nThis was the orphan-creating bug that fired SQLITE_CONSTRAINT_FOREIGNKEY on the first boot after enabling foreign_keys = ON (ticket 2). The stack pinpointed pruneFilesNotIn at persistence.js:337 — the live st8.sqlite had one ticket whose file_registry row was about to be pruned. Adding the cascade resolved the throw in the same commit (1363afe). Post-fix: live DB foreign_key_check = [].",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "1363afe",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -75,13 +131,29 @@
     "filepath": "src/core/database/persistence.js",
     "userNote": "storeAIContent comment says 'INSERT OR REPLACE' but there is no UNIQUE constraint on the ai_content table — every call is effectively an INSERT and rows accumulate. If the intent is one-row-per-filepath, add `UNIQUE(filepath)` to the schema. If the intent is a history of injections, the comment is misleading — rename the method to appendAIContent and remove the OR REPLACE.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Chose option (b): append semantics, rename. Aligns with the ai_content design decision recorded in ticket 7 (ai_content is a HISTORY of injections — content-first, content-outlives-file).\n\nChanges to src/core/database/persistence.js:\n  - New canonical method appendAIContent(filepath, content): plain INSERT, no OR REPLACE.\n  - storeAIContent(filepath, content): retained as a @deprecated thin alias that just delegates to appendAIContent. Kept because the docs reference the old name and any future caller written against the documented API shouldn't silently break.\n  - JSDoc on both methods explains the rename + the why.\n\nVerified: appendAIContent('/foo.js') + appendAIContent('/foo.js') + storeAIContent('/foo.js') produces three rows from getAIContent. Note: behavior is functionally unchanged (rows always accumulated — OR REPLACE was a no-op with no UNIQUE constraint); the rename just makes the existing behavior honest.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "10946cd",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/persistence.js",
     "userNote": "getFileByPath uses no ORDER BY. With multiple rows per filepath (different fingerprints from different runs), the returned row is non-deterministic (physical layout order). Every consumer of getFileByPath assumes 'the' file — but there may be more than one. Fix: either ORDER BY birthTimestamp DESC (most recent) or document the multi-row possibility and return an array. Affects deleteFile (see related ticket) and ~10 server.js call sites.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-15T00:00:00Z",
+    "executedBy": "wave-1a-executor",
+    "actionsTaken": "Two-method fix in src/core/database/persistence.js:\n\n1. getFileByPath now uses `ORDER BY birthTimestamp DESC` — most-recent identity wins deterministically. The JSDoc spells out the multi-row possibility and points callers that need to operate on every fingerprint at getAllFilesByPath.\n\n2. New getAllFilesByPath(filepath) returns every row for a filepath, ordered by birthTimestamp DESC. deleteFile (ticket 1) uses it to enumerate fingerprints for the per-fingerprint cascade.\n\nWhy DESC and not document-and-return-array: option (1) preserves the existing call-site assumption (one row) for the ~10 server.js consumers — they all want 'the current file at this path', which is unambiguously the newest birthTimestamp. Switching to an array return would have forced changes across every consumer. Option (2) — getAllFilesByPath — gives callers that NEED the full set an explicit way to ask.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": "1363afe",
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "src/core/database/graph-persister.js",
