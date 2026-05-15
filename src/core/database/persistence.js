@@ -1386,8 +1386,56 @@ class St8Persistence {
     }
 }
 
+// ─── SHARED INSTANCE ─────────────────────────────────────────
+//
+// Module-level memoized accessor. Each call returns the SAME
+// initialized St8Persistence instance, opening better-sqlite3 + applying
+// PRAGMAs + running ST8_SCHEMA + introspecting drift exactly ONCE
+// across the server lifetime.
+//
+// Why this exists (ticket 7): app.js's HTTP handlers previously
+// constructed `new St8Persistence()` and called `initialize()` per
+// request, which re-opens the DB file, re-runs the CREATE TABLE IF NOT
+// EXISTS chain, and re-runs introspectSchema() on every API hit. Heavy
+// per-request cost for what is effectively a process-lifetime singleton.
+//
+// The accessor returns a Promise so the first caller can `await` the
+// initialization; subsequent callers receive the same resolved Promise
+// (or the cached instance if init already completed).
+//
+// closeSharedPersistence() exists for tests + the server.stop() shutdown
+// path so the DB handle is released cleanly on SIGINT.
+let _sharedPersistence = null;
+let _sharedInitPromise = null;
+
+async function getSharedPersistence() {
+    if (_sharedPersistence && _sharedPersistence.db) return _sharedPersistence;
+    if (_sharedInitPromise) return _sharedInitPromise;
+    _sharedInitPromise = (async () => {
+        const inst = new St8Persistence();
+        await inst.initialize();
+        _sharedPersistence = inst;
+        return inst;
+    })();
+    try {
+        return await _sharedInitPromise;
+    } finally {
+        _sharedInitPromise = null;
+    }
+}
+
+function closeSharedPersistence() {
+    if (_sharedPersistence) {
+        try { _sharedPersistence.close(); } catch (_) { /* already closed */ }
+        _sharedPersistence = null;
+    }
+    _sharedInitPromise = null;
+}
+
 // ─── EXPORTS ─────────────────────────────────────────────────
 
 module.exports = {
-    St8Persistence
+    St8Persistence,
+    getSharedPersistence,
+    closeSharedPersistence,
 };

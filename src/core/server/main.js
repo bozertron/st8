@@ -12,7 +12,7 @@
 
 const path = require('path');
 const { indexDirectory } = require('../../features/indexing/indexer');
-const { St8Persistence } = require('../database/persistence');
+const { St8Persistence, getSharedPersistence, closeSharedPersistence } = require('../database/persistence');
 const { writeManifests } = require('../../features/schema-cards/manifest-generator');
 const { FileWatcher } = require('../../features/watcher/file-watcher');
 const { St8Server } = require('./app');
@@ -190,9 +190,12 @@ async function main() {
     console.log(`Serve:  ${serveMode ? 'enabled' : 'disabled'}`);
     console.log('');
     
-    // Initialize persistence
-    const persistence = new St8Persistence();
-    await persistence.initialize();
+    // Initialize persistence via the module-level shared accessor so the
+    // indexer, file watcher, and HTTP routes all share ONE St8Persistence
+    // instance (and one better-sqlite3 connection) across the process
+    // lifetime. Before ticket 7, app.js routes each constructed their own
+    // and ran ST8_SCHEMA + introspectSchema per request.
+    const persistence = await getSharedPersistence();
     
     // Run initial indexing
     console.log('[st8] Running initial indexing...');
@@ -417,11 +420,14 @@ async function main() {
             console.log('\n[st8] Shutting down...');
             if (watcher) watcher.stop();
             if (server) server.stop();
-            persistence.close();
+            // closeSharedPersistence() also clears the module-level cache so
+            // any post-SIGINT getSharedPersistence() call would re-open
+            // cleanly (defensive against a future hot-reload mode).
+            closeSharedPersistence();
             process.exit(0);
         });
     } else {
-        persistence.close();
+        closeSharedPersistence();
     }
 }
 

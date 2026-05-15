@@ -1560,9 +1560,11 @@ class St8Server {
                     return;
                 }
 
-                const { St8Persistence } = require('../database/persistence');
-                const persistence = new St8Persistence();
-                await persistence.initialize();
+                // Shared, memoized persistence instance — see persistence.js
+                // getSharedPersistence(). First call opens better-sqlite3 +
+                // runs ST8_SCHEMA + introspection; subsequent calls are O(1).
+                const { getSharedPersistence } = require('../database/persistence');
+                const persistence = await getSharedPersistence();
 
                 // Commits are project-level events, not per-file mutations
                 // (mutation_log.fingerprint has a FK to file_registry that
@@ -1606,7 +1608,8 @@ class St8Server {
      *       claim-watchers can react.
      */
     _handleTickets(req, res, url) {
-        const { St8Persistence } = require('../database/persistence');
+        // Shared persistence — see getSharedPersistence() in persistence.js.
+        const { getSharedPersistence } = require('../database/persistence');
 
         if (req.method === 'GET') {
             // No hook fired here by design — queries are read-only and have
@@ -1614,8 +1617,7 @@ class St8Server {
             // ticket reads (e.g. a phreak> session marking itself "aware"),
             // fire a TICKETS_QUERIED hook here. Don't add the constant
             // prematurely — wait for a real subscriber to drive the contract.
-            const persistence = new St8Persistence();
-            persistence.initialize().then(function() {
+            getSharedPersistence().then(function(persistence) {
                 try {
                     const tickets = persistence.getOpenTickets(200);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1644,8 +1646,7 @@ class St8Server {
                     res.end(JSON.stringify({ error: 'fingerprint + filepath required' }));
                     return;
                 }
-                const persistence = new St8Persistence();
-                await persistence.initialize();
+                const persistence = await getSharedPersistence();
                 const ticket = persistence.createTicket({
                     fingerprint: payload.fingerprint,
                     filepath: payload.filepath,
@@ -1701,9 +1702,8 @@ class St8Server {
         // No hook fired here by design — see the matching note in
         // _handleTickets GET. Fire TICKETS_QUERIED here if query
         // subscribers are introduced.
-        const { St8Persistence } = require('../database/persistence');
-        const persistence = new St8Persistence();
-        persistence.initialize().then(function() {
+        const { getSharedPersistence } = require('../database/persistence');
+        getSharedPersistence().then(function(persistence) {
             try {
                 const count = persistence.countOpenTickets();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
