@@ -327,7 +327,7 @@ function checkOrphans(files) {
   const orphans = [];
   // Known entry points we expect to be orphans
   const expectedOrphans = new Set(
-    ['src/core/server/main.js', 'src/core/database/verify-persistence-fixes.js', 'src/frontend/app.js'].map((p) => path.join(REPO_ROOT, p))
+    ['src/core/server/main.js', 'scripts/verify-persistence-fixes.js', 'src/frontend/app.js'].map((p) => path.join(REPO_ROOT, p))
   );
   for (const f of jsFiles) {
     if (referenced.has(f)) continue;

@@ -14,8 +14,8 @@ const testDbPath = ':memory:';
 
 let St8Persistence;
 try {
-    // Try loading the persistence module
-    const mod = require('./persistence');
+    // Try loading the persistence module (file moved scripts/ ← src/core/database/)
+    const mod = require('../src/core/database/persistence');
     St8Persistence = mod.St8Persistence;
 } catch (err) {
     console.error('Failed to load persistence module:', err.message);
