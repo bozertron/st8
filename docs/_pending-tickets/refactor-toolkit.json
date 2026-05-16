@@ -315,7 +315,10 @@
     "severity": "medium",
     "status": "executed",
     "executedBy": "wave-6c-executor",
-    "actionsTaken": "Added a Table of Contents at the top of st8_bible.md covering both major sections (26 entries) and the Refactor Batch Log (27 entries, one per batch, each with batch number, kebab-cased topic, one-line goal, and starting line number). Total 53 indexed jump points. See st8_bible.md lines 9-79."
+    "actionsTaken": "Added a Table of Contents at the top of st8_bible.md covering both major sections (26 entries) and the Refactor Batch Log (27 entries, one per batch, each with batch number, kebab-cased topic, one-line goal, and starting line number). Total 53 indexed jump points. See st8_bible.md lines 9-79.",
+    "verdict": "kickback",
+    "reviewNote": "TOC structure + entry count verified (26 major sections + 27 batches = 53 rows). HOWEVER all line numbers are systematically off by exactly 70 (the TOC's own height). Executor computed targets BEFORE inserting the 70-line TOC block. Spot-checks: TOC claims batch 011→L2065, batch 019→L2374, batch 027→L2868; actual grep gives L2135, L2444, L2938 respectively. Major sections shifted identically: 'What is ST8?' TOC=L9 actual=L79; 'Architecture Overview' TOC=L37 actual=L107. The TOC's own caveat (\"re-run grep if drift is suspected\") does not excuse a TOC that is wrong on day 1. Fix is mechanical: add 70 to every line number. Surfacing for 6D follow-up or a 1-commit fix.",
+    "reviewedBy": "wave-6c-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/signal-tests/check-invariants.js",
@@ -323,7 +326,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-6c-executor",
-    "actionsTaken": "Added Tier 1 schema-contract signal tests at tests/scripts/signal-tests/tier-1-schema-contracts.test.js. 9 probes across 3 handoffs: H1 indexer\u2192manifest-generator (3 probes \u2014 required field surface, consumer-reads-only-producer-fields, end-to-end shape), H2 parser-persistence\u2192graph-persister (3 probes \u2014 node_type enum coverage of parser entity kinds, ProjectFiles INSERT column contract, edge_type enum coverage), H3 St8SchemaCard \u2194 manifest-generator load-bearing omissions (3 probes \u2014 canonical shape carries lifecyclePhase + birthTimestamp, projection omits both, fingerprint round-trip preserves birthTimestamp). Mutation probe verified: renaming `fingerprint:` key to `fp_test:` in manifest-generator caused P1.3 to fail; restore returned to 9/9 pass."
+    "actionsTaken": "Added Tier 1 schema-contract signal tests at tests/scripts/signal-tests/tier-1-schema-contracts.test.js. 9 probes across 3 handoffs: H1 indexer\u2192manifest-generator (3 probes \u2014 required field surface, consumer-reads-only-producer-fields, end-to-end shape), H2 parser-persistence\u2192graph-persister (3 probes \u2014 node_type enum coverage of parser entity kinds, ProjectFiles INSERT column contract, edge_type enum coverage), H3 St8SchemaCard \u2194 manifest-generator load-bearing omissions (3 probes \u2014 canonical shape carries lifecyclePhase + birthTimestamp, projection omits both, fingerprint round-trip preserves birthTimestamp). Mutation probe verified: renaming `fingerprint:` key to `fp_test:` in manifest-generator caused P1.3 to fail; restore returned to 9/9 pass.",
+    "verdict": "ack",
+    "reviewNote": "Targeted suite tests/scripts/signal-tests/tier-1-schema-contracts.test.js runs 9/9 pass. Mutation probe reproduced independently: renamed `fingerprint:` -> `fp_test:` at manifest-generator.js L96. Failure surface: P1.3 (end-to-end shape) failed AND P1.1 (H1 field contract) failed at parent level. Restored byte-perfect (git diff empty); 9/9 pass returns. Three handoffs (H1, H2, H3) cover the schema-card spine. Tests 413/413.",
+    "reviewedBy": "wave-6c-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/check-conventions.js",
@@ -367,7 +373,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-6c-executor",
-    "actionsTaken": "Built scripts/migration/ogb-destroy.js with companion tests at tests/scripts/migration/ogb-destroy.test.js (6 probes). Tool flow: (1) inventory OGB/ files+dirs, (2) Invariant A \u2014 grep src/, tests/, scripts/, start.js, package.json for any live require/import into OGB/ (excludes own file and pure comment lines); aborts exit 1 with hits if any found, (3) plan preview in --dry-run default mode, (4) under --yes, writes timestamped tar.gz backup to .st8/ogb-backup/ before any rm, then removes files, then bottom-up rmdirs the now-empty subdirectories, then OGB/ itself. Founder still pulls the trigger via --yes; this script provides the safety net."
+    "actionsTaken": "Built scripts/migration/ogb-destroy.js with companion tests at tests/scripts/migration/ogb-destroy.test.js (6 probes). Tool flow: (1) inventory OGB/ files+dirs, (2) Invariant A \u2014 grep src/, tests/, scripts/, start.js, package.json for any live require/import into OGB/ (excludes own file and pure comment lines); aborts exit 1 with hits if any found, (3) plan preview in --dry-run default mode, (4) under --yes, writes timestamped tar.gz backup to .st8/ogb-backup/ before any rm, then removes files, then bottom-up rmdirs the now-empty subdirectories, then OGB/ itself. Founder still pulls the trigger via --yes; this script provides the safety net.",
+    "verdict": "ack",
+    "reviewNote": "Dry-run reproduced: `node scripts/migration/ogb-destroy.js --dry-run` reports 48 files / 8 subdirs, no live require/import refs (Invariant A), planned actions listed (tar.gz backup -> rm files -> bottom-up rmdir -> remove OGB/), NO deletion performed (exit 0). Safety grep confirms tar.gz backup path + invariant A live-reference scan are present. Targeted tests pass 6/6. Tool is dry-run by default (requires explicit --yes). Tests 413/413.",
+    "reviewedBy": "wave-6c-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/manifest.json",
@@ -395,7 +404,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-6c-executor",
-    "actionsTaken": "Added `**Commit:** `7f16a65`` line to Batch 027 (sonic-foundation) in st8_bible.md, replacing the `(filled in below)` placeholder. The hash was verified via `git log --grep` matching the bible's batch 027 description (PM-1 Layer 1 \u2014 Sonic daemon + missing trio wired). Bible now has 26 Commit lines for the 27 batches. Batch 002 (core-database) still has no Commit line \u2014 that was already the case before this ticket and falls outside its scope; it predates the placeholder convention. The ticket's \"26 of 27\" count is preserved post-fix."
+    "actionsTaken": "Added `**Commit:** `7f16a65`` line to Batch 027 (sonic-foundation) in st8_bible.md, replacing the `(filled in below)` placeholder. The hash was verified via `git log --grep` matching the bible's batch 027 description (PM-1 Layer 1 \u2014 Sonic daemon + missing trio wired). Bible now has 26 Commit lines for the 27 batches. Batch 002 (core-database) still has no Commit line \u2014 that was already the case before this ticket and falls outside its scope; it predates the placeholder convention. The ticket's \"26 of 27\" count is preserved post-fix.",
+    "verdict": "ack",
+    "reviewNote": "Verified: `git show 7f16a65 --stat | head -10` shows commit subject 'feat(sonic): PM-1 Layer 1 \u2014 Sonic daemon + missing trio wired' (matches batch 027 sonic-foundation topic). Bible L3013 now has `**Commit:** \\`7f16a65\\``. The original ticket scope (replace placeholder for batch 027) is complete. Batch 002 gap is pre-existing and explicitly out of scope per executor note. Tests 413/413.",
+    "reviewedBy": "wave-6c-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/move-history.json",

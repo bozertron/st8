@@ -79,3 +79,56 @@ Tickets covered: 7 (indices 4, 5, 6, 7, 22, 23, 25 — `executedBy == "wave-6b-e
 7 ack / 0 kickback. All Wave 6B claims reproduce at HEAD `2c39a28` (since extended to `15b9822` by this review's annotation commit).
 
 Cluster remains open for Waves 6C and 6D. JSON intentionally NOT renamed.
+
+
+## Wave 6C Review
+
+Reviewer: `wave-6c-reviewer` (NOT cluster-close — that is 6D).
+Reviewed commits: `eea238d`, `98a1b33`, `76abc66`, `dbda6ba` (range `2c39a28..897a794`).
+Tickets covered: 4 (indices 20, 21, 24, 26 — `executedBy == "wave-6c-executor"`).
+
+### Pre-flight
+
+- `git ls-files src/0_` empty. `ls src/` shows `core features frontend shared`. Entry chain OK.
+- HEAD `897a794`. Baseline `npm test`: **413 / 413 pass / 0 fail / 0 skipped / 0 todo**. Matches prompt expected baseline.
+
+### Ticket verifications
+
+**Ticket 26 — batch 027 commit hash (commit `eea238d`).**
+- Bible L3013 now reads `` **Commit:** `7f16a65` ``.
+- `git show 7f16a65 --stat | head -10` → subject "feat(sonic): PM-1 Layer 1 — Sonic daemon + missing trio wired" (matches batch 027 sonic-foundation topic).
+- Out-of-scope batch 002 gap is documented and not in this ticket's scope.
+- Verdict: **ack**.
+
+**Ticket 20 — bible TOC (commit `98a1b33`).**
+- TOC structure exists at st8_bible.md L9-L76. Entry counts independently confirmed: **26 major sections + 27 batches = 53 rows**, matching the executor's claim.
+- **DEFECT**: every line number in the TOC is systematically off by exactly 70 (the TOC's own inserted height). The executor computed targets before inserting the 70-line block.
+  - TOC says batch 011 → L2065. Actual `^### Batch 011` is at **L2135** (delta +70).
+  - TOC says batch 019 → L2374. Actual at **L2444** (delta +70).
+  - TOC says batch 027 → L2868. Actual at **L2938** (delta +70).
+  - Major sections shifted identically: "What is ST8?" claimed L9, actual L79; "Architecture Overview" claimed L37, actual L107.
+- The TOC's self-caveat ("re-run grep if drift is suspected") does not excuse coordinates that are wrong on day 1.
+- Fix is mechanical: add 70 to every line number in the TOC.
+- Verdict: **kickback** (structure ack, coordinates broken).
+
+**Ticket 24 — ogb-destroy.js (commit `76abc66`).**
+- Dry-run: `node scripts/migration/ogb-destroy.js --dry-run` reports 48 files, 8 subdirs, Invariant A (no live require/import refs) PASS, planned actions printed (tar.gz backup → rm files → bottom-up rmdir → remove OGB/), and exits without touching the filesystem. Re-checked `ls OGB/` afterwards: untouched.
+- Safety grep confirms: `BACKUP_DIR` path, `.tar.gz` tarball generation, Invariant A live-ref scan with regex covering `require('OGB/...')`, `require('./OGB/...')`, `require('../OGB/...')`.
+- Default mode is dry-run; destruction requires explicit `--yes`.
+- Targeted tests `node --test tests/scripts/migration/ogb-destroy.test.js`: **6 / 6 pass**.
+- Verdict: **ack**.
+
+**Ticket 21 — Tier 1 signal tests (commit `dbda6ba`).**
+- Targeted suite `node --test tests/scripts/signal-tests/tier-1-schema-contracts.test.js`: **9 / 9 pass**. 3 handoff groups (H1 indexer→manifest-generator, H2 parser-persistence→graph-persister, H3 SchemaCard↔manifest-generator).
+- **Mutation probe (mandatory) reproduced independently**: renamed `fingerprint:` → `fp_test:` at `src/features/schema-cards/manifest-generator.js:96`. Re-ran target suite: P1.3 ("end-to-end shape on representative input") failed AND its parent group H1 surfaced as failed (`# pass 8 / fail 1`). Restored the file byte-perfect; `git diff src/features/schema-cards/manifest-generator.js` is empty; target suite back to 9/9.
+- Verdict: **ack**.
+
+### Full suite
+
+`npm test` after all verifications: **413 / 413 pass**, 0 fail, 0 skipped, 0 todo. Working tree clean post-mutation-restore.
+
+### Verdict summary
+
+**3 ack / 1 kickback**. Three claims (26, 24, 21) reproduce fully at HEAD `897a794`. Ticket 20's TOC structure is correct but its line numbers are unusable as a navigation aid until a +70 offset fix lands. Surfacing for 6D (final reviewer) or a follow-up sub-wave.
+
+Cluster remains open for Wave 6D. JSON intentionally NOT renamed.
