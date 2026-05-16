@@ -80,3 +80,43 @@ git log --since="2026-05-14" --name-only --pretty=format: | grep -E "^src/0_" | 
 - **No "wave-level extras".** If your prompt lists 5 tickets, you finish those 5. If you find an additional issue, mark it as a residualConcern — it becomes its own wave.
 - **No port 3847 in probes when running parallel.** Use ephemeral ports (`bootServer()` helper in `tests/_helpers/` if it exists, otherwise let the OS pick a port).
 - **No silent failures.** Honest "blocked" beats false "executed."
+
+## NO CHEATS — canonical list
+
+Every executor + reviewer prompt references this section. The full enumeration:
+
+```
+ABSOLUTELY PROHIBITED:
+- Stubs, TODO placeholders, "// implement later"
+- Silent failures (catch + console.log + continue with no surface)
+- Simulated data, mock returns, hardcoded "success" responses
+- Bypassing tests with `if (test) return true`
+- Marking a ticket "executed" when only part of it works
+- Hiding behind feature flags or environment guards to skip real work
+- Any technique that creates a false-positive completion
+
+If you cannot complete a ticket correctly:
+  Mark it status:"blocked", write actionsTaken explaining
+  EXACTLY what blocked you, DO NOT commit broken code.
+
+Honesty over success. Report blocked over half-done.
+Trust is earned by truthful reporting, not green checkmarks.
+```
+
+This is the canonical anti-cheat contract. Wave-specific prompts MAY add wave-specific anti-cheats (e.g. "no LIFECYCLE_TRANSITION publisher without a real subscriber") but the 7 bullets above apply universally.
+
+## Reviewer-specific anti-cheats
+
+Reviewers do not commit source code, so the "no stubs" rule doesn't apply directly — but the audit can be cheated too:
+
+```
+REVIEWER ANTI-CHEATS:
+- Don't ack a ticket without running the test it claims to add
+- Don't ack a wire-up without a real probe against the wired surface
+- Don't accept "deferred" without verifying the roadmap pointer exists
+- Don't skip the mandatory mutation probe (break-thing → test-fails → restore)
+- Don't approve a verdict you couldn't reproduce yourself
+
+If you can't verify a claim independently, mark it kickback with the
+specific verification step that failed.
+```
