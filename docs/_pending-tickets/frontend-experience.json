@@ -62,7 +62,7 @@
     "executedBy": "wave-7b-executor",
     "executionStatus": "executed",
     "actionsTaken": "Chose the hard-fail option (b). Added an IIFE in index.html right after the importmap declaration that probes `HTMLScriptElement.supports('importmap')` — the standard feature-detection hook for importmap support. If the probe returns false (or the API itself is missing, indicating a very old browser), the script (1) creates a visible top-of-page banner with role='alert' explaining that dive-in is unavailable AND naming the minimum browser versions (Chrome 89+, Safari 16.4+, Firefox 108+), (2) logs a console.warn so devtools-watchers see it, (3) explicitly notes 'the rest of st8 still works' so users understand the constellation/explorer/phreak are not affected. The banner mount is deferred via DOMContentLoaded when document.body is not yet ready (we're still in <head>'s tail at this point in the parse). The whole probe is wrapped in try/catch so a future browser API change can't crash boot. Chose hard-fail over es-module-shims because (a) the founder's posture is strip-don't-add, (b) the only ESM-importing module in the project is dive-in.js, and a shim would add a vendored dependency for a code path that's already developer-tool gated, (c) roadmap P3 item 'Importmap fallback shim' explicitly leaves the shim as a future option. No source change to dive-in.js — the module is still loaded normally; the banner just explains why it won't function. Verified: HTMLScriptElement.supports('importmap') is a 2023+ standard, available in all browsers that actually support importmap, so the probe is reliable.",
-    "commitSha": "PENDING"
+    "commitSha": "5a7ac48"
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -187,6 +187,10 @@
     "filepath": "/home/user/st8/src/frontend/app.js",
     "userNote": "`bootConstellation()` runs at script-parse time (top-level in app.js), not on DOMContentLoaded. `index.html` puts `<script src=\"app.js\">` at the END of `<body>`, so the DOM is parsed by then — but if the script load order is ever changed, or someone adds `defer`/`async` differently, the `document.getElementById('stage')` lookup races. Wrap in a DOMContentLoaded handler defensively.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-7b-executor",
+    "executionStatus": "executed",
+    "actionsTaken": "Replaced the bare top-level `bootConstellation();` call (was at app.js:265) with a readyState-aware gate. The new block reads `document.readyState`: if it's still 'loading', registers `bootConstellation` as a one-shot DOMContentLoaded listener; otherwise (DOM already parsed — the case when app.js sits at the end of <body>, which is the current load order) it invokes immediately so we preserve byte-for-byte the existing boot path. This is the standard defensive idiom — same pattern used in jQuery's ready() shim. Verified by `grep -n bootConstellation src/frontend/app.js`: the bare top-level call is gone (replaced by the conditional); the function definition at L224 is unchanged; the new gate is at L273-277. Tests stable at 423. NOTE: this is purely defensive — today's load order (script tag at end of <body>) means readyState is already 'interactive' or 'complete' by the time app.js runs, so the inline branch fires and behavior is unchanged. The DOMContentLoaded branch protects future moves of the <script> tag (e.g. into <head> with defer, or any future bundler that hoists imports).",
+    "commitSha": "PENDING"
   }
 ]

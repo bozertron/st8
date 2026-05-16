@@ -262,7 +262,19 @@
           console.warn('[st8] constellation /api/files failed:', err && err.message);
         });
     }
-    bootConstellation();
+    // Ticket 21: invoke bootConstellation on DOMContentLoaded rather than at
+    // script-parse time. `<script src="app.js">` lives at the END of <body>
+    // today so the DOM IS parsed by now — but if anyone ever adds
+    // defer/async, moves the tag, or wraps the bundle differently, the
+    // top-level `document.getElementById('stage')` lookup races and silently
+    // returns null. DOMContentLoaded fires immediately when the document is
+    // already parsed (the spec guarantees this), so wrapping is a strictly
+    // defensive move with zero behavior change in the current load order.
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootConstellation);
+    } else {
+      bootConstellation();
+    }
 
     // Live updates (post Wave 4D ticket 1): the constellation listens on
     // the SAME /api/mutations stream the mutation toast handler uses. The
