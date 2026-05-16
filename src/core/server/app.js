@@ -549,28 +549,16 @@ class St8Server {
             return;
         }
 
-        // Body size limit: 1KB
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+        // 1KB cap — index trigger is a compute-only call (just a path).
+        parseRequestBody(req, { maxBytes: 1024 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', async () => {
-            if (bodyTooLarge) return;
             let persistence;
             try {
-                const { path: requestedPath } = JSON.parse(body || '{}');
+                const { path: requestedPath } = parsed.body;
                 const targetDir = requestedPath || this.targetDir;
                 
                 if (!targetDir) {
@@ -620,27 +608,15 @@ class St8Server {
             return;
         }
 
-        // Body size limit: 1KB
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+        // 1KB cap — small note payload.
+        parseRequestBody(req, { maxBytes: 1024 }).then((parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', () => {
-            if (bodyTooLarge) return;
             try {
-                const { fingerprint, purpose, dependsOnBehavior, valueStatement } = JSON.parse(body);
+                const { fingerprint, purpose, dependsOnBehavior, valueStatement } = parsed.body;
                 const { St8Persistence } = require('../database/persistence');
                 const persistence = new St8Persistence();
 
@@ -734,28 +710,19 @@ class St8Server {
                 }
 
             } else if (req.method === 'POST') {
-                // POST /api/settings — upsert a setting
-                // Body size limit: 1KB
-                const MAX_BODY_SIZE = 1024;
-                let body = '';
-                let bodyTooLarge = false;
-
-                req.on('data', chunk => {
-                    if (bodyTooLarge) return;
-                    body += chunk;
-                    if (body.length > MAX_BODY_SIZE) {
-                        bodyTooLarge = true;
-                        body = '';
-                        req.destroy();
-                        res.writeHead(413, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+                // POST /api/settings — upsert a setting. 8KB cap so
+                // models _entries arrays (provider + apiKey + url +
+                // model fields × N entries) fit. The original 1KB cap
+                // was too tight for that array shape.
+                parseRequestBody(req, { maxBytes: 8192 }).then((parsed) => {
+                    if (!parsed.ok) {
+                        persistence.close();
+                        res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: parsed.error }));
+                        return;
                     }
-                });
-
-                req.on('end', () => {
-                    if (bodyTooLarge) return;
                     try {
-                        const { category, key, value } = JSON.parse(body);
+                        const { category, key, value } = parsed.body;
                         if (!category || !key) {
                             res.writeHead(400, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: 'category and key are required' }));
@@ -782,10 +749,6 @@ class St8Server {
                     } finally {
                         persistence.close();
                     }
-                });
-                // Handle client abort — req.on('end') never fires → connection leak
-                req.on('close', () => {
-                    if (persistence) persistence.close();
                 });
 
             } else {
@@ -860,39 +823,17 @@ class St8Server {
             return;
         }
 
-        // Body size limit: 1KB
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+        // 1KB cap — verify takes only an optional {path}.
+        parseRequestBody(req, { maxBytes: 1024 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', async () => {
-            if (bodyTooLarge) return;
             try {
-                // Parse request body
                 let targetDir = this.targetDir;
-                if (body) {
-                    try {
-                        const parsed = JSON.parse(body);
-                        if (parsed.path) {
-                            targetDir = parsed.path;
-                        }
-                    } catch (parseErr) {
-                        res.writeHead(400, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-                        return;
-                    }
+                if (parsed.body && parsed.body.path) {
+                    targetDir = parsed.body.path;
                 }
 
                 if (!targetDir) {
@@ -1076,38 +1017,16 @@ class St8Server {
             return;
         }
 
-        // Body size limit: 1KB
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+        // 1KB cap — small note payload.
+        parseRequestBody(req, { maxBytes: 1024 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', async () => {
-            if (bodyTooLarge) return;
-
             let persistence;
             try {
-                let parsed;
-                try {
-                    parsed = JSON.parse(body);
-                } catch (parseErr) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid JSON: ' + parseErr.message }));
-                    return;
-                }
-
-                const { filepath, purpose, dependsOnBehavior, valueStatement } = parsed;
+                const { filepath, purpose, dependsOnBehavior, valueStatement } = parsed.body;
 
                 if (!filepath) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1183,26 +1102,13 @@ class St8Server {
             return;
         }
 
-        // Consume the request body to drain the socket (prevents connection leak)
-        // Body size limit: 1KB
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+        // 1KB cap — no payload expected; we drain the socket only.
+        parseRequestBody(req, { maxBytes: 1024 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', async () => {
-            if (bodyTooLarge) return;
             let persistence;
             try {
                 const { St8Persistence } = require('../database/persistence');
@@ -1319,34 +1225,16 @@ class St8Server {
             return;
         }
 
-        const MAX_BODY_SIZE = 1024; // 1KB
-        let body = '';
-        let bodyTooLarge = false;
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 1KB.' }));
+        // 1KB cap — promote takes only a fingerprint.
+        parseRequestBody(req, { maxBytes: 1024 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-        req.on('end', async () => {
-            if (bodyTooLarge) return;
-
             let persistence;
             try {
-                let fingerprint;
-                try {
-                    ({ fingerprint } = JSON.parse(body));
-                } catch (parseErr) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-                    return;
-                }
-
+                const { fingerprint } = parsed.body;
                 if (!fingerprint) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'fingerprint is required' }));
@@ -1522,29 +1410,14 @@ class St8Server {
             return;
         }
         if (req.method === 'POST') {
-            const MAX = 4096;
-            let body = '';
-            let over = false;
-            req.on('data', (chunk) => {
-                if (over) return;
-                body += chunk;
-                if (body.length > MAX) {
-                    over = true;
-                    body = '';
-                    req.destroy();
-                    res.writeHead(413, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: false, error: 'Request body too large (max 4KB)' }));
+            // 4KB cap — signal-path body is a single {filepath, targetDir}.
+            parseRequestBody(req, { maxBytes: 4096 }).then((parsed) => {
+                if (!parsed.ok) {
+                    res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: parsed.error }));
+                    return;
                 }
-            });
-            req.on('end', () => {
-                if (over) return;
-                try {
-                    const payload = JSON.parse(body || '{}');
-                    handle(payload.filepath, payload.targetDir);
-                } catch (err) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: false, error: 'Invalid JSON body' }));
-                }
+                handle(parsed.body.filepath, parsed.body.targetDir);
             });
             return;
         }
@@ -1569,25 +1442,16 @@ class St8Server {
             res.end(JSON.stringify({ ok: false, error: 'Method not allowed. Use POST.' }));
             return;
         }
-        const MAX = 4096;
-        let body = '';
-        let over = false;
-        req.on('data', (chunk) => {
-            if (over) return;
-            body += chunk;
-            if (body.length > MAX) {
-                over = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ ok: false, error: 'Request body too large (max 4KB)' }));
+        // 4KB cap — single filepath + optional targetDir.
+        parseRequestBody(req, { maxBytes: 4096 }).then((parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: parsed.error }));
+                return;
             }
-        });
-        req.on('end', () => {
-            if (over) return;
             let persistence;
             try {
-                const payload = JSON.parse(body || '{}');
+                const payload = parsed.body;
                 const filepath = payload.filepath;
                 if (!filepath || typeof filepath !== 'string') {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1803,27 +1667,15 @@ class St8Server {
                 }
             }
         } else if (req.method === 'POST') {
-            // Body limit: 2KB for projects
-            const MAX_BODY_SIZE = 2048;
-            let body = '';
-            let bodyTooLarge = false;
-
-            req.on('data', chunk => {
-                if (bodyTooLarge) return;
-                body += chunk;
-                if (body.length > MAX_BODY_SIZE) {
-                    bodyTooLarge = true;
-                    body = '';
-                    req.destroy();
-                    res.writeHead(413, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Request body too large' }));
+            // 2KB cap — PRD project body is name + template + small vars.
+            parseRequestBody(req, { maxBytes: 2048 }).then(async (parsed) => {
+                if (!parsed.ok) {
+                    res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: parsed.error }));
+                    return;
                 }
-            });
-
-            req.on('end', async () => {
-                if (bodyTooLarge) return;
                 try {
-                    const { name, template, variables } = JSON.parse(body);
+                    const { name, template, variables } = parsed.body;
                     if (!name || !template) {
                         res.writeHead(400, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: 'name and template are required' }));
@@ -1869,27 +1721,15 @@ class St8Server {
             return;
         }
 
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large' }));
+        // 1KB cap — bruno-call takes only an optional {threshold}.
+        parseRequestBody(req, { maxBytes: 1024 }).then((parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', () => {
-            if (bodyTooLarge) return;
             try {
-                const parsed = body ? JSON.parse(body) : {};
-                const threshold = parsed.threshold || 5;
+                const threshold = parsed.body.threshold || 5;
 
                 const { BrunoOscar } = require('../../features/lifecycle/bruno-oscar');
                 const { St8Persistence } = require('../database/persistence');
@@ -1926,27 +1766,15 @@ class St8Server {
             return;
         }
 
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large' }));
+        // 1KB cap — oscar-house takes only an optional {gracePeriod}.
+        parseRequestBody(req, { maxBytes: 1024 }).then((parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', () => {
-            if (bodyTooLarge) return;
             try {
-                const parsed = body ? JSON.parse(body) : {};
-                const gracePeriod = parsed.gracePeriod || 7;
+                const gracePeriod = parsed.body.gracePeriod || 7;
 
                 const { BrunoOscar } = require('../../features/lifecycle/bruno-oscar');
                 const { St8Persistence } = require('../database/persistence');
@@ -2007,26 +1835,15 @@ class St8Server {
             return;
         }
 
-        const MAX_BODY_SIZE = 1024;
-        let body = '';
-        let bodyTooLarge = false;
-
-        req.on('data', chunk => {
-            if (bodyTooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY_SIZE) {
-                bodyTooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large' }));
+        // 1KB cap — mark-reviewed takes filepath + optional flags.
+        parseRequestBody(req, { maxBytes: 1024 }).then((parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-
-        req.on('end', () => {
-            if (bodyTooLarge) return;
             try {
-                const { filepath, approved, notes } = JSON.parse(body || '{}');
+                const { filepath, approved, notes } = parsed.body;
                 if (!filepath) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'filepath is required' }));
@@ -2069,26 +1886,15 @@ class St8Server {
                 res.end(JSON.stringify({ error: err.message }));
             }
         } else if (req.method === 'POST') {
-            const MAX_BODY_SIZE = 2048;
-            let body = '';
-            let bodyTooLarge = false;
-
-            req.on('data', chunk => {
-                if (bodyTooLarge) return;
-                body += chunk;
-                if (body.length > MAX_BODY_SIZE) {
-                    bodyTooLarge = true;
-                    body = '';
-                    req.destroy();
-                    res.writeHead(413, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Request body too large' }));
+            // 2KB cap — template body is name + content + description.
+            parseRequestBody(req, { maxBytes: 2048 }).then((parsed) => {
+                if (!parsed.ok) {
+                    res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: parsed.error }));
+                    return;
                 }
-            });
-
-            req.on('end', () => {
-                if (bodyTooLarge) return;
                 try {
-                    const { name, content, description } = JSON.parse(body);
+                    const { name, content, description } = parsed.body;
                     if (!name || !content) {
                         res.writeHead(400, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: 'name and content are required' }));
@@ -2152,18 +1958,18 @@ class St8Server {
             return;
         }
 
-        let body = '';
-        req.on('data', (chunk) => { body += chunk; });
-        req.on('end', async () => {
+        // 8KB cap (Wave 5F ticket 10). Backfills the missing
+        // MAX_BODY_SIZE on /api/record-commit. The shell hook produces
+        // 7 small fields capped at ~1.3KB total; 8KB gives plenty of
+        // headroom while keeping the route bounded.
+        parseRequestBody(req, { maxBytes: 8192 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
+            }
             try {
-                let rawPayload;
-                try {
-                    rawPayload = JSON.parse(body || '{}');
-                } catch (parseErr) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'invalid JSON: ' + parseErr.message }));
-                    return;
-                }
+                const rawPayload = parsed.body;
 
                 const validation = validateRecordCommitPayload(rawPayload);
                 if (!validation.ok) {
@@ -2261,11 +2067,17 @@ class St8Server {
             return;
         }
 
-        let body = '';
-        req.on('data', function(chunk) { body += chunk; });
-        req.on('end', async function() {
+        // 8KB cap (Wave 5F ticket 10). Backfills the missing
+        // MAX_BODY_SIZE on /api/tickets POST. 8KB matches /api/llm-call
+        // and /api/record-commit, accommodates identityBundle payloads.
+        parseRequestBody(req, { maxBytes: 8192 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
+            }
             try {
-                const payload = JSON.parse(body || '{}');
+                const payload = parsed.body;
                 if (!payload.fingerprint || !payload.filepath) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'fingerprint + filepath required' }));
@@ -2420,32 +2232,15 @@ class St8Server {
         // 8KB body cap — prompts can be larger than settings bodies but
         // still bounded. Anything bigger should land via a future
         // streaming/upload route, not the in-memory POST path.
-        const MAX_BODY = 8 * 1024;
-        let body = '';
-        let tooLarge = false;
-        req.on('data', (chunk) => {
-            if (tooLarge) return;
-            body += chunk;
-            if (body.length > MAX_BODY) {
-                tooLarge = true;
-                body = '';
-                req.destroy();
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 8KB.' }));
+        // Wave 5F ticket 10/12: standardized through parseRequestBody.
+        parseRequestBody(req, { maxBytes: 8192 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
             }
-        });
-        req.on('end', async () => {
-            if (tooLarge) return;
             try {
-                let payload;
-                try {
-                    payload = JSON.parse(body || '{}');
-                } catch (parseErr) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'invalid JSON: ' + parseErr.message }));
-                    return;
-                }
-
+                const payload = parsed.body;
                 const { entryId, prompt, opts } = payload;
                 if (!entryId || typeof entryId !== 'string') {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
