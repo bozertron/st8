@@ -58,6 +58,28 @@ const databasePersister_js_1 = require("../../core/database/graph-persister.js")
 // ============ CONSTANTS ============
 const COLLECTION = 'codebase';
 // ============ QUERY CLASS ============
+/**
+ * SonicQueries — query layer with SQLite fallback (Wave 5A ticket 2 audit).
+ *
+ * Every public method follows the same shape: try Sonic first, fall back to
+ * pure SQLite if Sonic returns nothing OR throws. The fallback is wired —
+ * each public method has a matching `*SQLite` private implementation:
+ *
+ *   findImportsOf        → findImportsSQLite
+ *   findConsumersOf      → findConsumersSQLite
+ *   searchSymbols        → searchSymbolsSQLite
+ *   getDirectorySubgraph → fetchDirectorySubgraphSQLite
+ *   suggestSymbols       → suggestFromSQLite
+ *   findRelatedFiles     → fetchRelatedFilesSQLite
+ *
+ * Every return value is shaped `{ data, source, queryTimeMs, sonicTimeMs?,
+ * sqliteTimeMs? }` where `source` is one of `'sonic+sqlite' | 'sqlite'`.
+ * Consumers can inspect `source` to learn which path served the query.
+ *
+ * Observation (no behavior change): no production consumer currently
+ * inspects `source`. The tagging is wired but unconsumed. If/when a
+ * telemetry or fallback-rate gauge is added, this is the field to read.
+ */
 class SonicQueries {
     constructor(client, dbPath) {
         this.client = client !== null && client !== void 0 ? client : sonicClient_js_1.sonicClient;
