@@ -6,6 +6,76 @@
 
 ---
 
+## Table of Contents
+
+Line numbers reference HEAD at the time of generation. Re-run `grep -nE "^(## |### Batch )" st8_bible.md` to refresh if drift is suspected.
+
+### Major sections
+
+| Section | Line |
+|---|---|
+| What is ST8? | 9 |
+| Architecture Overview | 37 |
+| Layer 1: Frontend (st8.html + Companion JS) | 101 |
+| Layer 2: Backend (backend/) | 189 |
+| Layer 3: Analysis Libraries (lib/) | 354 |
+| Layer 4: Integr8 Pipeline (lib/commands/integr8/) | 504 |
+| Layer 5: Schema Cards (.st8/schema-cards/) | 629 |
+| Database Schema | 681 |
+| Signal Flow | 783 |
+| Workspace Types | 860 |
+| Design Tokens (Non-Negotiable) | 883 |
+| API Endpoints | 904 |
+| Dependencies | 929 |
+| Current Problems | 943 |
+| Roadmap | 970 |
+| Related Projects | 990 |
+| Key Insights | 999 |
+| PRD System (Planned) | 1028 |
+| Signal Path Analysis (from Codebase Review) | 1127 |
+| Components Being Removed | 1226 |
+| The .st8 Directory | 1240 |
+| Research Synthesis (2026-05-14) | 1330 |
+| Re-Integration Plan | 1513 |
+| Refactor Findings — 2026-05-14 | 1604 |
+| Refactor Batch Log — 2026-05-14 | 1705 |
+
+### Refactor Batch Log — quick index
+
+Chronological list of every batch with its one-line goal and starting line. Batches 001-021 are the layout refactor proper; 022+ are follow-on debug/feature work threaded through the same log.
+
+| Batch | Topic | Line |
+|---|---|---|
+| 001 | `shared` — leaf utilities + types into src/shared/ | 1712 |
+| 002 | `core-database` — persistence + graph-persister into src/core/database/ | 1743 |
+| 003 | `lifecycle-watcher` — bruno-oscar + file-watcher into src/features/ | 1804 |
+| 004 | `schema-cards` — emitter, printer, manifest-generator | 1827 |
+| 005 | `prd` — prd-generator + template-engine into src/features/prd/ | 1864 |
+| 006 | `analysis` — gap-analyzer + intent-seeder into src/features/analysis/ | 1887 |
+| 007 | `integr8-core` — pipeline orchestrator + serializers into src/features/integr8/ | 1915 |
+| 008 | `indexing-parsers` — six AST parsers + overview into src/features/indexing/ | 1954 |
+| 009 | `indexing-engine` — indexer + parser-persistence + data-ingestion | 1994 |
+| 010 | `server-and-entry` — main.js (was index) + app.js (was server) | 2028 |
+| 011 | `launcher-rewire` + end-to-end boot — start.js rewired, full boot verified | 2065 |
+| 012 | `frontend-components` — st8.html sliced into HTML/CSS/JS components | 2099 |
+| 013 | `st8-html-css-extraction` — inline CSS extracted to src/frontend/styles/ | 2130 |
+| 014 | `st8-html-js-extraction` — inline JS extracted to src/frontend/app.js | 2168 |
+| 015 | `frontend-shell` — 142-line index.html slim shell | 2202 |
+| 016 | `backend-static-fix-and-v2-route` — static-route fixes + /v2 route | 2260 |
+| 017 | `background-indexer` — backgroundIndexer.js migrated to src/features/indexing/ | 2304 |
+| 018 | `void-engine-fake-stream-cleanup` — retire void-engine + fake-stream | 2346 |
+| 019 | `stage-originals-to-OGB` — pre-refactor originals into OGB/ for archival | 2374 |
+| 020 | `flip-default-to-new-shell` — index.html → new slim shell by default | 2412 |
+| 021 | `post-refactor-cleanup-and-signal-tests` — file-renames + Tier 2/6 signal tests | 2461 |
+| 022 | `intent-seeder-fix-and-gap-analyzer-jsdoc` — schema fix + docstrings | 2614 |
+| 023 | `hook-registry-and-named-hooks` — HookRegistry + HOOKS constants + DRY+wrap | 2637 |
+| 024 | `post-commit-git-hook` — record-commit endpoint + .git/hooks installer | 2697 |
+| 025 | `post-audit-cleanup-and-force-checks` — drift sweeps + boot-time force checks | 2735 |
+| 026 | `little-stuff-fixes` — small bugs swept after the big waves | 2852 |
+| 027 | `sonic-foundation` (Layer 1 of PM-1) — Sonic daemon + missing trio wired | 2868 |
+
+---
+
 ## What is ST8?
 
 ST8 is a standalone codebase analysis tool that provides real-time visibility into file connection state. It's the first in a series: **st8 → integr8 → actu8 → orchestr8**.
