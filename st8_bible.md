@@ -14,31 +14,31 @@ Line numbers reference HEAD at the time of generation. Re-run `grep -nE "^(## |#
 
 | Section | Line |
 |---|---|
-| What is ST8? | 9 |
-| Architecture Overview | 37 |
-| Layer 1: Frontend (st8.html + Companion JS) | 101 |
-| Layer 2: Backend (backend/) | 189 |
-| Layer 3: Analysis Libraries (lib/) | 354 |
-| Layer 4: Integr8 Pipeline (lib/commands/integr8/) | 504 |
-| Layer 5: Schema Cards (.st8/schema-cards/) | 629 |
-| Database Schema | 681 |
-| Signal Flow | 783 |
-| Workspace Types | 860 |
-| Design Tokens (Non-Negotiable) | 883 |
-| API Endpoints | 904 |
-| Dependencies | 929 |
-| Current Problems | 943 |
-| Roadmap | 970 |
-| Related Projects | 990 |
-| Key Insights | 999 |
-| PRD System (Planned) | 1028 |
-| Signal Path Analysis (from Codebase Review) | 1127 |
-| Components Being Removed | 1226 |
-| The .st8 Directory | 1240 |
-| Research Synthesis (2026-05-14) | 1330 |
-| Re-Integration Plan | 1513 |
-| Refactor Findings — 2026-05-14 | 1604 |
-| Refactor Batch Log — 2026-05-14 | 1705 |
+| What is ST8? | 79 |
+| Architecture Overview | 107 |
+| Layer 1: Frontend (st8.html + Companion JS) | 171 |
+| Layer 2: Backend (backend/) | 259 |
+| Layer 3: Analysis Libraries (lib/) | 424 |
+| Layer 4: Integr8 Pipeline (lib/commands/integr8/) | 574 |
+| Layer 5: Schema Cards (.st8/schema-cards/) | 699 |
+| Database Schema | 751 |
+| Signal Flow | 853 |
+| Workspace Types | 930 |
+| Design Tokens (Non-Negotiable) | 953 |
+| API Endpoints | 974 |
+| Dependencies | 999 |
+| Current Problems | 1013 |
+| Roadmap | 1040 |
+| Related Projects | 1060 |
+| Key Insights | 1069 |
+| PRD System (Planned) | 1098 |
+| Signal Path Analysis (from Codebase Review) | 1197 |
+| Components Being Removed | 1296 |
+| The .st8 Directory | 1310 |
+| Research Synthesis (2026-05-14) | 1400 |
+| Re-Integration Plan | 1583 |
+| Refactor Findings — 2026-05-14 | 1674 |
+| Refactor Batch Log — 2026-05-14 | 1775 |
 
 ### Refactor Batch Log — quick index
 
@@ -46,33 +46,33 @@ Chronological list of every batch with its one-line goal and starting line. Batc
 
 | Batch | Topic | Line |
 |---|---|---|
-| 001 | `shared` — leaf utilities + types into src/shared/ | 1712 |
-| 002 | `core-database` — persistence + graph-persister into src/core/database/ | 1743 |
-| 003 | `lifecycle-watcher` — bruno-oscar + file-watcher into src/features/ | 1804 |
-| 004 | `schema-cards` — emitter, printer, manifest-generator | 1827 |
-| 005 | `prd` — prd-generator + template-engine into src/features/prd/ | 1864 |
-| 006 | `analysis` — gap-analyzer + intent-seeder into src/features/analysis/ | 1887 |
-| 007 | `integr8-core` — pipeline orchestrator + serializers into src/features/integr8/ | 1915 |
-| 008 | `indexing-parsers` — six AST parsers + overview into src/features/indexing/ | 1954 |
-| 009 | `indexing-engine` — indexer + parser-persistence + data-ingestion | 1994 |
-| 010 | `server-and-entry` — main.js (was index) + app.js (was server) | 2028 |
-| 011 | `launcher-rewire` + end-to-end boot — start.js rewired, full boot verified | 2065 |
-| 012 | `frontend-components` — st8.html sliced into HTML/CSS/JS components | 2099 |
-| 013 | `st8-html-css-extraction` — inline CSS extracted to src/frontend/styles/ | 2130 |
-| 014 | `st8-html-js-extraction` — inline JS extracted to src/frontend/app.js | 2168 |
-| 015 | `frontend-shell` — 142-line index.html slim shell | 2202 |
-| 016 | `backend-static-fix-and-v2-route` — static-route fixes + /v2 route | 2260 |
-| 017 | `background-indexer` — backgroundIndexer.js migrated to src/features/indexing/ | 2304 |
-| 018 | `void-engine-fake-stream-cleanup` — retire void-engine + fake-stream | 2346 |
-| 019 | `stage-originals-to-OGB` — pre-refactor originals into OGB/ for archival | 2374 |
-| 020 | `flip-default-to-new-shell` — index.html → new slim shell by default | 2412 |
-| 021 | `post-refactor-cleanup-and-signal-tests` — file-renames + Tier 2/6 signal tests | 2461 |
-| 022 | `intent-seeder-fix-and-gap-analyzer-jsdoc` — schema fix + docstrings | 2614 |
-| 023 | `hook-registry-and-named-hooks` — HookRegistry + HOOKS constants + DRY+wrap | 2637 |
-| 024 | `post-commit-git-hook` — record-commit endpoint + .git/hooks installer | 2697 |
-| 025 | `post-audit-cleanup-and-force-checks` — drift sweeps + boot-time force checks | 2735 |
-| 026 | `little-stuff-fixes` — small bugs swept after the big waves | 2852 |
-| 027 | `sonic-foundation` (Layer 1 of PM-1) — Sonic daemon + missing trio wired | 2868 |
+| 001 | `shared` — leaf utilities + types into src/shared/ | 1782 |
+| 002 | `core-database` — persistence + graph-persister into src/core/database/ | 1813 |
+| 003 | `lifecycle-watcher` — bruno-oscar + file-watcher into src/features/ | 1874 |
+| 004 | `schema-cards` — emitter, printer, manifest-generator | 1897 |
+| 005 | `prd` — prd-generator + template-engine into src/features/prd/ | 1934 |
+| 006 | `analysis` — gap-analyzer + intent-seeder into src/features/analysis/ | 1957 |
+| 007 | `integr8-core` — pipeline orchestrator + serializers into src/features/integr8/ | 1985 |
+| 008 | `indexing-parsers` — six AST parsers + overview into src/features/indexing/ | 2024 |
+| 009 | `indexing-engine` — indexer + parser-persistence + data-ingestion | 2064 |
+| 010 | `server-and-entry` — main.js (was index) + app.js (was server) | 2098 |
+| 011 | `launcher-rewire` + end-to-end boot — start.js rewired, full boot verified | 2135 |
+| 012 | `frontend-components` — st8.html sliced into HTML/CSS/JS components | 2169 |
+| 013 | `st8-html-css-extraction` — inline CSS extracted to src/frontend/styles/ | 2200 |
+| 014 | `st8-html-js-extraction` — inline JS extracted to src/frontend/app.js | 2238 |
+| 015 | `frontend-shell` — 142-line index.html slim shell | 2272 |
+| 016 | `backend-static-fix-and-v2-route` — static-route fixes + /v2 route | 2330 |
+| 017 | `background-indexer` — backgroundIndexer.js migrated to src/features/indexing/ | 2374 |
+| 018 | `void-engine-fake-stream-cleanup` — retire void-engine + fake-stream | 2416 |
+| 019 | `stage-originals-to-OGB` — pre-refactor originals into OGB/ for archival | 2444 |
+| 020 | `flip-default-to-new-shell` — index.html → new slim shell by default | 2482 |
+| 021 | `post-refactor-cleanup-and-signal-tests` — file-renames + Tier 2/6 signal tests | 2531 |
+| 022 | `intent-seeder-fix-and-gap-analyzer-jsdoc` — schema fix + docstrings | 2684 |
+| 023 | `hook-registry-and-named-hooks` — HookRegistry + HOOKS constants + DRY+wrap | 2707 |
+| 024 | `post-commit-git-hook` — record-commit endpoint + .git/hooks installer | 2767 |
+| 025 | `post-audit-cleanup-and-force-checks` — drift sweeps + boot-time force checks | 2805 |
+| 026 | `little-stuff-fixes` — small bugs swept after the big waves | 2922 |
+| 027 | `sonic-foundation` (Layer 1 of PM-1) — Sonic daemon + missing trio wired | 2938 |
 
 ---
 

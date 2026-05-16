@@ -314,11 +314,17 @@
     "userNote": "Bible has no top-of-file index. 2943 lines as of batch 027 with 27 batch entries scattered between L1712 and L2868. Finding 'where is batch 014 documented?' requires grep. Add a TOC anchor block at the top with line numbers for each major section + each batch.",
     "severity": "medium",
     "status": "executed",
-    "executedBy": "wave-6c-executor",
-    "actionsTaken": "Added a Table of Contents at the top of st8_bible.md covering both major sections (26 entries) and the Refactor Batch Log (27 entries, one per batch, each with batch number, kebab-cased topic, one-line goal, and starting line number). Total 53 indexed jump points. See st8_bible.md lines 9-79.",
-    "verdict": "kickback",
-    "reviewNote": "TOC structure + entry count verified (26 major sections + 27 batches = 53 rows). HOWEVER all line numbers are systematically off by exactly 70 (the TOC's own height). Executor computed targets BEFORE inserting the 70-line TOC block. Spot-checks: TOC claims batch 011→L2065, batch 019→L2374, batch 027→L2868; actual grep gives L2135, L2444, L2938 respectively. Major sections shifted identically: 'What is ST8?' TOC=L9 actual=L79; 'Architecture Overview' TOC=L37 actual=L107. The TOC's own caveat (\"re-run grep if drift is suspected\") does not excuse a TOC that is wrong on day 1. Fix is mechanical: add 70 to every line number. Surfacing for 6D follow-up or a 1-commit fix.",
-    "reviewedBy": "wave-6c-reviewer"
+    "executedBy": "wave-6d-executor",
+    "actionsTaken": "KICKBACK FIX (wave-6d): added +70 to every line number in the TOC to compensate for the TOC's own inserted height. All 26 major-section entries and all 27 batch entries updated. Spot-check after fix: TOC batch 003 L1874 == actual L1874; batch 010 L2098 == actual L2098; batch 015 L2272 == actual L2272; batch 022 L2684 == actual L2684; batch 027 L2938 == actual L2938. Major sections: 'What is ST8?' TOC=L79 actual=L79; 'Database Schema' TOC=L751 actual=L751. Offset is uniformly +70 across all 53 rows — verified by re-running `grep -nE \"^(## |### Batch )\" st8_bible.md` and diffing against the updated TOC. Original wave-6c structural work (TOC structure + 53-row coverage) is preserved; only the numeric column changed.",
+    "verdict": null,
+    "kickbackHistory": [
+      {
+        "wave": "6c",
+        "verdict": "kickback",
+        "reviewNote": "TOC structure + entry count verified (26 major sections + 27 batches = 53 rows). HOWEVER all line numbers are systematically off by exactly 70 (the TOC's own height). Executor computed targets BEFORE inserting the 70-line TOC block. Spot-checks: TOC claims batch 011→L2065, batch 019→L2374, batch 027→L2868; actual grep gives L2135, L2444, L2938 respectively. Major sections shifted identically: 'What is ST8?' TOC=L9 actual=L79; 'Architecture Overview' TOC=L37 actual=L107. The TOC's own caveat (\"re-run grep if drift is suspected\") does not excuse a TOC that is wrong on day 1. Fix is mechanical: add 70 to every line number. Surfacing for 6D follow-up or a 1-commit fix.",
+        "reviewedBy": "wave-6c-reviewer"
+      }
+    ]
   },
   {
     "filepath": "/home/user/st8/scripts/signal-tests/check-invariants.js",
