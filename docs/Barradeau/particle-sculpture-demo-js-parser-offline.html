@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>particle-sculpture-demo-js-parser-offline</title>
+  <style>
+    :root {
+      --bg: #050608;
+      --surface: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.12);
+      --text: #f3f4f7;
+      --muted: #a9b0bc;
+      --accent: #8fe6ff;
+      --fn: #9dc5ff;
+      --kw: #ff9bd3;
+      --str: #8effc1;
+      --num: #ffd780;
+      --com: #93a0b4;
+      --op: #dfc6ff;
+      --imp: #ffb18a;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #0f141b 0%, #07090c 50%, #020304 100%); color: var(--text); font-family: var(--sans); }
+    body { overflow: hidden; }
+    #app { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+    .shell { position: fixed; inset: 0; z-index: 2; display: grid; grid-template-columns: 430px 1fr; gap: 16px; padding: 16px; pointer-events: none; }
+    .panel { pointer-events: auto; align-self: start; background: linear-gradient(180deg, rgba(14,18,24,0.92), rgba(8,10,14,0.8)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .panel-inner { padding: 18px; display: grid; gap: 12px; }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .logo { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: var(--accent); background: linear-gradient(135deg, rgba(143,230,255,0.24), rgba(255,255,255,0.08)); border: 1px solid rgba(255,255,255,0.12); }
+    h1 { margin: 0; font-size: 1.08rem; }
+    .sub { margin: 5px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+    .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: #d8f8ff; margin-top: 4px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .toolbar, .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip, button, select, textarea, input { border-radius: 12px; border: 1px solid var(--border); color: var(--text); font: inherit; }
+    .chip { padding: 6px 9px; font-size: 0.76rem; background: rgba(255,255,255,0.05); }
+    .chip.fn { color: var(--fn); } .chip.kw { color: var(--kw); } .chip.str { color: var(--str); } .chip.num { color: var(--num); } .chip.com { color: var(--com); } .chip.op { color: var(--op); } .chip.imp { color: var(--imp); }
+    label { display: grid; gap: 6px; font-size: 0.84rem; color: var(--muted); }
+    textarea, select, input { width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); outline: none; }
+    textarea { min-height: 240px; resize: vertical; font-family: var(--mono); line-height: 1.45; }
+    input[type="range"] { padding: 0; background: transparent; border: none; }
+    button { cursor: pointer; padding: 10px 13px; background: linear-gradient(180deg, rgba(143,230,255,0.18), rgba(143,230,255,0.08)); transition: 180ms ease; }
+    button:hover { transform: translateY(-1px); border-color: rgba(143,230,255,0.38); }
+    .secondary { background: rgba(255,255,255,0.04); }
+    .dropzone { border: 1px dashed rgba(143,230,255,0.35); background: rgba(143,230,255,0.05); border-radius: 14px; padding: 14px; text-align: center; color: var(--muted); }
+    .hidden { display: none !important; }
+    .status { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--muted); font-size: 0.82rem; font-family: var(--mono); white-space: pre-wrap; }
+    .note, .list { color: var(--muted); font-size: 0.79rem; line-height: 1.45; }
+    .right { display: grid; align-content: end; justify-items: end; gap: 10px; }
+    .pill { pointer-events: auto; background: rgba(7,9,12,0.72); border: 1px solid var(--border); border-radius: 999px; padding: 9px 12px; color: var(--muted); font-size: 0.8rem; }
+    @media (max-width: 980px) { body { overflow: auto; } .shell { grid-template-columns: 1fr; } .right { justify-items: stretch; align-content: start; } }
+  </style>
+</head>
+<body>
+  <canvas id="app"></canvas>
+  <div class="shell">
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="brand">
+          <div class="logo">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="7.5"></circle><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
+          </div>
+          <div>
+            <h1>AST-Aware JS Particle Sculpture</h1>
+            <p class="sub">Sandbox-safe version with no remote module imports. Uses local parser heuristics so it can render inside restricted environments.</p>
+          </div>
+        </div>
+        <div class="dropzone" id="dropzone">
+          <div class="section-title">Offline-safe parser demo</div>
+          <div class="note">This version removes blocked CDN module imports. It uses a lightweight JS structure parser and a Canvas fallback if float-texture FBO is unavailable.</div>
+          <input id="fileInput" type="file" class="hidden" accept=".js,.mjs,.cjs,.jsx,.ts,.tsx,.json,.txt,.md" />
+        </div>
+        <div class="legend">
+          <span class="chip imp">import/export</span>
+          <span class="chip fn">function/call</span>
+          <span class="chip kw">control flow</span>
+          <span class="chip str">string</span>
+          <span class="chip num">number</span>
+          <span class="chip com">comment</span>
+          <span class="chip op">operator</span>
+        </div>
+        <label>
+          JavaScript source
+          <textarea id="textInput" spellcheck="false">import { Vector3 } from 'three';
+
+export function buildField(source, options = {}) {
+  const scale = options.scale ?? 1.0;
+  const threshold = 0.42;
+
+  function projectToken(token) {
+    if (typeof token.value === 'number') return token.value * scale;
+    return String(token.value || '').length * threshold;
+  }
+
+  const points = [];
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === '{' || ch === '}') continue;
+    points.push({ x: i * 0.01, y: Math.sin(i * 0.1), z: Math.cos(i * 0.07) });
+  }
+
+  return points.map((p, index) => ({ index, x: p.x, y: p.y, z: p.z, weight: projectToken({ value: index }) }));
+}</textarea>
+        </label>
+        <div class="row">
+          <label>Texture size<select id="sizeSelect"><option value="128">128²</option><option value="256" selected>256²</option><option value="512">512²</option></select></label>
+          <label>AST lift<input id="astLift" type="range" min="0" max="4" step="0.01" value="1.6" /></label>
+        </div>
+        <div class="row">
+          <label>Flow strength<input id="flowStrength" type="range" min="0" max="1" step="0.01" value="0.24" /></label>
+          <label>Point size<input id="pointSize" type="range" min="0.6" max="5" step="0.1" value="1.9" /></label>
+        </div>
+        <div class="toolbar">
+          <button id="applyBtn">Parse + sculpt</button>
+          <button id="sampleBtn" class="secondary">Load sample</button>
+          <button id="pauseBtn" class="secondary">Pause</button>
+        </div>
+        <div class="status" id="status">ready</div>
+        <div class="list"><div class="section-title">Why the earlier files failed</div>The earlier demos imported ESM dependencies from public CDNs. In the Perplexity sandbox, those requests were redirected or blocked by access controls, so the browser received HTML instead of JavaScript and refused to load the modules.</div>
+      </div>
+    </section>
+    <aside class="right">
+      <div class="pill" id="summaryPill">mode: js-parser-offline · particles: 65536</div>
+      <div class="pill" id="astPill">records: 0 · renderer: booting</div>
+    </aside>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('app');
+    const ctx2d = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const summaryPill = document.getElementById('summaryPill');
+    const astPill = document.getElementById('astPill');
+    const textInput = document.getElementById('textInput');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const astLiftEl = document.getElementById('astLift');
+    const flowStrengthEl = document.getElementById('flowStrength');
+    const pointSizeEl = document.getElementById('pointSize');
+    const applyBtn = document.getElementById('applyBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+
+    const state = { running: true, particles: [], records: [], currentFileName: null, mouse: { x: 0, y: 0 }, t: 0, renderer: 'canvas-2d' };
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function setSummary() {
+      summaryPill.textContent = `mode: js-parser-offline · particles: ${state.particles.length}${state.currentFileName ? ` · file: ${state.currentFileName}` : ''}`;
+      astPill.textContent = `records: ${state.records.length} · renderer: ${state.renderer}`;
+    }
+    function resize() { canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio; canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px'; ctx2d.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+    addEventListener('resize', resize); resize();
+
+    function hashString(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    function parseJSHeuristic(source) {
+      const records = [];
+      const lines = source.split(/\r?\n/);
+      let offset = 0;
+      const push = (kind, text, line, col, depth=1) => records.push({ kind, text, line, col, depth, start: offset + col, end: offset + col + text.length });
+
+      let depth = 0;
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+        const trimmed = line.trim();
+        const commentMatch = line.match(/\/\/.*$/);
+        if (commentMatch) push('comment', commentMatch[0], lineIndex, commentMatch.index || 0, depth + 1);
+        if (/^\s*(import|export)\b/.test(line)) push('importExport', trimmed, lineIndex, line.indexOf(trimmed), depth + 1);
+        if (/\bfunction\b/.test(line) || /=>/.test(line)) push('function', trimmed, lineIndex, line.indexOf(trimmed), depth + 1);
+        if (/\b(if|else|for|while|switch|return|try|catch|throw)\b/.test(line)) push('control', trimmed, lineIndex, line.indexOf(trimmed), depth + 1);
+
+        const stringRegex = /(['"`])(?:\\.|(?!\1).)*\1/g;
+        for (const m of line.matchAll(stringRegex)) push('string', m[0], lineIndex, m.index || 0, depth + 1);
+        const numberRegex = /\b\d+(?:\.\d+)?\b/g;
+        for (const m of line.matchAll(numberRegex)) push('number', m[0], lineIndex, m.index || 0, depth + 1);
+        const opRegex = /(===|!==|==|!=|=>|\+\+|--|&&|\|\||[+\-*/%=<>!]+)/g;
+        for (const m of line.matchAll(opRegex)) push('operator', m[0], lineIndex, m.index || 0, depth + 1);
+        const callRegex = /\b([A-Za-z_$][\w$]*)\s*\(/g;
+        for (const m of line.matchAll(callRegex)) push('call', m[1], lineIndex, m.index || 0, depth + 1);
+
+        for (const ch of line) { if (ch === '{') depth++; if (ch === '}') depth = Math.max(0, depth - 1); }
+        offset += line.length + 1;
+      }
+      return records;
+    }
+
+    function styleForKind(kind) {
+      switch (kind) {
+        case 'importExport': return { color: '#ffb18a', z: 1.9, alpha: 1.0, spread: 12 };
+        case 'function':
+        case 'call': return { color: '#9dc5ff', z: 1.3, alpha: 1.0, spread: 14 };
+        case 'control': return { color: '#ff9bd3', z: 0.95, alpha: 1.0, spread: 12 };
+        case 'string': return { color: '#8effc1', z: 0.45, alpha: 0.95, spread: 18 };
+        case 'number': return { color: '#ffd780', z: 0.2, alpha: 1.0, spread: 8 };
+        case 'comment': return { color: '#93a0b4', z: -1.2, alpha: 0.38, spread: 22 };
+        case 'operator': return { color: '#dfc6ff', z: 1.05, alpha: 0.85, spread: 10 };
+        default: return { color: '#e8edf7', z: 0, alpha: 0.3, spread: 16 };
+      }
+    }
+
+    function buildParticlesFromRecords(records) {
+      const count = Number(sizeSelect.value) ** 2;
+      const particles = [];
+      const astLift = Number(astLiftEl.value);
+      const flow = Number(flowStrengthEl.value);
+      const pointSize = Number(pointSizeEl.value);
+      const maxLine = Math.max(1, ...records.map(r => r.line + 1), 1);
+      const maxDepth = Math.max(1, ...records.map(r => r.depth || 1), 1);
+
+      for (let i = 0; i < count; i++) {
+        const rec = records[i % Math.max(1, records.length)] || { kind: 'other', text: ' ', line: 0, col: 0, depth: 1 };
+        const style = styleForKind(rec.kind);
+        const h = hashString(rec.kind + ':' + rec.text + ':' + i);
+        const x = ((rec.col / 60) * 2 - 1) * 320 + (((h & 1023) / 1023) - 0.5) * style.spread;
+        const y = ((rec.line / maxLine) * 2 - 1) * -220 + ((((h >> 10) & 1023) / 1023) - 0.5) * style.spread;
+        const z = style.z * astLift + (rec.depth / maxDepth) * 60 + ((((h >> 20) & 1023) / 1023) - 0.5) * 30;
+        particles.push({
+          x, y, z,
+          tx: x, ty: y, tz: z,
+          vx: 0, vy: 0, vz: 0,
+          size: pointSize + ((h >> 8) & 15) / 18,
+          color: style.color,
+          alpha: style.alpha,
+          flow: flow * (0.3 + (((h >> 14) & 255) / 255) * 0.7),
+        });
+      }
+      return particles;
+    }
+
+    function rebuild() {
+      state.records = parseJSHeuristic(textInput.value);
+      state.particles = buildParticlesFromRecords(state.records);
+      setStatus(`Parsed ${state.records.length} semantic records.\nUsing offline heuristic parser + Canvas renderer.`);
+      setSummary();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!state.running) return render();
+      state.t += 0.016;
+      const mx = (state.mouse.x - 0.5) * 220;
+      const my = (state.mouse.y - 0.5) * 160;
+      for (const p of state.particles) {
+        const dx = p.tx - p.x, dy = p.ty - p.y, dz = p.tz - p.z;
+        p.vx += dx * 0.012 + Math.sin(state.t + p.tx * 0.01) * p.flow * 0.12;
+        p.vy += dy * 0.012 + Math.cos(state.t * 0.8 + p.ty * 0.01) * p.flow * 0.12;
+        p.vz += dz * 0.01;
+        const mdx = p.x - mx, mdy = p.y - my;
+        const md = Math.hypot(mdx, mdy) + 0.001;
+        const repel = Math.max(0, 1 - md / 120) * 0.14;
+        p.vx += (mdx / md) * repel;
+        p.vy += (mdy / md) * repel;
+        p.vx *= 0.92; p.vy *= 0.92; p.vz *= 0.92;
+        p.x += p.vx; p.y += p.vy; p.z += p.vz;
+      }
+      render();
+    }
+
+    function render() {
+      ctx2d.clearRect(0, 0, innerWidth, innerHeight);
+      ctx2d.fillStyle = 'rgba(3,5,8,0.35)';
+      ctx2d.fillRect(0, 0, innerWidth, innerHeight);
+      ctx2d.save();
+      ctx2d.translate(innerWidth / 2, innerHeight / 2);
+      const sorted = [...state.particles].sort((a, b) => a.z - b.z);
+      for (const p of sorted) {
+        const scale = 1 + p.z / 260;
+        const x = p.x * scale;
+        const y = p.y * scale;
+        ctx2d.globalAlpha = Math.max(0.03, p.alpha * (0.65 + scale * 0.25));
+        ctx2d.fillStyle = p.color;
+        ctx2d.beginPath();
+        ctx2d.arc(x, y, Math.max(0.4, p.size * scale), 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+      ctx2d.restore();
+    }
+
+    applyBtn.addEventListener('click', rebuild);
+    sampleBtn.addEventListener('click', () => {
+      state.currentFileName = null;
+      textInput.value = `import fs from 'node:fs';
+import path from 'node:path';
+
+export async function buildParticleField(entries = []) {
+  const scale = 0.75;
+  const filtered = entries.filter((entry) => entry.enabled !== false);
+
+  function weightOf(entry) {
+    if (entry.score > 10) return entry.score * scale;
+    return Number(entry.score || 0) + filtered.length;
+  }
+
+  const result = [];
+  for (const entry of filtered) {
+    const filePath = path.join(entry.root, entry.name);
+    if (!fs.existsSync(filePath)) continue;
+    result.push({ name: entry.name, weight: weightOf(entry), label: \`node:\${entry.name}\` });
+  }
+
+  return result.map((item, index) => ({ ...item, index }));
+}`;
+      rebuild();
+    });
+    pauseBtn.addEventListener('click', () => { state.running = !state.running; pauseBtn.textContent = state.running ? 'Pause' : 'Resume'; });
+    astLiftEl.addEventListener('input', rebuild);
+    flowStrengthEl.addEventListener('input', rebuild);
+    pointSizeEl.addEventListener('input', rebuild);
+    fileInput.addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      state.currentFileName = file.name;
+      textInput.value = await file.text();
+      rebuild();
+    });
+    dropzone.addEventListener('click', () => fileInput.click());
+    ;['dragenter','dragover'].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.8)'; }));
+    ;['dragleave','drop'].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.35)'; }));
+    dropzone.addEventListener('drop', async e => {
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      state.currentFileName = file.name;
+      textInput.value = await file.text();
+      rebuild();
+    });
+    addEventListener('pointermove', e => { state.mouse.x = e.clientX / innerWidth; state.mouse.y = e.clientY / innerHeight; });
+
+    rebuild();
+    animate();
+  </script>
+</body>
+</html>
