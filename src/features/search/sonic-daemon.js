@@ -49,6 +49,48 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+/**
+ * Wave 5B ticket 7 — Sonic store re-index audit.
+ *
+ * Question raised: "Sonic store is per-target. On re-index, what happens to
+ * stale node/file IDs from prior passes? Does the store grow unboundedly?"
+ *
+ * Audit findings (sonic-indexer.js):
+ *
+ *   - `reindexProject(projectId)` at line 195 IS destructive: it calls
+ *     `this.client.flush(COLLECTION, projectId)` BEFORE pushing the fresh
+ *     graph, which clears the entire per-project bucket via Sonic's FLUSHB
+ *     command. Stale IDs from the previous index are removed.
+ *
+ *   - `incrementalIndex(changes, ...)` is also GC-correct: each
+ *     add/modify/delete iterates `client.flushObject(...)` on the prior
+ *     fingerprints before re-pushing, and `clearProjectFromTracker(projectId)`
+ *     removes the in-memory dedup entries for that project.
+ *
+ *   - The session-scoped `SonicIndexer.indexedIds: Set` is cleared at the
+ *     top of each reindex via `clearProjectFromTracker`, so re-runs do not
+ *     accumulate cross-pass dedup state (matches the insight-store-populator
+ *     snapshot-vs-append contract from Wave 3B).
+ *
+ * Outstanding (low-priority, roadmap P3):
+ *
+ *   - Sonic's RocksDB KV may retain tombstoned word→ID mappings until SST
+ *     compaction. This is Sonic-internal and bounded by `consolidate_after`
+ *     in sonic.cfg (180s). For long-running projects, the on-disk store
+ *     plateaus rather than growing unboundedly. No code change required.
+ *
+ *   - There is no `--rebuild-sonic` CLI flag to nuke `.st8/sonic-store/`
+ *     and start clean. Documented as P3 in docs/_pending-roadmap/
+ *     sonic-and-search.md.
+ *
+ * Audit conclusion: re-index has destructive-flush + re-push semantics at
+ * the per-project bucket level. The ticket's worry ("on re-index, stale
+ * IDs are never popped") is incorrect — they are popped by `FLUSHB` and
+ * by per-fingerprint `FLUSHO` in incremental mode. Test coverage in
+ * tests/features/search/sonic-daemon-lifecycle.test.js exercises the
+ * SonicIndexer dedup-tracker GC path (ticket 3).
+ */
+
 // ─── Config ─────────────────────────────────────────────────────
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
