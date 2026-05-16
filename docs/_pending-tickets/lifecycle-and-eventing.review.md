@@ -265,3 +265,86 @@ None blocking for Wave 4B's scope. The upsertFile observation above is the one f
 ## Safe for Wave 4C (SSE robustness) to build on?
 
 **Yes.** Wave 4B touched `src/core/database/persistence.js` (schema only — CHECK constraints), `src/features/lifecycle/bruno-oscar.js`, `src/core/hooks/default-subscribers.js`, and `src/core/server/app.js` (POST handler awaits). No edits in `src/core/notification-bus.js` or the `/api/mutations` SSE handler. The hook chain is now denser (bruno on INDEX_START, LIFECYCLE_TRANSITION publishers wired) but that is signal SSE consumers can subscribe to, not collision surface. Tests green at 230. 4C can land heartbeat + integration tests on top.
+
+
+---
+
+# Wave 4C Review — lifecycle-and-eventing
+
+**Reviewer:** wave-4c-reviewer
+**Date:** 2026-05-16
+**Pre-flight:** OK (tests=245, head=8005a18)
+**Tickets audited:** [6, 7, 8, 16] (4C only). 4D remains open.
+
+---
+
+## Verdicts
+
+| Ticket | Topic | Verdict |
+|---|---|---|
+| 6  | CREATE+EDIT double-fire preserve decision | ack |
+| 7  | SSE cleanup real-HTTP probes (close/error/3-client) | ack |
+| 8  | SSE 30s heartbeat keepalive | ack |
+| 16 | Printer-chain wire-up (ctx.schemaCard P=20→P=30) | ack |
+
+**Total: 4 ack / 0 kickback / 0 defer.**
+
+---
+
+## Per-ticket findings
+
+### Ticket 7 — SSE cleanup probes (REAL HTTP, not mocks)
+- `tests/core/notification-bus.test.js` lines 26-77: `bootBusServer()` constructs a real `http.Server` listening on a free ephemeral port, every request handed straight to `bus.addSSEClient(res, ...)`. `openSSEClient(port)` uses `http.request({...})` — a real TCP connection, not a mock res.
+- Three cleanup probes verified:
+  1. **req.destroy()** (line 95) — triggers `res.on('close')` server-side; sseClients.size goes 1 → 0 inside 1s deadline. Real network round-trip, not a synthetic event-emit.
+  2. **socket.destroy()** (line 114) — kills the underlying TCP socket so the next `bus.publish()` write throws inside `_broadcastSSE`; the per-client try/catch deletes the dead res. Real broken-pipe path.
+  3. **3-client independence** (lines 134-154) — opens A/B/C, destroys B, asserts size==2 (only middle gone), then destroys A+C, asserts size==0. Proves per-client cleanup with no cross-contamination.
+- Targeted run: 13/13 pass in 1.1s. All cleanup probes use the real network path.
+
+### Ticket 16 — printer wire-up (load-bearing, mutation-probe verified)
+- `src/core/hooks/default-subscribers.js:343` adds `ctx.schemaCard = emittedCard;` to the P=20 schema-card-emitter subscriber after the `emitter.emitCard(...)` call.
+- `default-subscribers.js:373` — P=30 SSE-broadcaster reads `schemaCard: ctx.schemaCard || null` and forwards on the publish event.
+- `src/core/notification-bus.js:72` — `if (this.printer && event.schemaCard)` guard correctly treats `null` the same as missing.
+- `tests/core/hooks/file-after-change-printer-wire.test.js` — fires the REAL chain: real `HookRegistry` + real `registerDefaultSubscribers` + real `SchemaCardEmitter` + real `notificationBus` singleton (printer save+restore in `t.after`). EDIT path with a real on-disk `foo.js` proves the printer fires with the correct fingerprint+filepath; DELETE path proves the early-return in P=20 keeps `ctx.schemaCard` null so the printer guard skips.
+- **MUTATION PROBE (mandatory)**: Replaced `ctx.schemaCard = emittedCard;` with `/* MUTATION_PROBE_REMOVED */;` at line 343. Result: `ticket 16 — FILE_AFTER_CHANGE wires schemaCard from emitter to printer` FAILED with `printer.printCard must fire once after FILE_AFTER_CHANGE; got 0` (expected=1, actual=0). DELETE test still passed (DELETE path independent). Restored from backup → 2/2 pass. **The wire is load-bearing — the test catches the regression.**
+
+### Ticket 8 — SSE heartbeat
+- `src/core/notification-bus.js:32` — `this.heartbeatMs = options.heartbeatMs != null ? options.heartbeatMs : 30000` (30s default, correct industry-standard SSE keepalive).
+- `notification-bus.js:114-136`: heartbeatMs > 0 attaches `setInterval` storing the timer on `res._st8HeartbeatTimer`. The interval is `.unref()`'d at line 134 — process can exit even with active heartbeat timers.
+- **Heartbeat write-error path** (line 118-127): on `res.write` failure (half-open TCP), deletes client from sseClients AND clearInterval + null the timer reference. Belt-and-suspenders even if close/error also fire.
+- **Shared cleanup closure** (line 138-144): `res.on('close', cleanup)` AND `res.on('error', cleanup)` both invoke the same closure that deletes from sseClients AND clears the heartbeat timer. Timer is cleared in BOTH paths as the prompt requires.
+- **heartbeatMs=0 disables**: line 114 guards `if (this.heartbeatMs > 0)`; test 8c connects with heartbeatMs=0, asserts `res._st8HeartbeatTimer === null` and zero `: heartbeat` frames in 200ms. Disabled path verified.
+- Tests pass: heartbeatMs=80 produces >=2 heartbeats in 300ms, cleanup nulls the timer reference, heartbeatMs=0 disables entirely.
+
+### Ticket 6 — CREATE+EDIT preserve decision
+- Decision (a) — KEEP BOTH FIRES — preserves the Wave 4A composite-key dedup intent. The watcher's `${path}::${type}` key was explicitly chosen over Map<path,type> last-write-wins to preserve CREATE/EDIT distinction.
+- **Test asserts EXACTLY 2 events**: `assert.equal(seen.length, 2)` at line 339, then `assert.deepEqual(types, ['CREATE', 'EDIT'])` at line 385 (SSE end-to-end). Not `>=1` — strict count. A silent merge would fail.
+- Typed-listener probe (line 354-355): `mutation:CREATE` listener fires exactly once AND `mutation:EDIT` listener fires exactly once — proves EventEmitter typed-emit not accidentally collapsed.
+
+---
+
+## Mutation probe summary
+
+| Probe | File touched | Test | Pre-probe | Post-probe | After restore |
+|---|---|---|---|---|---|
+| Remove `ctx.schemaCard = emittedCard` | `src/core/hooks/default-subscribers.js:343` | `file-after-change-printer-wire.test.js` EDIT | pass | **fail** (got 0, expected 1) | pass |
+
+The wire is load-bearing; the test catches the regression. Source restored from backup (`/tmp/default-subscribers.bak.js`) and verified.
+
+---
+
+## Concerns for founder attention
+
+None blocking. The Wave-4C residuals (subscriber-side dedup on `notification-bus`, per-route heartbeat cadence, synchronous printCard latency under multi-target) are all correctly scoped to future waves/roadmap and not promotion-blockers.
+
+---
+
+## Safe for Wave 4D (frontend polling → SSE migration) to build on?
+
+**Yes.** Wave 4C delivered exactly what 4D needs:
+- `/api/mutations` SSE channel now has a 30s server-side heartbeat (defeats reverse-proxy idle-cutoff that would otherwise punish a frontend SSE subscriber that quietly polls today).
+- Cleanup on close + error + broadcast-write-error is real-HTTP probe-verified — a flaky network on the frontend won't leak server-side resources.
+- Printer chain newly wired carries `schemaCard` on every CREATE/EDIT publish — the SSE consumer can render the freshly-emitted card without a follow-up `/api/manifests` round-trip if the 4D frontend wants it.
+- Tests 230 → **245** clean, 0 fail, 0 skip, 0 todo.
+
+4D can proceed.

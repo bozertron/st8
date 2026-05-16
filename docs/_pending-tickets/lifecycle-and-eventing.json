@@ -85,7 +85,9 @@
     "filesChanged": [
       "tests/core/notification-bus.test.js"
     ],
-    "residualConcerns": "If a future use case wants to suppress the double-print (e.g. UI listener that toasts 'file changed' twice), the right place is the SUBSCRIBER side — a per-fingerprint debounce in the toast handler — not the bus side. Bus stays semantic; subscribers apply UX policy. Roadmap pointer: docs/_pending-roadmap/lifecycle-and-eventing.md if a subscriber-side dedup becomes a real ask."
+    "residualConcerns": "If a future use case wants to suppress the double-print (e.g. UI listener that toasts 'file changed' twice), the right place is the SUBSCRIBER side — a per-fingerprint debounce in the toast handler — not the bus side. Bus stays semantic; subscribers apply UX policy. Roadmap pointer: docs/_pending-roadmap/lifecycle-and-eventing.md if a subscriber-side dedup becomes a real ask.",
+    "verdict": "ack",
+    "reviewNote": "Decision (a) — KEEP BOTH FIRES — is correct. Verified the test asserts EXACTLY 2 events (assert.equal(seen.length, 2) at notification-bus.test.js:339) AND deepEqual(types, ['CREATE','EDIT']) at line 385 (SSE end-to-end) — not >=1, strict count. Typed-listener probe asserts mutation:CREATE fires exactly once AND mutation:EDIT fires exactly once. A silent merge would fail count==2. Rationale ties cleanly to Wave 4A composite-key dedup AND ticket 16's newly-wired printer chain (two distinct .txt files = intentional audit trail). Roadmap pointer for subscriber-side UX dedup is the right escalation."
   },
   {
     "filepath": "src/core/notification-bus.js",
@@ -98,7 +100,9 @@
     "filesChanged": [
       "tests/core/notification-bus.test.js"
     ],
-    "residualConcerns": "Half-open TCP (machine-sleep scenario) with neither 'close' nor 'error' fired before a publish will sit in the Set until maxSseClients=10 is hit. The heartbeat in ticket 8 closes this gap by forcing a periodic write that fails the broken-pipe path."
+    "residualConcerns": "Half-open TCP (machine-sleep scenario) with neither 'close' nor 'error' fired before a publish will sit in the Set until maxSseClients=10 is hit. The heartbeat in ticket 8 closes this gap by forcing a periodic write that fails the broken-pipe path.",
+    "verdict": "ack",
+    "reviewNote": "All 3 cleanup probes are REAL HTTP (not mock-res). bootBusServer() at notification-bus.test.js:38 constructs a real http.createServer listening on a free ephemeral port; openSSEClient() at line 59 uses http.request — actual TCP. Verified: (1) req.destroy() (line 95) triggers real res.on('close'), sseClients.size 1→0 within deadline; (2) socket.destroy() (line 114) kills underlying TCP so the next bus.publish() write throws inside _broadcastSSE, per-client try/catch deletes the dead res — real broken-pipe; (3) 3-client independence (lines 134-154) opens A/B/C, destroys B → size==2, then A+C → size==0. Targeted run 13/13 pass in 1.1s."
   },
   {
     "filepath": "src/core/server/app.js",
@@ -113,7 +117,9 @@
       "src/core/server/app.js",
       "tests/core/notification-bus.test.js"
     ],
-    "residualConcerns": "The 30s default is configurable per-instance but not per-route. If a future SSE route wants a different cadence (e.g. 5s for a high-frequency stream), it needs its own NotificationBus or a per-call override on addSSEClient — out of scope for Wave 4C."
+    "residualConcerns": "The 30s default is configurable per-instance but not per-route. If a future SSE route wants a different cadence (e.g. 5s for a high-frequency stream), it needs its own NotificationBus or a per-call override on addSSEClient — out of scope for Wave 4C.",
+    "verdict": "ack",
+    "reviewNote": "Verified notification-bus.js:32 (heartbeatMs default=30000, configurable, !=null guard correctly preserves 0). Line 114 guards `if (this.heartbeatMs > 0)` so 0 disables. Line 134 calls .unref() so timer doesn't keep the event loop alive. Cleanup is shared closure at line 138-144 — invoked from BOTH res.on('close') AND res.on('error'), clears clearInterval + nulls _st8HeartbeatTimer. Heartbeat write-error path (line 118-127) also deletes from sseClients AND clears the timer (belt-and-suspenders). Tests verify: >=2 heartbeats in 300ms @ 80ms interval, timer null after close, heartbeatMs=0 produces zero heartbeats in 200ms AND no _st8HeartbeatTimer attached. All paths properly cover timer cleanup."
   },
   {
     "filepath": "src/features/lifecycle/bruno-oscar.js",
@@ -233,6 +239,8 @@
       "tests/core/notification-bus.test.js",
       "tests/core/hooks/file-after-change-printer-wire.test.js"
     ],
-    "residualConcerns": "The printer.printCard runs synchronously inside publish() — a slow filesystem (.txt write to .planning/st8_identity_system/) will block the publish loop for a few ms per change. Acceptable today (single-target, single-watcher), but if Multi-target lands (deferred ticket 12) the cumulative latency on a large flush warrants a queue. Out of scope for Wave 4C."
+    "residualConcerns": "The printer.printCard runs synchronously inside publish() — a slow filesystem (.txt write to .planning/st8_identity_system/) will block the publish loop for a few ms per change. Acceptable today (single-target, single-watcher), but if Multi-target lands (deferred ticket 12) the cumulative latency on a large flush warrants a queue. Out of scope for Wave 4C.",
+    "verdict": "ack",
+    "reviewNote": "Verified default-subscribers.js:343 adds `ctx.schemaCard = emittedCard;` in P=20 schema-card-emitter; default-subscribers.js:373 reads `schemaCard: ctx.schemaCard || null` in P=30 SSE-broadcaster publish payload. notification-bus.js:72 guard `if (this.printer && event.schemaCard)` correctly treats null as missing. MUTATION PROBE (mandatory): replaced `ctx.schemaCard = emittedCard;` at line 343 with a no-op — file-after-change-printer-wire.test.js EDIT test FAILED with `printer.printCard must fire once; got 0` (expected 1, actual 0). DELETE test still passed (path-independent). Restored file → 2/2 pass. The wire is load-bearing — the test catches the regression. Test fires the REAL chain (real HookRegistry + registerDefaultSubscribers + real SchemaCardEmitter + singleton notificationBus with stub printer + on-disk foo.js). 4 unit-level probes also cover printer fires/skips on schemaCard present/absent/null and throw-catch isolation."
   }
 ]
