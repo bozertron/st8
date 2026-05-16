@@ -5,7 +5,9 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-8a-executor",
-    "wave8aOutcome": "Comment-only fix per the NO CHEATS rule (option (a); sprite implementation is L4 and out-of-scope for 8A). The dive-in.js header already carried a 'NOT YET IMPLEMENTED' marker + a deferral note referring identity-and-analysis ticket 12 / Wave 3C. Extended the comment to also cite docs/_pending-roadmap/louis-and-locking.md and the L2 (SSE data source) + L4 (Three.js sprite) phase split, and re-tagged the deferral note as 'louis-and-locking cluster ticket 0 — Wave 8A annotation'. No behavior change; doc-only header edit. The sprite implementation remains gated on Phase L1 landing first (per the deferral note's existing two-upstream-pieces analysis)."
+    "wave8aOutcome": "Comment-only fix per the NO CHEATS rule (option (a); sprite implementation is L4 and out-of-scope for 8A). The dive-in.js header already carried a 'NOT YET IMPLEMENTED' marker + a deferral note referring identity-and-analysis ticket 12 / Wave 3C. Extended the comment to also cite docs/_pending-roadmap/louis-and-locking.md and the L2 (SSE data source) + L4 (Three.js sprite) phase split, and re-tagged the deferral note as 'louis-and-locking cluster ticket 0 — Wave 8A annotation'. No behavior change; doc-only header edit. The sprite implementation remains gated on Phase L1 landing first (per the deferral note's existing two-upstream-pieces analysis).",
+    "wave8aReviewVerdict": "ack",
+    "wave8aReviewNote": "Verified dive-in.js:21-26 now references Phase L2 (SSE lock-change source) + Phase L4 (Three.js Sprite render) with explicit roadmap pointer. Deferral note correctly re-tagged. Doc-only change matches the option (a) honest deferral; sprite stays gated on L1 data source. Comment now matches reality."
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",
@@ -13,7 +15,9 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-8a-executor",
-    "wave8aOutcome": "Added a 'Louis Cross-References (Wave 8A — ticket 1)' blockquote at the top of bible §Batch 021's 'Louis Concept' subsection. The block enumerates every Louis mention in the bible (Batch 021 design memo, Batch 023 hooks-arch forward pointer, LifecyclePhase/FileStatus enum tables, constellation STATUS_COLOR.LOCKED slot, line ~1617 'Defined-but-never-fired' note for the LOCK mutationType), lists the three authoritative documents in priority order (component doc > roadmap > tickets JSON), and sets the forward-going convention: 'future Louis batches add a cross-link entry here but keep the prose in the component doc.' Closes the 'no single Louis spec' problem this ticket raised."
+    "wave8aOutcome": "Added a 'Louis Cross-References (Wave 8A — ticket 1)' blockquote at the top of bible §Batch 021's 'Louis Concept' subsection. The block enumerates every Louis mention in the bible (Batch 021 design memo, Batch 023 hooks-arch forward pointer, LifecyclePhase/FileStatus enum tables, constellation STATUS_COLOR.LOCKED slot, line ~1617 'Defined-but-never-fired' note for the LOCK mutationType), lists the three authoritative documents in priority order (component doc > roadmap > tickets JSON), and sets the forward-going convention: 'future Louis batches add a cross-link entry here but keep the prose in the component doc.' Closes the 'no single Louis spec' problem this ticket raised.",
+    "wave8aReviewVerdict": "ack",
+    "wave8aReviewNote": "Verified at st8_bible.md:2597-2644. Blockquote present at the top of the Louis Concept subsection. Counted 5 enumerated Louis mentions: Batch 021 memo, Batch 023 hooks-arch, enum tables, constellation/status-colors slot, line ~1617 LOCK-defined-but-never-fired. 3 authoritative docs listed in priority order. Forward convention codified."
   },
   {
     "filepath": "/home/user/st8/Louis/lock_em_up_louis_v2.py",
@@ -21,7 +25,9 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-8a-executor",
-    "wave8aOutcome": "Boundary documented in docs/components/louis-and-locking.md under a new 'Louis-standalone tool boundary (Wave 8A explicit decision)' subsection inside 'Out of scope'. The doc now explicitly states: (1) Python bugs in lock_em_up_louis_v2.py are tracked outside this repo, (2) the file is reference-only — treat like OGB/, never imported, never edited from inside st8 sprint work, (3) lifecycle bugs found while reading get raised upstream / with the founder, not filed as st8 tickets, (4) Connie + Carl remain off-limits even if Louis-standalone is later deprecated. Closes the 'where do Python bugs go?' ambiguity that this ticket flagged."
+    "wave8aOutcome": "Boundary documented in docs/components/louis-and-locking.md under a new 'Louis-standalone tool boundary (Wave 8A explicit decision)' subsection inside 'Out of scope'. The doc now explicitly states: (1) Python bugs in lock_em_up_louis_v2.py are tracked outside this repo, (2) the file is reference-only — treat like OGB/, never imported, never edited from inside st8 sprint work, (3) lifecycle bugs found while reading get raised upstream / with the founder, not filed as st8 tickets, (4) Connie + Carl remain off-limits even if Louis-standalone is later deprecated. Closes the 'where do Python bugs go?' ambiguity that this ticket flagged.",
+    "wave8aReviewVerdict": "ack",
+    "wave8aReviewNote": "Verified at louis-and-locking.md:609-635. All four boundary guarantees present: out-of-repo Python bug tracking, OGB-like reference-only treatment, upstream escalation for lifecycle bugs, Connie+Carl off-limits even on deprecation. Clean separation between standalone PyQt6 product and the Node Path C port."
   },
   {
     "filepath": "/home/user/st8/docs/components/louis-and-locking.md",
@@ -29,7 +35,9 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-8a-executor",
-    "wave8aOutcome": "Added a new top-level 'Scope boundary — Path C, Warden only (Wave 8A, ticket 3)' section in docs/components/louis-and-locking.md, immediately before the existing 'Out of scope' section. It contains: (1) IN-scope table — eight Warden pieces with their Phase L1–L4 placements and target file paths, (2) OUT-of-scope table — Connie / Carl / PyQt6 GUI / Path A / Path B / region locking / per-lock attribution / Python audit, each with a 'why excluded' column and a 'where it stays' column, (3) a 'Why this section exists' subsection that codifies the reviewer protocol (reject out-of-scope tickets pointing here, or escalate to founder). The previous 'Out of scope' bullet list is preserved unchanged after the new section, so nothing is lost — the new section is additive and more structured."
+    "wave8aOutcome": "Added a new top-level 'Scope boundary — Path C, Warden only (Wave 8A, ticket 3)' section in docs/components/louis-and-locking.md, immediately before the existing 'Out of scope' section. It contains: (1) IN-scope table — eight Warden pieces with their Phase L1–L4 placements and target file paths, (2) OUT-of-scope table — Connie / Carl / PyQt6 GUI / Path A / Path B / region locking / per-lock attribution / Python audit, each with a 'why excluded' column and a 'where it stays' column, (3) a 'Why this section exists' subsection that codifies the reviewer protocol (reject out-of-scope tickets pointing here, or escalate to founder). The previous 'Out of scope' bullet list is preserved unchanged after the new section, so nothing is lost — the new section is additive and more structured.",
+    "wave8aReviewVerdict": "ack",
+    "wave8aReviewNote": "Verified both tables at louis-and-locking.md:531-588. Counted IN-scope=8 rows (chmod primitive, SQLite lock state, HOOKS.LOCK_CHANGED, /api/lock|unlock|locks, lock-panel UI, SSE+constellation+explorer badge, git pre-commit+installer, dive-in sprite) with L1-L4 phase pointers + target paths. OUT-of-scope=8 rows (Connie, Carl, PyQt6 GUI, Path A, Path B, region locking, per-lock attribution, Python audit) each with 'why excluded' + 'where it stays' columns. Real categorization with proper columns — passes the 'no cheats' boundary-table check. Reviewer protocol codified."
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
@@ -61,7 +69,9 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-8a-executor",
-    "wave8aOutcome": "Annotated. Confirmed STATUS_COLOR.LOCKED is fully wired post-Wave-7C: src/frontend/components/status-colors.js is the single-source module exposing INT/HEX/RGB tables (LOCKED: 0xC9748F = --pink, 'louis-protected'). Both constellation.js and dive-in.js read from window.St8StatusColors with inline fallbacks. statusColor(file) at status-colors.js:89,95 already returns LOCKED.INT/RGB when file.locked is truthy — locked overrides status. The data side (file.locked truthy) is the only thing missing; that's Phase L1. Cross-link added to louis-and-locking.md touchpoint table."
+    "wave8aOutcome": "Annotated. Confirmed STATUS_COLOR.LOCKED is fully wired post-Wave-7C: src/frontend/components/status-colors.js is the single-source module exposing INT/HEX/RGB tables (LOCKED: 0xC9748F = --pink, 'louis-protected'). Both constellation.js and dive-in.js read from window.St8StatusColors with inline fallbacks. statusColor(file) at status-colors.js:89,95 already returns LOCKED.INT/RGB when file.locked is truthy — locked overrides status. The data side (file.locked truthy) is the only thing missing; that's Phase L1. Cross-link added to louis-and-locking.md touchpoint table.",
+    "wave8aReviewVerdict": "ack",
+    "wave8aReviewNote": "Verified the new 'Shared color tokens' row in the touchpoint table at louis-and-locking.md:17 cross-linking to src/frontend/components/status-colors.js (Wave 7C ticket 9). Confirms statusColor(file) honors file.locked first; only Phase L1 data source is missing. Pre-wired correctly."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/file-explorer/file-explorer.js",
@@ -105,6 +115,8 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-8a-executor",
-    "wave8aOutcome": "DECIDED: option (a) — st8 reuses existing audit surfaces; no separate lock-history.log file. Recorded in docs/components/louis-and-locking.md 'Known unknowns' section (the bullet titled 'Lock-history audit trail — DECIDED (Wave 8A, ticket 15)'). The decision binds two existing tables: (1) file_mutation_log gets a LOCK row per change via the P=20 lock-mutation-log subscriber (finally firing the long-declared LOCK enum value), (2) activity_log gets a parallel row via a P=30 lock-activity-log subscriber for the cross-cutting timeline. Both tables exist today at persistence.js:117 (file_mutation_log) and persistence.js:129 (activity_log) with the right schema (targetFingerprint, action, source, details, timestamp). The Phase L1 hook-firing path is now spec'd, no further open question. No source edit needed in default-subscribers.js this wave — the subscribers themselves are L1 work; this ticket only had to PICK the audit-surface strategy, which is now done."
+    "wave8aOutcome": "DECIDED: option (a) — st8 reuses existing audit surfaces; no separate lock-history.log file. Recorded in docs/components/louis-and-locking.md 'Known unknowns' section (the bullet titled 'Lock-history audit trail — DECIDED (Wave 8A, ticket 15)'). The decision binds two existing tables: (1) file_mutation_log gets a LOCK row per change via the P=20 lock-mutation-log subscriber (finally firing the long-declared LOCK enum value), (2) activity_log gets a parallel row via a P=30 lock-activity-log subscriber for the cross-cutting timeline. Both tables exist today at persistence.js:117 (file_mutation_log) and persistence.js:129 (activity_log) with the right schema (targetFingerprint, action, source, details, timestamp). The Phase L1 hook-firing path is now spec'd, no further open question. No source edit needed in default-subscribers.js this wave — the subscribers themselves are L1 work; this ticket only had to PICK the audit-surface strategy, which is now done.",
+    "wave8aReviewVerdict": "ack",
+    "wave8aReviewNote": "Independently verified activity_log schema at persistence.js:129-136: columns id, timestamp, source, action, targetFingerprint, details — exactly the columns needed for lock-history capture (target+action+source+details+timestamp). file_mutation_log at persistence.js:117-127 has actor, mutationType, fingerprint, metadata — supports the long-declared LOCK enum. Decision (option a) is correct: no new persistence surface, queryable via SQL, travels with st8.sqlite, single source of truth. P=20 + P=30 subscriber chain spec'd; ready for Phase L1 implementation."
   }
 ]
