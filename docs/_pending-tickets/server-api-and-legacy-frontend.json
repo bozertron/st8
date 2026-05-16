@@ -11,7 +11,11 @@
       "lineHint": "83-158 (switch table)",
       "summary": "The route table has no /api/llm-call. Without it the LLM-collaborator loop has nowhere to POST a prompt. Cross-cluster dupe with settings-and-providers — flagged here from the API-surface angle.",
       "evidence": "Grep across the switch in _handleApiRequest() returns zero matches for llm-call.",
-      "proposed": "Add a POST handler that takes {provider, model, messages, settingsCategory?}, looks up provider credentials via persistence.getSettingsByCategory(), and proxies."
+      "proposed": "Add a POST handler that takes {provider, model, messages, settingsCategory?}, looks up provider credentials via persistence.getSettingsByCategory(), and proxies.",
+      "status": "executed",
+      "executedBy": "wave-5f-executor",
+      "commitHash": "a29616f (Wave 5E settings cluster close — POST /api/llm-call backend route shipped there)",
+      "actionsTaken": "Resolved upstream by Wave 5E settings cluster — see docs/_pending-tickets/settings-and-providers.for-review.json ticket 1 (verdict: ACK by wave-5e-reviewer). The POST /api/llm-call route is implemented at src/core/server/app.js:2317 (_handleLlmCall) with X-St8-Secret auth, 8KB body cap (413 if exceeded), entryId+prompt validation (400), getSettingsByCategory lookup (404 if entry missing), dispatch via src/features/llm/dispatcher.js to anthropic + openai adapters (501 stubs for google/ollama/lmstudio/openrouter/custom). 8 route tests in tests/core/server/llm-call-route.test.js including the decrypt-routing probe (raw DB row contains ciphertext, adapter receives plaintext). No re-implementation needed in Wave 5F."
     },
     {
       "id": "API-002",
