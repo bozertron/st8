@@ -425,7 +425,15 @@
     "filepath": "/home/user/st8/src/core/database/persistence.js",
     "userNote": "FK-cascade gotcha worth documenting: file_registry is FK-referenced by connections, file_intent, file_mutation_log. The pruner (lines 285-294 and 319-327) correctly operates per-fingerprint inside a transaction, deleting children BEFORE the registry row. Don't try to bulk-DELETE from file_registry via filepath \u2014 you'll get FK violations because children reference the about-to-be-deleted rows. Add a guard comment at the top of persistence.js explicitly stating 'all file_registry deletes must go through delete*ForFile(fingerprint)' patterns.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6d-executor",
+    "actionsTaken": "Added a ~35-line JSDoc block above ST8_SCHEMA in src/core/database/persistence.js documenting the FK cascade design. The block enumerates: (a) the four child tables that reference file_registry.fingerprint \u2014 connections.sourceFingerprint, file_intent.fingerprint, file_mutation_log.fingerprint, tickets.fingerprint; (b) why the schema deliberately omits ON DELETE CASCADE (so mutation_log can record the delete BEFORE the parent row disappears); (c) the canonical per-fingerprint delete order used by both deleteFile() and pruneFilesNotIn() \u2014 connections \u2192 intent \u2192 mutation_log \u2192 tickets \u2192 file_registry; (d) the rule of thumb 'never DELETE FROM file_registry WHERE filepath = ? directly; always go through deleteFile() or pruneFilesNotIn()'; (e) the contract for adding new child tables (declare FK, add delete*ForFile helper, wire into both cascade paths). Tests stay 413/413.",
+    "filesChanged": ["src/core/database/persistence.js"],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/st8.sqlite",

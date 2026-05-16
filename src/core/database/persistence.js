@@ -28,6 +28,40 @@ const { St8FileEntry, LifecyclePhase, FileStatus } = require('../../shared/types
 
 // ─── ST8 SCHEMA ──────────────────────────────────────────────
 
+/**
+ * FK CASCADE DESIGN — read before touching file_registry deletes.
+ *
+ * `file_registry.fingerprint` is the parent key referenced by four child
+ * tables: `connections.sourceFingerprint`, `file_intent.fingerprint`,
+ * `file_mutation_log.fingerprint`, and `tickets.fingerprint`. SQLite FK
+ * enforcement is ON at boot (initialize() runs `PRAGMA foreign_keys = ON`
+ * after WAL), so any direct `DELETE FROM file_registry WHERE …` that
+ * leaves child rows behind will throw SQLITE_CONSTRAINT_FOREIGNKEY.
+ *
+ * The schema deliberately omits `ON DELETE CASCADE`. The cascade is
+ * implemented in JS so callers can write the mutation_log entry BEFORE
+ * the parent row disappears (otherwise the audit trail dies with the
+ * file). Two paths perform the cascade:
+ *
+ *   - `deleteFile(filepath)` — iterates every fingerprint at that path
+ *     (file_registry permits multiple rows per filepath, one per
+ *     birthTimestamp) and for EACH fingerprint runs, in order:
+ *       1. deleteConnectionsForFile(fingerprint)
+ *       2. deleteIntentForFile(fingerprint)
+ *       3. deleteMutationLogForFile(fingerprint)
+ *       4. deleteTicketsForFile(fingerprint)
+ *       5. DELETE FROM file_registry WHERE fingerprint = ?
+ *
+ *   - `pruneFilesNotIn(currentFilepaths)` — identical per-fingerprint
+ *     order, run inside a single transaction over the diff set.
+ *
+ * Rule of thumb: NEVER write `DELETE FROM file_registry WHERE filepath = ?`
+ * directly. ALWAYS go through deleteFile() or pruneFilesNotIn() so the
+ * four child tables get cleaned per-fingerprint first. New child tables
+ * added to ST8_SCHEMA must (a) declare their FOREIGN KEY, (b) add a
+ * delete*ForFile(fingerprint) helper, and (c) wire that helper into
+ * both cascade paths above.
+ */
 const ST8_SCHEMA = `
 CREATE TABLE IF NOT EXISTS file_registry (
   fingerprint TEXT PRIMARY KEY,
