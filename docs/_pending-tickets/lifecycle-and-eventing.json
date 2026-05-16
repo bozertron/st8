@@ -33,7 +33,15 @@
     "filepath": "src/features/watcher/file-watcher.js",
     "userNote": "BUG-RISK: pendingChanges is `new Set()` but entries are pushed as `{ path, type }` object literals (line 94). Each call creates a fresh object so the Set never deduplicates — a file with 100 'change' events in one debounce window produces 100 entries in the flush. Either switch to a `Map` keyed by `path` (last write wins, deduped) or a `Map<path, Set<type>>` if all event types matter. Today it just inflates the flush array.",
     "severity": "med",
-    "status": "RED"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4a-executor",
+    "actionsTaken": "Switched pendingChanges from `new Set()` to `new Map()` keyed by the composite string `${filePath}::${eventType}`. Chose Map+composite-key over Map<path,type> (last-write-wins) because the existing `onFileChange` callback in main.js dispatches by `change.type` — collapsing a CREATE+EDIT for the same path to one EDIT would silently drop the CREATE branch's persistence.upsertFile + initial schema-card emission. The composite key dedupes the storm-pattern (100 'change' events on one file → 1 entry) while preserving CREATE/EDIT/DELETE distinction within a window. Updated _onFileChange to set the key and _flush to iterate `pendingChanges.values()`. Smoke probe: 3 'change' events + 1 'add' on different paths → pendingChanges.size === 2, flush array has 2 entries. Test coverage lands in ticket 3.",
+    "filesChanged": [
+      "src/features/watcher/file-watcher.js"
+    ],
+    "commitHash": "PENDING",
+    "residualConcerns": null
   },
   {
     "filepath": "src/core/database/persistence.js",

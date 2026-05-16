@@ -39,7 +39,15 @@ class FileWatcher {
         this.onFileChange = options.onFileChange || null;
         this.watcher = null;
         this.debounceTimer = null;
-        this.pendingChanges = new Set();
+        // Map keyed by `${path}::${type}` so successive events for the
+        // same (path, type) within one debounce window collapse to one
+        // entry. The previous `new Set()` with object-literal entries
+        // never deduped — each `{ path, type }` literal is reference-
+        // unique, so 100 chokidar 'change' events on one file produced
+        // 100 entries in the flush array (ticket 4). The composite key
+        // preserves the (path, type) distinction so a CREATE followed
+        // by an EDIT in the same window still produces two entries.
+        this.pendingChanges = new Map();
     }
     
     start() {
@@ -91,21 +99,22 @@ class FileWatcher {
     }
     
     _onFileChange(filePath, eventType) {
-        this.pendingChanges.add({ path: filePath, type: eventType });
-        
+        const key = `${filePath}::${eventType}`;
+        this.pendingChanges.set(key, { path: filePath, type: eventType });
+
         if (this.debounceTimer) {
             clearTimeout(this.debounceTimer);
         }
-        
+
         this.debounceTimer = setTimeout(() => {
             this._flush().catch(err => {
                 console.error('[st8:watcher] Flush failed:', err.message);
             });
         }, this.debounceMs);
     }
-    
+
     async _flush() {
-        const changes = Array.from(this.pendingChanges);
+        const changes = Array.from(this.pendingChanges.values());
         this.pendingChanges.clear();
         
         console.log(`[st8:watcher] Flushing ${changes.length} changes`);
