@@ -164,6 +164,93 @@ function validateRecordCommitPayload(input) {
     return { ok: true, payload: out };
 }
 
+// ─── BODY PARSING ────────────────────────────────────────────
+//
+// parseRequestBody(req, options) — Wave 5F ticket 12 + 10.
+//
+// Single canonical implementation of the data/end/413/JSON.parse dance
+// that 17 POST handlers used to duplicate inline. Returns a Promise
+// that resolves to one of:
+//
+//   { ok: true,  body }                    — parsed JSON object
+//   { ok: false, status: 413, error }      — body exceeded maxBytes
+//   { ok: false, status: 400, error }      — invalid JSON
+//
+// Options:
+//   - maxBytes: cap in bytes (default 8192 — 8KB, matches Wave 5E
+//     /api/llm-call). Routes that handle compute-only payloads (path,
+//     fingerprint, single id) can pass 1024 to keep the historical 1KB
+//     cap. Either way the cap is now opt-in by the caller, with a
+//     sensible default.
+//   - allowEmpty: if true, an empty body resolves to { ok: true, body: {} }
+//     (default true — matches the historical `JSON.parse(body || '{}')`
+//     pattern). Set false to require a non-empty body.
+//
+// The helper does NOT write to `res`. Callers map the {status, error}
+// shape to res.writeHead/res.end themselves — this keeps the helper
+// testable in isolation (no fake res object needed) and lets each
+// route customise its 400 wording if it wants to.
+//
+// req.destroy() is called on 413 to short-circuit further data events,
+// matching the prior inline behaviour. The Promise resolves exactly
+// once even if the client keeps streaming after the cap is hit.
+function parseRequestBody(req, options) {
+    const opts = options || {};
+    const maxBytes = typeof opts.maxBytes === 'number' ? opts.maxBytes : 8192;
+    const allowEmpty = opts.allowEmpty !== false;
+
+    return new Promise((resolve) => {
+        let body = '';
+        let resolved = false;
+        const settle = (v) => {
+            if (resolved) return;
+            resolved = true;
+            resolve(v);
+        };
+
+        req.on('data', (chunk) => {
+            if (resolved) return;
+            body += chunk;
+            if (body.length > maxBytes) {
+                try { req.destroy(); } catch (_) { /* non-fatal */ }
+                settle({
+                    ok: false,
+                    status: 413,
+                    error: `Request body too large. Maximum size is ${maxBytes} bytes.`,
+                });
+            }
+        });
+
+        req.on('end', () => {
+            if (resolved) return;
+            if (!body) {
+                if (allowEmpty) {
+                    settle({ ok: true, body: {} });
+                } else {
+                    settle({ ok: false, status: 400, error: 'empty body' });
+                }
+                return;
+            }
+            try {
+                const parsed = JSON.parse(body);
+                settle({ ok: true, body: parsed });
+            } catch (err) {
+                settle({ ok: false, status: 400, error: 'invalid JSON: ' + err.message });
+            }
+        });
+
+        // Defensive: if the client aborts mid-stream the route should
+        // not hang on a Promise that never resolves. Treat client abort
+        // as a 400 — the route handler will see ok:false and bail.
+        req.on('close', () => {
+            if (!resolved) settle({ ok: false, status: 400, error: 'connection closed before body complete' });
+        });
+        req.on('error', (err) => {
+            settle({ ok: false, status: 400, error: 'request stream error: ' + err.message });
+        });
+    });
+}
+
 // ─── SERVER CLASS ────────────────────────────────────────────
 
 class St8Server {
@@ -2432,4 +2519,8 @@ module.exports = {
     // Ticket 8 (Wave 5C): exposed so the drift test can compare against
     // the frontend's SETTINGS_CATEGORIES list.
     ALLOWED_SETTINGS_CATEGORIES,
+    // Wave 5F ticket 12: canonical body-parse helper. Exposed for unit
+    // testing in isolation (callers usually go through the helper via
+    // their route handler).
+    parseRequestBody,
 };
