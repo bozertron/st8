@@ -172,6 +172,45 @@
     }
   }
   </script>
+  <!-- Importmap browser-support fallback (ticket 6).
+       <script type="importmap"> requires Chrome 89+ / Safari 16.4+ /
+       Firefox 108+. On older browsers the importmap is ignored and
+       components/dive-in/dive-in.js fails to resolve its `three` /
+       `three/addons/` specifiers — the file-dive-in then silently
+       breaks with a cryptic "Failed to resolve module specifier" in
+       the console. Hard-fail loudly instead: detect missing support
+       and surface a visible banner so users know WHY the dive-in
+       didn't open. The rest of the app (constellation, explorer,
+       phreak) does NOT depend on importmap and keeps working. -->
+  <script>
+    (function() {
+      try {
+        if (!HTMLScriptElement || !HTMLScriptElement.supports
+            || !HTMLScriptElement.supports('importmap')) {
+          var banner = document.createElement('div');
+          banner.id = 'importmap-fallback-banner';
+          banner.setAttribute('role', 'alert');
+          banner.style.cssText =
+            'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+            'background:#2a0a0f;color:#C9748F;' +
+            'border-bottom:1px solid #C9748F;' +
+            'font-family:monospace;font-size:13px;letter-spacing:1px;' +
+            'padding:8px 16px;text-align:center;';
+          banner.textContent =
+            '[st8] DIVE-IN UNAVAILABLE — this browser does not support <script type="importmap"> ' +
+            '(needs Chrome 89+, Safari 16.4+, or Firefox 108+). The rest of st8 still works.';
+          // Defer DOM insertion until <body> is ready.
+          if (document.body) document.body.appendChild(banner);
+          else document.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(banner);
+          });
+          console.warn('[st8] importmap unsupported — dive-in module will not load');
+        }
+      } catch (err) {
+        console.warn('[st8] importmap support probe failed:', err && err.message);
+      }
+    })();
+  </script>
   <script type="module" src="components/dive-in/dive-in.js"></script>
 
   <!-- Main application bundle (extracted from st8.html's third inline <script>) -->
