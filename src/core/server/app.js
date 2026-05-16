@@ -927,6 +927,16 @@ class St8Server {
         const { notificationBus } = require('../notification-bus');
         // Pass the server's allowed origin so the SSE endpoint respects
         // the same CORS restriction as all other routes (CR-01 fix).
+        //
+        // Wave 4C ticket 8: keepalive heartbeat is owned by the
+        // NotificationBus itself (per-client `: heartbeat\n\n` write
+        // every heartbeatMs, default 30s). The bus also installs the
+        // 'close' / 'error' cleanup handlers + clears the heartbeat
+        // timer on disconnect. This route stays a one-liner —
+        // robustness lives in addSSEClient where it can be tested in
+        // isolation against the real Set without booting the full
+        // St8Server. See tests/core/notification-bus.test.js for the
+        // 7 heartbeat + cleanup probes.
         notificationBus.addSSEClient(res, {
             allowedOrigin: 'http://localhost:' + this.port
         });

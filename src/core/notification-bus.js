@@ -20,6 +20,16 @@ class NotificationBus extends EventEmitter {
         this.sseClients = new Set();
         this.printer = null; // Set later via setPrinter()
         this.maxSseClients = options.maxSseClients || 10;
+        // Wave 4C ticket 8: per-client SSE heartbeat interval. Real SSE
+        // deployments need a periodic ping (`: heartbeat\n\n` is a SSE
+        // comment, swallowed by the client parser) to keep proxies /
+        // reverse-proxies / load balancers / NAT tables from killing
+        // an idle TCP connection. The write-error path in the
+        // heartbeat tick also catches half-open TCPs that never fire
+        // 'close' or 'error' on their own (machine-sleep scenario).
+        // Default 30s; tests pass a shorter value to keep wallclock
+        // small. Set to 0 to disable.
+        this.heartbeatMs = options.heartbeatMs != null ? options.heartbeatMs : 30000;
     }
 
     setPrinter(printer) {
@@ -93,15 +103,53 @@ class NotificationBus extends EventEmitter {
 
         this.sseClients.add(res);
 
-        res.on('close', () => {
+        // Wave 4C ticket 8: per-client SSE heartbeat. Schedules a
+        // recurring write of `: heartbeat\n\n` (an SSE comment line,
+        // parsed and discarded by EventSource) to keep proxies / NAT
+        // tables from killing an idle connection AND to surface
+        // half-open TCPs as broken-pipe write errors that trigger
+        // cleanup. Stored on the res object (NOT on `this`) so it
+        // tears down naturally when the response is destroyed.
+        res._st8HeartbeatTimer = null;
+        if (this.heartbeatMs > 0) {
+            res._st8HeartbeatTimer = setInterval(() => {
+                try {
+                    res.write(`: heartbeat\n\n`);
+                } catch (_) {
+                    // Write failed — peer is gone. Clean up and stop
+                    // the heartbeat; 'close'/'error' may also fire but
+                    // we belt-and-suspenders the cleanup here.
+                    this.sseClients.delete(res);
+                    if (res._st8HeartbeatTimer) {
+                        clearInterval(res._st8HeartbeatTimer);
+                        res._st8HeartbeatTimer = null;
+                    }
+                }
+            }, this.heartbeatMs);
+            // Node would keep the event loop alive on a long-running
+            // server with active heartbeats. Unref so the timer is
+            // honest about its role (a passive keepalive, not a
+            // process-keeper).
+            if (typeof res._st8HeartbeatTimer.unref === 'function') {
+                res._st8HeartbeatTimer.unref();
+            }
+        }
+
+        const cleanup = () => {
             this.sseClients.delete(res);
-        });
+            if (res._st8HeartbeatTimer) {
+                clearInterval(res._st8HeartbeatTimer);
+                res._st8HeartbeatTimer = null;
+            }
+        };
+
+        res.on('close', cleanup);
 
         res.on('error', (err) => {
             // Socket error (network drop, client crash) — clean up and continue.
             // Without this handler, Node.js throws an uncaught 'error' exception
             // that crashes the entire server process.
-            this.sseClients.delete(res);
+            cleanup();
             try { res.end(); } catch (_) { /* already destroyed */ }
         });
 

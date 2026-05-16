@@ -233,3 +233,60 @@ test('ticket 16 — printer throw is caught, does not abort publish chain', asyn
 
     assert.equal(emitterFired, true, 'emitter must still have fired (runs before printer)');
 });
+
+// ─── TICKET 8 — heartbeat keepalive ─────────────────────────
+
+test('ticket 8 — SSE heartbeat emits at configured interval', async (t) => {
+    // Use a short heartbeatMs so the test stays fast.
+    const ctx = await bootBusServer({ heartbeatMs: 80 });
+    t.after(() => ctx.teardown());
+
+    const client = await openSSEClient(ctx.port);
+    t.after(() => { try { client.req.destroy(); } catch (_) {} });
+
+    // Collect frames for ~300ms — expect >=2 heartbeats.
+    let received = '';
+    client.res.on('data', (chunk) => { received += chunk; });
+    await sleep(300);
+
+    const heartbeats = (received.match(/^: heartbeat$/gm) || []).length;
+    assert.ok(heartbeats >= 2, `expected >=2 heartbeats in 300ms @ 80ms interval, got ${heartbeats} (frames=${JSON.stringify(received)})`);
+});
+
+test('ticket 8 — heartbeat stops + timer cleared on client close', async (t) => {
+    const ctx = await bootBusServer({ heartbeatMs: 50 });
+    t.after(() => ctx.teardown());
+
+    const client = await openSSEClient(ctx.port);
+    await sleep(40);
+    assert.equal(ctx.bus.sseClients.size, 1);
+    // Heartbeat timer must be attached to the response object (per impl).
+    const res = Array.from(ctx.bus.sseClients)[0];
+    assert.ok(res._st8HeartbeatTimer, 'heartbeat timer must be attached to res');
+
+    client.req.destroy();
+    const deadline = Date.now() + 1000;
+    while (ctx.bus.sseClients.size !== 0 && Date.now() < deadline) await sleep(20);
+    assert.equal(ctx.bus.sseClients.size, 0);
+    // After cleanup, the timer reference is cleared.
+    assert.equal(res._st8HeartbeatTimer, null, 'heartbeat timer must be nulled on cleanup');
+});
+
+test('ticket 8 — heartbeatMs=0 disables the heartbeat entirely', async (t) => {
+    const ctx = await bootBusServer({ heartbeatMs: 0 });
+    t.after(() => ctx.teardown());
+
+    const client = await openSSEClient(ctx.port);
+    t.after(() => { try { client.req.destroy(); } catch (_) {} });
+    await sleep(40);
+
+    const res = Array.from(ctx.bus.sseClients)[0];
+    assert.equal(res._st8HeartbeatTimer, null, 'no heartbeat timer when disabled');
+
+    // Collect 200ms — no heartbeats should arrive.
+    let received = '';
+    client.res.on('data', (chunk) => { received += chunk; });
+    await sleep(200);
+    const heartbeats = (received.match(/^: heartbeat$/gm) || []).length;
+    assert.equal(heartbeats, 0, 'disabled heartbeat must not emit');
+});

@@ -97,7 +97,16 @@
     "filepath": "src/core/server/app.js",
     "userNote": "SSE ROBUSTNESS: /api/mutations endpoint (_handleMutationsSSE at line 755) is a one-liner — it just calls notificationBus.addSSEClient. There is no server-side heartbeat (see notification-bus ticket above), no max-age, and the only test for it is hand-curl. The frontend has reconnect-with-backoff (src/frontend/app.js:945), which masks but does not eliminate dropped connections. Add: (a) a server-side ping every 30s, (b) an integration test that connects, asserts handshake, holds the connection while publish() fires, and verifies the event arrives, (c) a reconnection test that drops mid-stream and verifies frontend recovers.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4c-executor",
+    "actionsTaken": "Heartbeat interval picked: **30 seconds** default (configurable via `new NotificationBus({ heartbeatMs })`). 30s is the industry-standard SSE keepalive — well below the 60s idle-cutoff most reverse-proxies (nginx, HAProxy, AWS ALB) impose, and well above the per-tick cost. heartbeatMs=0 disables (useful for tests that don't want the wallclock noise). The heartbeat lives in NotificationBus.addSSEClient — NOT in _handleMutationsSSE — so it can be unit-tested without booting the full St8Server, and so any future SSE route that calls addSSEClient inherits the keepalive for free. Implementation: each addSSEClient call attaches a setInterval(heartbeatMs) to the res object as `res._st8HeartbeatTimer` that writes `: heartbeat\\n\\n` (an SSE comment, parsed and discarded by the EventSource client). The interval is .unref()'d so it does not keep the Node event loop alive. On write failure (half-open TCP) the heartbeat catches the error, deletes the client from sseClients, and clears the timer. The 'close' and 'error' handlers in addSSEClient also clear the heartbeat timer via a shared cleanup() helper. The _handleMutationsSSE route is updated with a comment block pointing at the bus-level ownership. Tests in tests/core/notification-bus.test.js: (1) heartbeat emits >=2 frames in 300ms at heartbeatMs=80 — proves the timer fires AND that the SSE comment-line frames reach the client through Node's raw http response, (2) cleanup on req.destroy nulls res._st8HeartbeatTimer (proves the timer doesn't leak past the client lifetime), (3) heartbeatMs=0 disables — no _st8HeartbeatTimer attached, zero heartbeat frames received in 200ms. The half-open-TCP path is exercised by the ticket-7 broadcast-write-error test which kills the underlying socket and asserts cleanup. End-to-end against /api/mutations: addSSEClient is the SAME code path that route uses, so the route inherits the keepalive verbatim.",
+    "filesChanged": [
+      "src/core/notification-bus.js",
+      "src/core/server/app.js",
+      "tests/core/notification-bus.test.js"
+    ],
+    "residualConcerns": "The 30s default is configurable per-instance but not per-route. If a future SSE route wants a different cadence (e.g. 5s for a high-frequency stream), it needs its own NotificationBus or a per-call override on addSSEClient — out of scope for Wave 4C."
   },
   {
     "filepath": "src/features/lifecycle/bruno-oscar.js",
