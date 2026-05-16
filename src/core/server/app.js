@@ -435,9 +435,27 @@ class St8Server {
             case '/api/llm-call':
                 this._handleLlmCall(req, res);
                 break;
-            default:
+            case '/api/exec':
+                this._handleExec(req, res);
+                break;
+            default: {
+                // Wave 5F ticket 1: granular ticket lifecycle routes use
+                // path-parameter matching (same pattern as prd-projects).
+                //   POST /api/tickets/:id/claim
+                //   POST /api/tickets/:id/resolve
+                const claimMatch = url.pathname.match(/^\/api\/tickets\/(\d+)\/claim$/);
+                if (claimMatch) {
+                    this._handleTicketClaim(req, res, Number(claimMatch[1]));
+                    break;
+                }
+                const resolveMatch = url.pathname.match(/^\/api\/tickets\/(\d+)\/resolve$/);
+                if (resolveMatch) {
+                    this._handleTicketResolve(req, res, Number(resolveMatch[1]));
+                    break;
+                }
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
+            }
         }
     }
     
@@ -2127,6 +2145,215 @@ class St8Server {
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ ok: true, id: ticket.id, createdAt: ticket.createdAt }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    /**
+     * POST /api/exec — Wave 5F ticket 3 STUB.
+     *
+     * Status: 501 Not Implemented.
+     *
+     * terminal.js phreakExecute() falls back to POST /api/exec when
+     * the EPO sirkit client is disconnected (see
+     * src/frontend/components/terminal/terminal.js:90). Before Wave
+     * 5F the route did not exist — requests 404'd silently.
+     *
+     * SECURITY: implementing this route the obvious way (spawn/exec
+     * the posted `command` string) would let any same-origin caller
+     * run arbitrary shell on the host. The phreak> terminal is local
+     * and the loopback-only listen is some defense, but the
+     * X-St8-Secret value can also be read from .st8/server.secret by
+     * any process with FS access — i.e. anything that can ALSO just
+     * fork bash directly. The shared-secret gate adds no real
+     * boundary for THIS verb.
+     *
+     * Wave 5F therefore ships a 501 stub returning a JSON envelope
+     * with a roadmap pointer. The eventual real route will require:
+     *   - a strict allowlist of commands (no shell metacharacters)
+     *   - per-command argument validators
+     *   - X-St8-Secret auth + loopback-only origin
+     *   - audit logging via activity_log
+     * See docs/_pending-roadmap/server-api-and-legacy-frontend.md for
+     * the design discussion (P2 — terminal /api/exec fallback).
+     *
+     * The 501 turns the previous silent 404 into an observable
+     * "this verb is deliberately not built yet" — the terminal UI
+     * can render the message verbatim so users know the EPO sirkit
+     * is the real path, not a missing-route bug.
+     */
+    _handleExec(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+        // Drain the body so the socket doesn't hang on the client side.
+        // 1KB is plenty for the {command} shape and limits how much we
+        // accept from an aborted call.
+        parseRequestBody(req, { maxBytes: 1024 }).then(() => {
+            res.writeHead(501, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                ok: false,
+                error: 'not implemented',
+                detail: 'POST /api/exec is intentionally not built. Use the EPO sirkit terminal channel for command execution. See docs/_pending-roadmap/server-api-and-legacy-frontend.md (P2 — terminal /api/exec fallback) for the security discussion.',
+                roadmap: 'docs/_pending-roadmap/server-api-and-legacy-frontend.md',
+            }));
+        });
+    }
+
+    /**
+     * POST /api/tickets/:id/claim — Wave 5F ticket 1.
+     *
+     * Body: { providerId: string }   (id of a row in the providers table)
+     * Auth: X-St8-Secret (same gate as POST /api/tickets and
+     *       /api/record-commit).
+     *
+     * Flow:
+     *   1. Auth check → 401/503 on miss.
+     *   2. Parse JSON body, 1KB cap (single providerId field).
+     *   3. Validate providerId is a non-empty string.
+     *   4. Call persistence.claimTicket(id, providerId). Surface
+     *      400 on RangeError/TypeError (unknown / inactive provider),
+     *      404 if the ticket id does not exist or is already claimed
+     *      (UPDATE affected 0 rows).
+     *   5. Log ACTIVITY for the audit trail.
+     *
+     * HOOK contract: TICKET_CLAIMED is NOT fired here. Per
+     * CLAUDE.md's "no publisher without a real subscriber" rule, the
+     * hook constant is intentionally absent until a subscriber needs
+     * it (Sonic indexer / phreak> badge / etc.). The persistence
+     * mutation + activity_log row are sufficient for downstream
+     * polling consumers. Add the hook constant + publisher together
+     * when the first subscriber lands.
+     */
+    _handleTicketClaim(req, res, ticketId) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+        const authCheck = auth.checkRequest(req, this.targetDir);
+        if (!authCheck.ok) {
+            console.warn('[st8:auth] /api/tickets/:id/claim rejected:', authCheck.reason);
+            res.writeHead(authCheck.status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+        }
+        parseRequestBody(req, { maxBytes: 1024 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
+            }
+            const { providerId } = parsed.body;
+            if (!providerId || typeof providerId !== 'string') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'providerId required (string)' }));
+                return;
+            }
+            try {
+                const { getSharedPersistence } = require('../database/persistence');
+                const persistence = await getSharedPersistence();
+                let result;
+                try {
+                    result = persistence.claimTicket(ticketId, providerId);
+                } catch (validationErr) {
+                    // TypeError / RangeError from persistence.claimTicket
+                    // (unknown provider, inactive provider) — surface
+                    // as a 400, not a 500.
+                    if (validationErr instanceof TypeError || validationErr instanceof RangeError) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: validationErr.message }));
+                        return;
+                    }
+                    throw validationErr;
+                }
+                // UPDATE affected 0 rows ⇒ no such open ticket
+                // (already claimed or never existed).
+                if (!result || result.changes === 0) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'ticket not found or already claimed' }));
+                    return;
+                }
+                persistence.logActivity({
+                    source: 'API',
+                    action: 'TICKET_CLAIMED',
+                    details: { ticketId, providerId },
+                });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, id: ticketId, claimedBy: providerId }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    /**
+     * POST /api/tickets/:id/resolve — Wave 5F ticket 1.
+     *
+     * Body: { resolution: string, providerId?: string }
+     * Auth: X-St8-Secret.
+     *
+     * `resolution` is the human/LLM-authored close-out note stored
+     * verbatim in tickets.resolution. providerId is optional — if
+     * present it is recorded in activity_log.details for the audit
+     * trail (persistence.resolveTicket itself only writes resolvedAt
+     * + resolution; the resolving party tag lives in activity_log).
+     *
+     * HOOK contract: same deferral as _handleTicketClaim — no
+     * TICKET_RESOLVED publisher without a real subscriber.
+     */
+    _handleTicketResolve(req, res, ticketId) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+        const authCheck = auth.checkRequest(req, this.targetDir);
+        if (!authCheck.ok) {
+            console.warn('[st8:auth] /api/tickets/:id/resolve rejected:', authCheck.reason);
+            res.writeHead(authCheck.status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+        }
+        // 4KB cap — resolution notes can be longer than a provider id.
+        parseRequestBody(req, { maxBytes: 4096 }).then(async (parsed) => {
+            if (!parsed.ok) {
+                res.writeHead(parsed.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: parsed.error }));
+                return;
+            }
+            const { resolution, providerId } = parsed.body;
+            if (typeof resolution !== 'string') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'resolution required (string)' }));
+                return;
+            }
+            try {
+                const { getSharedPersistence } = require('../database/persistence');
+                const persistence = await getSharedPersistence();
+                const result = persistence.resolveTicket(ticketId, resolution);
+                if (!result || result.changes === 0) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'ticket not found' }));
+                    return;
+                }
+                persistence.logActivity({
+                    source: 'API',
+                    action: 'TICKET_RESOLVED',
+                    details: {
+                        ticketId,
+                        providerId: providerId || null,
+                        resolutionLength: resolution.length,
+                    },
+                });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, id: ticketId, resolved: true }));
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));

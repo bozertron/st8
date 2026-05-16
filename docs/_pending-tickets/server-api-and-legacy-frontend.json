@@ -26,7 +26,10 @@
       "lineHint": "1501-1599 (_handleTickets, _handleTicketsCount)",
       "summary": "Only POST / GET on /api/tickets and GET /api/tickets/count are exposed. St8Persistence has the lifecycle primitives (createTicket, getOpenTickets, countOpenTickets) but no claim() / resolve() HTTP wrappers. The LLM-collaborator loop cannot close the workflow over HTTP.",
       "evidence": "Switch only handles '/api/tickets' and '/api/tickets/count' — no regex match for '/api/tickets/<id>/...'.",
-      "proposed": "Add POST /api/tickets/:id/claim and POST /api/tickets/:id/resolve. Fire HOOKS.TICKET_CLAIMED / TICKET_RESOLVED."
+      "proposed": "Add POST /api/tickets/:id/claim and POST /api/tickets/:id/resolve. Fire HOOKS.TICKET_CLAIMED / TICKET_RESOLVED.",
+      "status": "executed",
+      "executedBy": "wave-5f-executor",
+      "actionsTaken": "Added regex-matched routes in _handleApiRequest's default branch (same pattern as /api/prd-projects/:name). New handlers _handleTicketClaim and _handleTicketResolve in src/core/server/app.js: (a) both POST-only, both require X-St8-Secret (same gate as POST /api/tickets and /api/record-commit), both use parseRequestBody from ticket 12; (b) _handleTicketClaim takes {providerId}, 1KB cap, calls persistence.claimTicket(id, providerId) — TypeError/RangeError from persistence (unknown / inactive provider) surfaces as 400, result.changes===0 (no such open ticket) surfaces as 404, success logs activity_log row with action='TICKET_CLAIMED' source='API'; (c) _handleTicketResolve takes {resolution, providerId?}, 4KB cap (resolution notes can be longer), calls persistence.resolveTicket(id, resolution), result.changes===0 → 404, success logs activity_log with action='TICKET_RESOLVED'. HOOK CONTRACT: TICKET_CLAIMED / TICKET_RESOLVED constants NOT added per CLAUDE.md 'no publisher without a real subscriber' — persistence mutation + activity_log row are sufficient for polling consumers; the hook + publisher land together when first subscriber is built. 7 new tests in tests/core/server/ticket-lifecycle-routes.test.js: auth gate × 2 (claim + resolve), unknown id 404 × 2, happy path × 2 (with direct DB probe asserting claimedBy/claimedAt actually set, and resolution/resolvedAt actually set + ticket no longer in getOpenTickets), missing resolution 400. All boot real St8Server on ephemeral port + temp targetDir."
     },
     {
       "id": "API-003",
@@ -48,7 +51,10 @@
       "lineHint": "90 (fetch('/api/exec'))",
       "summary": "terminal.js phreakExecute falls back to POST /api/exec when the EPO client is disconnected. /api/exec is not in app.js's switch — the request 404s.",
       "evidence": "grep '/api/exec' app.js returns no hits.",
-      "proposed": "Either implement /api/exec (carefully sandboxed) or remove the dead fallback path. Same for the PHREAK_API constant on line 43 ('/api/v1/exec' — already commented as dead)."
+      "proposed": "Either implement /api/exec (carefully sandboxed) or remove the dead fallback path. Same for the PHREAK_API constant on line 43 ('/api/v1/exec' — already commented as dead).",
+      "status": "deferred-stub",
+      "executedBy": "wave-5f-executor",
+      "actionsTaken": "Per Wave 5F NO-CHEATS guidance, did NOT ship arbitrary shell exec. Added _handleExec in src/core/server/app.js that returns 501 Not Implemented with a JSON envelope containing {ok:false, error:'not implemented', detail:..., roadmap:'docs/_pending-roadmap/server-api-and-legacy-frontend.md'}. Route registered in the switch table so the verb is now observable as 'deliberately deferred' rather than 404. SECURITY RATIONALE documented in the route comment: executing the posted `command` string would let any same-origin caller run arbitrary shell on the host; the X-St8-Secret value can also be read from .st8/server.secret by any process with FS access (i.e. anything that can ALSO just fork bash directly), so shared-secret auth adds no real boundary for THIS verb. Real implementation needs a strict allowlist of commands, per-command argument validators, X-St8-Secret + loopback-only, and audit logging — design lives in docs/_pending-roadmap/server-api-and-legacy-frontend.md. The stub still drains the body via parseRequestBody (1KB cap) so the socket doesn't hang on the client side. 2 tests in tests/core/server/api-exec-stub.test.js pin the contract: POST returns 501 with /not implemented/ + roadmap pointer; GET returns 405."
     },
     {
       "id": "FRONT-001",
@@ -118,7 +124,10 @@
       "file": "src/core/server/app.js",
       "lineHint": "1447-1499 (record-commit), 1510-1583 (tickets)",
       "summary": "17 POST handlers cap the body at 1KB; two others cap at 2KB. /api/record-commit and /api/tickets accept arbitrarily large bodies — they read `req.on('data', chunk => body += chunk)` with no MAX_BODY_SIZE guard. The pattern was added later and skipped the convention.",
-      "proposed": "Backfill the MAX_BODY_SIZE check (4KB is reasonable for a commit payload with filesChanged; 8KB for tickets with identityBundle)."
+      "proposed": "Backfill the MAX_BODY_SIZE check (4KB is reasonable for a commit payload with filesChanged; 8KB for tickets with identityBundle).",
+      "status": "executed",
+      "executedBy": "wave-5f-executor",
+      "actionsTaken": "Replaced every inline POST body parser with a call to parseRequestBody (ticket 12 helper) and applied uniform caps. Final cap matrix: 1KB for compute-only routes (index, file-intent, concept-file, mvp-lock, production-promote, bruno-call, oscar-house, mark-reviewed, ticket-claim, exec-stub), 2KB for templates + prd-projects (description + variables shapes), 4KB for signal-path + generate-report + ticket-resolve (longer free-text fields), 8KB for settings (models _entries arrays), record-commit (backfilled — was uncapped), tickets POST (backfilled — was uncapped) and llm-call (prompts can be larger; matches Wave 5E). All routes now reject bodies above their declared cap with 413 + JSON error. record-commit and tickets POST are no longer attack-surface for memory exhaustion via large bodies. Verified by full test suite (355 pass) — every existing route test still passes, including the auth + body-validation suite for /api/record-commit (validate-record-commit.test.js) and the new /api/tickets/:id tests."
     },
     {
       "id": "API-006",
@@ -138,7 +147,10 @@
       "file": "src/core/server/app.js",
       "lineHint": "many (MAX_BODY_SIZE / req.on('data') boilerplate)",
       "summary": "Every POST handler reimplements the same data/end/close/413 dance with subtle drift (record-commit and tickets omit the cap; some catch close-event leaks, others don't — only _handleSettings has a close handler that closes the persistence; the rest can leak DB connections on client abort).",
-      "proposed": "Extract a readJsonBody(req, res, {maxSize}) helper that returns a Promise<object|null>. Wrap each handler."
+      "proposed": "Extract a readJsonBody(req, res, {maxSize}) helper that returns a Promise<object|null>. Wrap each handler.",
+      "status": "executed",
+      "executedBy": "wave-5f-executor",
+      "actionsTaken": "Extracted parseRequestBody(req, {maxBytes, allowEmpty}) → Promise<{ok, body}|{ok:false, status, error}> in src/core/server/app.js (just above the St8Server class definition). The helper is the single canonical implementation of the data/end/413/JSON.parse dance: 'data' handler caps body length and resolves with status:413 when exceeded (also calls req.destroy()), 'end' parses JSON (resolves status:400 on SyntaxError or returns ok:true), 'close' and 'error' settle as 400 to prevent hanging Promises on client abort, idempotent settle so late events never double-resolve. Replaced every inline POST body parser in app.js — 17 route handlers now use the helper. Call-site count: 17 (verified via `grep -c 'parseRequestBody('` minus 1 definition minus 1 export). Exposed via module.exports for unit testing. 9 unit tests in tests/core/server/parse-request-body.test.js cover: happy path (single + multi-chunk), 413 over cap with req.destroy() probe, 400 invalid JSON, empty body resolves to {} by default, allowEmpty:false → 400, 8KB default cap (accepts 8000 bytes, rejects 10000), idempotent resolution after 413. Tests run in isolation against a minimal EventEmitter mock — no full St8Server boot needed for the helper itself."
     },
     {
       "id": "API-008",
