@@ -91,18 +91,55 @@
             window.VoidFileExplorer.mount(this.host, function(paths) {
               console.info('[st8] selected:', paths);
             });
+
+            // Wave 5I (ticket FRONT-003): the explorer used to render
+            // an inline .explorer-error-banner inside its host, and a
+            // shell-side MutationObserver hoisted it into the titlebar.
+            // The observer fired on every DOM mutation inside the host
+            // and broke silently any time the banner's parent element
+            // changed. Replaced with a CustomEvent contract:
+            // file-explorer.js dispatches 'explorer:error' on `window`
+            // with detail = { message, canRetry } | null; the shell
+            // paints/clears the banner in the titlebar directly.
             const self = this;
-            const hoist = function() {
+            const renderBanner = function(detail) {
               const titlebar = self.column.querySelector('.panel-titlebar');
               if (!titlebar) return;
-              const fresh = self.host.querySelector('.explorer-error-banner');
+              // Remove any existing banner first (idempotent).
               titlebar.querySelectorAll('.explorer-error-banner').forEach(function(n) {
-                if (n !== fresh) n.parentNode.removeChild(n);
+                n.parentNode.removeChild(n);
               });
-              if (fresh) titlebar.appendChild(fresh);
+              if (!detail) return;
+              const banner = document.createElement('div');
+              banner.className = 'explorer-error-banner';
+              const icon = document.createElement('span');
+              icon.className = 'explorer-error-icon';
+              icon.textContent = '⚠';
+              const msg = document.createElement('span');
+              msg.className = 'explorer-error-msg';
+              msg.textContent = detail.message || '';
+              banner.appendChild(icon);
+              banner.appendChild(msg);
+              if (detail.canRetry) {
+                const retry = document.createElement('button');
+                retry.className = 'explorer-retry-btn';
+                retry.textContent = 'RETRY';
+                retry.addEventListener('click', function() {
+                  if (window.VoidFileExplorer && typeof window.VoidFileExplorer._retry === 'function') {
+                    window.VoidFileExplorer._retry();
+                  }
+                });
+                banner.appendChild(retry);
+              }
+              titlebar.appendChild(banner);
             };
-            hoist();
-            new MutationObserver(hoist).observe(this.host, { childList: true, subtree: true });
+            window.addEventListener('explorer:error', function(e) {
+              try {
+                renderBanner(e && e.detail);
+              } catch (err) {
+                console.warn('[st8] explorer-error renderer failed:', err && err.message);
+              }
+            });
           } else {
             this.host.innerHTML = '<div style="padding:24px;color:#C9748F">file-explorer.js failed to load</div>';
           }

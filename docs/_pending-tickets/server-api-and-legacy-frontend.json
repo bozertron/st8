@@ -111,7 +111,10 @@
       "file": "src/frontend/app.js",
       "lineHint": "59-69 (hoist + new MutationObserver)",
       "summary": "The shell uses a MutationObserver to detect when .explorer-error-banner appears inside the explorer host, then forcibly moves it into the column titlebar. Any change to where the banner renders inside file-explorer.js (e.g. wrapping in a new div) breaks the presentation silently.",
-      "proposed": "Either have file-explorer.js emit a CustomEvent the shell listens for, or expose a slot/portal in the explorer's render contract."
+      "proposed": "Either have file-explorer.js emit a CustomEvent the shell listens for, or expose a slot/portal in the explorer's render contract.",
+      "status": "executed",
+      "executedBy": "wave-5i-executor",
+      "actionsTaken": "Replaced shell-side MutationObserver hoist with a CustomEvent contract. (a) file-explorer.js: removed inline .explorer-error-banner from _renderExplorer template; introduced _setError(errorOrNull) which updates explorerState.error AND dispatches 'explorer:error' on window with detail = { message, canRetry } | null. explorerNavigate calls _setError(null) on entry and _setError({...}) on fetch failure. _setError exported via window.VoidFileExplorer for test access. (b) app.js: deleted hoist() + new MutationObserver().observe(host); replaced with window.addEventListener('explorer:error', e => renderBanner(e.detail)) \u2014 renderBanner clears any existing banner and rebuilds the DOM directly in the column .panel-titlebar using createElement (no innerHTML), wiring the RETRY button to window.VoidFileExplorer._retry(). DRY+wrap try/catch on the renderer with '[st8] explorer-error renderer failed' log. Chose option (b) CustomEvent over (a) direct DOM placement because the explorer host lives inside .explorer-main and the titlebar lives outside .explorer-host \u2014 the explorer cannot legitimately reach the titlebar from its own template without coupling to shell-owned DOM. CustomEvent keeps the explorer ignorant of where the banner lands. Tests: tests/frontend/file-explorer-error-event.test.js (3 cases \u2014 dispatch with detail, dispatch with null, addEventListener delivery). Full suite 363 -> 366 pass."
     },
     {
       "id": "FRONT-004",

@@ -117,7 +117,7 @@ async function explorerNavigate(path) {
     explorerState.selectedPaths.clear();
     explorerState.currentPath = path;
     explorerState.isLoading = true;
-    explorerState.error = null;
+    _setError(null);
     _renderExplorer();
 
     let entries = null;
@@ -127,10 +127,10 @@ async function explorerNavigate(path) {
         entries = await _fetchViaWebSocket(path);
     } catch (err) {
         fetchError = err;
-        explorerState.error = {
+        _setError({
             message: 'Unable to load directory — ' + (err.message || 'Unknown error'),
             canRetry: true,
-        };
+        });
     }
 
     if (entries !== null) {
@@ -140,6 +140,39 @@ async function explorerNavigate(path) {
 
     explorerState.isLoading = false;
     _renderExplorer();
+}
+
+// ─── ERROR-BANNER DISPATCHER ─────────────────────────────────────
+//
+// Wave 5I (ticket FRONT-003): replaced the shell-side MutationObserver
+// hoist with a CustomEvent contract. The shell listens for
+// 'explorer:error' on `window` and renders/clears the banner wherever
+// it likes (today: inside the column .panel-titlebar). The explorer
+// component no longer renders the banner inline — see _renderExplorer.
+//
+// Event detail shape:
+//   { message: string, canRetry: boolean } when an error is set
+//   null                                    when cleared
+//
+// Exported on `window.VoidFileExplorer._setError` so node tests
+// (tests/frontend/file-explorer-error-event.test.js) can drive the
+// dispatcher without a live navigation.
+//
+function _setError(errorOrNull) {
+    explorerState.error = errorOrNull;
+    if (typeof window !== 'undefined'
+        && typeof window.CustomEvent === 'function'
+        && typeof window.dispatchEvent === 'function') {
+        try {
+            window.dispatchEvent(new CustomEvent('explorer:error', {
+                detail: errorOrNull,
+            }));
+        } catch (e) {
+            // dispatchEvent should not throw for well-formed CustomEvents,
+            // but log explicitly per st8 DRY+wrap subscriber convention.
+            console.warn('[st8] explorer:error dispatch failed:', e && e.message);
+        }
+    }
 }
 
 async function _fetchViaWebSocket(path) {
@@ -292,16 +325,13 @@ function _renderExplorer() {
                     </div>
                 </header>
 
-                <!-- Error banner -->
-                ${explorerState.error ? `
-                    <div class="explorer-error-banner">
-                        <span class="explorer-error-icon">⚠</span>
-                        <span class="explorer-error-msg">${escapeHtml(explorerState.error.message)}</span>
-                        ${explorerState.error.canRetry ? `
-                            <button class="explorer-retry-btn" onclick="window.VoidFileExplorer._retry()">RETRY</button>
-                        ` : ''}
-                    </div>
-                ` : ''}
+                <!-- Error banner: rendered by the shell via the
+                     'explorer:error' CustomEvent (Wave 5I ticket
+                     FRONT-003). _setError() above dispatches the event;
+                     src/frontend/app.js paints it into .panel-titlebar.
+                     Keeping the banner OUT of this template prevents
+                     double-render and removes the MutationObserver
+                     hoist that previously moved it. -->
 
                 <!-- Content -->
                 <div class="explorer-content">
@@ -728,6 +758,7 @@ if (typeof window !== 'undefined') {
         _rowDblClick: _handleRowDblClick,
         _emitSelect: _emitSelect,
         _retry: _retry,
+        _setError: _setError,
         getWorkspaceType: () => explorerState.workspaceType,
         getIndexedFingerprints: () => explorerState.indexedFingerprints,
         setIndexedFingerprints: (fp) => { explorerState.indexedFingerprints = fp; },
