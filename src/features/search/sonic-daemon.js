@@ -47,6 +47,7 @@ const { spawn } = require('child_process');
 const net = require('net');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // ─── Config ─────────────────────────────────────────────────────
 
@@ -62,6 +63,12 @@ const SONIC_PORT = 1491;
 const HEALTH_CHECK_MAX_MS = 5000;
 const HEALTH_CHECK_INTERVAL_MS = 100;
 const SHUTDOWN_GRACE_MS = 1500;
+// Wave 5A ticket 9: per-instance auth password file (mirrors the
+// .st8/server.secret pattern from Wave 2C). Replaces the shared
+// "maestro_scaffolder_key" default in the canonical sonic.cfg with a
+// per-target random secret.
+const SONIC_PASSWORD_FILENAME = 'sonic.password';
+const SONIC_PASSWORD_BYTES = 32; // 64-hex-char secret
 
 // ─── State (singleton) ──────────────────────────────────────────
 
@@ -176,6 +183,39 @@ function validateSonicConfig(configPath) {
   }
 
   return { ok: true };
+}
+
+/**
+ * Wave 5A ticket 9: ensure `.st8/sonic.password` exists under targetDir; if
+ * absent, generate a 32-byte hex secret and write it with mode 0600. Mirror
+ * of the Wave 2C ensureSecret() in src/core/server/auth.js.
+ *
+ * Returns the password string.
+ *
+ * Returns null on any filesystem error — the daemon's caller treats null as
+ * "fall back to the canonical sonic.cfg password" so a permission glitch
+ * does not break the loopback dev case.
+ */
+function ensureSonicPassword(targetDir) {
+  try {
+    const st8Dir = path.join(targetDir, '.st8');
+    if (!fs.existsSync(st8Dir)) fs.mkdirSync(st8Dir, { recursive: true });
+    const pwPath = path.join(st8Dir, SONIC_PASSWORD_FILENAME);
+    if (fs.existsSync(pwPath)) {
+      const existing = fs.readFileSync(pwPath, 'utf8').trim();
+      if (existing.length >= 16) return existing;
+      // Stub / empty — regenerate.
+    }
+    const pw = crypto.randomBytes(SONIC_PASSWORD_BYTES).toString('hex');
+    const tmpPath = pwPath + '.tmp';
+    fs.writeFileSync(tmpPath, pw + '\n', { encoding: 'utf8', mode: 0o600 });
+    try { fs.chmodSync(tmpPath, 0o600); } catch (_) { /* non-fatal on Windows */ }
+    fs.renameSync(tmpPath, pwPath);
+    return pw;
+  } catch (err) {
+    console.warn(`[sonic-daemon] Could not materialize sonic.password: ${err.message}; falling back to canonical sonic.cfg key`);
+    return null;
+  }
 }
 
 function pingPort(host, port, timeoutMs = 500) {
@@ -294,13 +334,37 @@ async function start(options = {}) {
   }
   _state.storePath = storePath;
 
+  // Wave 5A ticket 9: ensure a per-instance auth password lives at
+  // .st8/sonic.password. We patch the canonical sonic.cfg's
+  // auth_password into the runtime config below, and tell the
+  // sonic-client singleton to use the new password on next connect.
+  // If password materialization fails we fall back to the canonical
+  // shared key — graceful degrade matches the rest of this module.
+  const sonicPassword = ensureSonicPassword(targetDir);
+  if (sonicPassword) {
+    try {
+      const { sonicClient } = require('./sonic-client');
+      if (sonicClient && typeof sonicClient.setPassword === 'function') {
+        sonicClient.setPassword(sonicPassword);
+      }
+    } catch (err) {
+      console.warn(`[sonic-daemon] Could not push password to sonic-client: ${err.message}`);
+    }
+  }
+
   // Materialize a runtime config by overriding the inet host in the template
   // to IPv4 (canonical template uses [::1] which fails in IPv6-disabled hosts).
+  // Wave 5A ticket 9: also rewrite auth_password to the per-instance secret
+  // when available, so the canonical maestro_scaffolder_key never reaches
+  // the spawned Sonic process.
   const runtimeConfig = path.join(storePath, 'sonic.runtime.cfg');
   try {
     const tpl = fs.readFileSync(SONIC_TEMPLATE_CONFIG, 'utf8');
-    const patched = tpl.replace(/^\s*inet\s*=.*$/m, `inet = "${SONIC_HOST}:${SONIC_PORT}"`);
-    fs.writeFileSync(runtimeConfig, patched);
+    let patched = tpl.replace(/^\s*inet\s*=.*$/m, `inet = "${SONIC_HOST}:${SONIC_PORT}"`);
+    if (sonicPassword) {
+      patched = patched.replace(/^\s*auth_password\s*=.*$/m, `auth_password = "${sonicPassword}"`);
+    }
+    fs.writeFileSync(runtimeConfig, patched, { mode: 0o600 });
   } catch (err) {
     _state.lastError = 'config_write_failed';
     console.warn(`[sonic-daemon] Could not materialize runtime config: ${err.message}`);
@@ -394,4 +458,11 @@ function getStatus() {
   };
 }
 
-module.exports = { start, stop, isAvailable, getStatus, validateSonicConfig };
+module.exports = {
+  start,
+  stop,
+  isAvailable,
+  getStatus,
+  validateSonicConfig,
+  ensureSonicPassword,
+};

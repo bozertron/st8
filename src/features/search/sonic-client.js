@@ -320,6 +320,24 @@ class SonicClient {
             mode: 'control',
         });
     }
+    /**
+     * Wave 5A ticket 9: rotate the auth password used by all three channels.
+     * The sonic-daemon calls this after generating a per-instance
+     * .st8/sonic.password so the client's hardcoded default does not
+     * have to match the canonical sonic.cfg shared key.
+     *
+     * Safe to call before connect(); takes effect on the next connect.
+     * If called while channels are already open they keep their current
+     * authenticated session until disconnect — the new password applies
+     * to subsequent reconnects.
+     */
+    setPassword(password) {
+        if (!password || typeof password !== 'string') return;
+        this.password = password;
+        this.searchChannel.options.password = password;
+        this.ingestChannel.options.password = password;
+        this.controlChannel.options.password = password;
+    }
     // --- Connection Lifecycle ---
     /** Connect both search and ingest channels */
     connect() {
