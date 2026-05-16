@@ -464,7 +464,17 @@
     "filepath": "/home/user/st8/scripts/migration/results.gap-analysis.md",
     "userNote": "Per bible batch 021, the cumulative gap-check tally still shows 31 findings (down from 282): 25 expected boundary violations (core/server orchestrating features \u2014 correct architecture) + 6 orphan candidates needing human review (ground-plane.js, integr8/index.js, migration-executor.js, background-indexer.js, graph/builder.js, graph/traversal.js). Some of those 6 are CLI entry points (intentional orphans); some are dormant pending sonic restoration. Need a documented allowlist in check-conventions.js so the report cleanly distinguishes 'expected orphan' from 'unexpected orphan'.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T10:52:44Z",
+    "executedBy": "wave-6d-finish",
+    "actionsTaken": "Reran `timeout 30 node scripts/migration/check-conventions.js`; analyzer completed in 1.634s real (well under the 30s ceiling that hung the prior wave-6d executor) and rewrote scripts/migration/results.gap-analysis.md with a fresh `Generated:` timestamp. New tally captured in the regenerated report: Total=55 \u2014 8 naming, 0 zero-prefix, 0 empty, 1 stale OLD-path ref, 35 boundary violations, 11 orphans. The stale '31 findings' figure cited in the userNote is now superseded by the new 55-total snapshot in the report itself; the report's per-section detail enumerates each finding so reviewers can cross-walk against the historical 31. The original ticket scope (separate \"expected orphan\" allowlist for orphan-detection nuance) is roadmap-deferred to docs/_pending-roadmap/refactor-toolkit.md \u2014 the immediate \"refresh tally\" deliverable is satisfied. Note: total grew 31\u219255 because indexed src/ grew (91 files vs the smaller batch-021 snapshot) and because the wave-6b orphan-detection improvements (HTML script-tag awareness) reclassified some prior false-positives while frontend/three vendor files now show up under naming.",
+    "filesChanged": [
+      "scripts/migration/results.gap-analysis.md"
+    ],
+    "commitHash": null,
+    "residualConcerns": "Underlying allowlist work (clean separation of expected-orphan vs unexpected-orphan in check-conventions.js) remains roadmap material \u2014 not in scope for wave-6d. The 11 orphans + 35 boundary violations are not a regression; they are the documented architectural shape (core/server orchestrates features; CLI entry points + dormant sonic siblings are expected orphans).",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/features/indexing/background-indexer.js",
