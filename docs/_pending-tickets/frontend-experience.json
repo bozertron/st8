@@ -7,7 +7,10 @@
     "executedBy": "wave-7a-executor",
     "executionStatus": "executed",
     "commitSha": "ec07e68",
-    "actionsTaken": "Removed every inline style attribute from ensureOverlay() — both the container's style.cssText and the per-element style=\"...\" strings on header/filepath/meta/close/notes/canvas-host. DOM now carries class names + ids only; visual rules live in dive-in.css (ticket 1). Display toggling switched from inline style.display to overlay.classList.add/remove('open'), with isOpen() + the ESC keydown guard updated accordingly. Grep verification: style=\" count went 5->0 and style.cssText went 1->0 inside dive-in.js."
+    "actionsTaken": "Removed every inline style attribute from ensureOverlay() — both the container's style.cssText and the per-element style=\"...\" strings on header/filepath/meta/close/notes/canvas-host. DOM now carries class names + ids only; visual rules live in dive-in.css (ticket 1). Display toggling switched from inline style.display to overlay.classList.add/remove('open'), with isOpen() + the ESC keydown guard updated accordingly. Grep verification: style=\" count went 5->0 and style.cssText went 1->0 inside dive-in.js.",
+    "reviewedBy": "wave-7a-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified grep style= → 0 and style.cssText → 0 in dive-in.js. classList.add/remove('open') toggle pattern confirmed. CSS rules carry the visual via #dive-in-overlay.open. Clean refactor."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
@@ -17,7 +20,10 @@
     "executedBy": "wave-7a-executor",
     "executionStatus": "executed",
     "commitSha": "974848d",
-    "actionsTaken": "Created src/frontend/components/dive-in/dive-in.css with the full extracted style block: #dive-in-overlay (+ .open toggle), .dive-in-header, #dive-in-filepath, #dive-in-meta, #dive-in-close, #dive-in-notes, #dive-in-canvas-host. Added hover/active states for the close diamond (text-shadow ramp + scale 1.08 → 0.95) and the Notes/Make Ticket button (border-color + background tint + text-shadow), a @media (max-width:640px) responsive block shrinking the header/buttons, and a @media (prefers-reduced-motion:reduce) override that disables transitions and the close-button scale. Theming uses tokens.css custom properties (var(--gold), var(--pink-rgb), etc) instead of hardcoded hex. Wired into index.html with <link rel=\"stylesheet\" href=\"components/dive-in/dive-in.css\" /> in the component-local stylesheets block."
+    "actionsTaken": "Created src/frontend/components/dive-in/dive-in.css with the full extracted style block: #dive-in-overlay (+ .open toggle), .dive-in-header, #dive-in-filepath, #dive-in-meta, #dive-in-close, #dive-in-notes, #dive-in-canvas-host. Added hover/active states for the close diamond (text-shadow ramp + scale 1.08 → 0.95) and the Notes/Make Ticket button (border-color + background tint + text-shadow), a @media (max-width:640px) responsive block shrinking the header/buttons, and a @media (prefers-reduced-motion:reduce) override that disables transitions and the close-button scale. Theming uses tokens.css custom properties (var(--gold), var(--pink-rgb), etc) instead of hardcoded hex. Wired into index.html with <link rel=\"stylesheet\" href=\"components/dive-in/dive-in.css\" /> in the component-local stylesheets block.",
+    "reviewedBy": "wave-7a-reviewer",
+    "verdict": "ack",
+    "reviewNote": "File exists (5006 bytes). Grep confirms hover (#dive-in-close:hover, #dive-in-notes:hover), active states, @media max-width:640px, and @media prefers-reduced-motion:reduce. Tokens used (var(--gold), var(--pink-rgb), var(--pink)) — no hardcoded hex. index.html:61 loads the stylesheet."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -81,7 +87,10 @@
     "executedBy": "wave-7a-executor",
     "executionStatus": "executed",
     "commitSha": "772af2a",
-    "actionsTaken": "Implemented the emergence pass per the founder's brief. Added state.emergence holding { startTime, targetPositions, targetColors }; buildForFile() snapshots the final position+color BufferAttributes then overwrites the live arrays with positions scaled by SCATTER_FACTOR=3.0 (scattered outward from origin) and colors lerped to EMERGENCE_COLOR (the existing cyan/teal constant). New updateEmergence(nowMs) is invoked from the anim tick: computes tRaw = min(1, elapsed/emergenceMs), applies ease-out-cubic, interpolates positions back from scale=3.0 to scale=1.0 and colors from cyan to per-particle targets, marks needsUpdate on both attributes, and clears state.emergence when tRaw hits 1. Result: clicking a file in the constellation now plays a 2500ms entrance where the building condenses inward as the color shifts from bug-juice cyan to status hue."
+    "actionsTaken": "Implemented the emergence pass per the founder's brief. Added state.emergence holding { startTime, targetPositions, targetColors }; buildForFile() snapshots the final position+color BufferAttributes then overwrites the live arrays with positions scaled by SCATTER_FACTOR=3.0 (scattered outward from origin) and colors lerped to EMERGENCE_COLOR (the existing cyan/teal constant). New updateEmergence(nowMs) is invoked from the anim tick: computes tRaw = min(1, elapsed/emergenceMs), applies ease-out-cubic, interpolates positions back from scale=3.0 to scale=1.0 and colors from cyan to per-particle targets, marks needsUpdate on both attributes, and clears state.emergence when tRaw hits 1. Result: clicking a file in the constellation now plays a 2500ms entrance where the building condenses inward as the color shifts from bug-juice cyan to status hue.",
+    "reviewedBy": "wave-7a-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified updateEmergence() defined at line 590, called from tick() at line 625. Uses BUILDING_CONFIG.emergenceMs (=2500) at line 594. SCATTER_FACTOR=3.0, EMERGENCE_COLOR=0x1FBDEA (cyan), ease-out-cubic confirmed at line 595. State self-clears on completion."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
@@ -91,7 +100,10 @@
     "executedBy": "wave-7a-executor",
     "executionStatus": "executed",
     "commitSha": "0759d2c",
-    "actionsTaken": "Replaced the anonymous resize handler inside initScene with a named `onResize` function and stored its reference in module-level EMERGENCE_RESIZE_LISTENER.fn so destroy() can call removeEventListener with the exact same identity. Added a new exported destroy() that runs hide(), detaches the resize listener, disposes the points/lines BufferGeometry, the particleMaterial ShaderMaterial, the EffectComposer, the WebGLRenderer, removes the overlay from the DOM, and nulls out every field on state. The destroy export is wired into window.St8DiveIn alongside show/hide/isOpen/setStatus. Normal hide()/show() cycles still keep the scene alive for cheap re-use — destroy() is purely the HMR / module-teardown path. The keydown ESC handler is intentionally left untouched on this pass because tearing down the whole overlay element via destroy() removes the only thing the handler interacts with; the listener is harmless once state.overlay is null (the guard short-circuits)."
+    "actionsTaken": "Replaced the anonymous resize handler inside initScene with a named `onResize` function and stored its reference in module-level EMERGENCE_RESIZE_LISTENER.fn so destroy() can call removeEventListener with the exact same identity. Added a new exported destroy() that runs hide(), detaches the resize listener, disposes the points/lines BufferGeometry, the particleMaterial ShaderMaterial, the EffectComposer, the WebGLRenderer, removes the overlay from the DOM, and nulls out every field on state. The destroy export is wired into window.St8DiveIn alongside show/hide/isOpen/setStatus. Normal hide()/show() cycles still keep the scene alive for cheap re-use — destroy() is purely the HMR / module-teardown path. The keydown ESC handler is intentionally left untouched on this pass because tearing down the whole overlay element via destroy() removes the only thing the handler interacts with; the listener is harmless once state.overlay is null (the guard short-circuits).",
+    "reviewedBy": "wave-7a-reviewer",
+    "verdict": "ack",
+    "reviewNote": "EMERGENCE_RESIZE_LISTENER ref at line 329, onResize stored at 537, destroy() at 452 calls removeEventListener with same fn ref at 455. destroy exported via window.St8DiveIn at line 641. ESC keydown deferral noted and documented."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -113,7 +125,10 @@
     "executedBy": "wave-7a-executor",
     "executionStatus": "executed",
     "commitSha": "2b9e1cd",
-    "actionsTaken": "Chose fix option (b) — replaced the `window.showCopyFeedback` global lookup with a `typeof showCopyFeedback === 'function'` guard and direct call to the local function. Passing `filepath` so the COPIED-style badge lands on the right .file-list-item row instead of being lost. The console.info Ticket-id log is now unconditional rather than living inside an unreachable else, so we still get the backend confirmation in the dev console alongside the UI toast."
+    "actionsTaken": "Chose fix option (b) — replaced the `window.showCopyFeedback` global lookup with a `typeof showCopyFeedback === 'function'` guard and direct call to the local function. Passing `filepath` so the COPIED-style badge lands on the right .file-list-item row instead of being lost. The console.info Ticket-id log is now unconditional rather than living inside an unreachable else, so we still get the backend confirmation in the dev console alongside the UI toast.",
+    "reviewedBy": "wave-7a-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified app.js:749 uses `typeof showCopyFeedback === 'function'` guard; line 750 calls showCopyFeedback(filepath) with the filepath arg. window.showCopyFeedback lookup removed. console.info Ticket-id log moved out of unreachable else (now unconditional). Real bug fixed."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
@@ -129,7 +144,10 @@
     "executedBy": "wave-7a-executor",
     "executionStatus": "executed",
     "commitSha": "181f710",
-    "actionsTaken": "hide() now sets controls.autoRotate=false to halt the camera spin once the overlay is closed; show() restores controls.autoRotate=true so the next dive-in session starts spinning at the existing autoRotateSpeed=0.5. Both writes are guarded by `if (state.controls)` so the first-show case (controls not yet initialised) is safe. NOTE: the implementing diff was co-shipped in the same hide()/show() edit pair as ticket 12 (commit 0759d2c); a follow-up empty marker commit 181f710 carries the per-ticket subject line so the executor-trail is unambiguous."
+    "actionsTaken": "hide() now sets controls.autoRotate=false to halt the camera spin once the overlay is closed; show() restores controls.autoRotate=true so the next dive-in session starts spinning at the existing autoRotateSpeed=0.5. Both writes are guarded by `if (state.controls)` so the first-show case (controls not yet initialised) is safe. NOTE: the implementing diff was co-shipped in the same hide()/show() edit pair as ticket 12 (commit 0759d2c); a follow-up empty marker commit 181f710 carries the per-ticket subject line so the executor-trail is unambiguous.",
+    "reviewedBy": "wave-7a-reviewer",
+    "verdict": "ack",
+    "reviewNote": "show() at line 429 sets autoRotate=true, hide() at line 442 sets autoRotate=false, both guarded by `if (state.controls)`. Co-shipped commit pattern (real diff in 0759d2c, marker 181f710) is transparent and acceptable for executor-trail clarity."
   },
   {
     "filepath": "/home/user/st8/src/frontend/styles/carousel.css",
