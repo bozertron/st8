@@ -25,7 +25,6 @@ const explorerState = {
     selectedPaths: new Set(),
     activeLocation: 'HOME',
     onSelect: null,            // callback: fn(paths[])
-    showHidden: true,         // hidden files always shown (single-user tool)
     workspaceType: 'logic-analyzer', // default to Logic Analyzer
     indexedFingerprints: null, // populated after indexing
 };
@@ -171,17 +170,6 @@ function _isNetworkError(err) {
         || msg.includes('timeout')
         || msg.includes('failed to fetch')
         || msg.includes('econnrefused');
-}
-
-// ─── HIDDEN FILES TOGGLE ─────────────────────────────────────
-
-function _toggleHidden() {
-    explorerState.showHidden = !explorerState.showHidden;
-    try {
-        localStorage.setItem(LS_SHOW_HIDDEN, String(explorerState.showHidden));
-    } catch (e) { /* ignore */ }
-    explorerState.filteredEntries = _filterEntries(explorerState.entries);
-    _renderExplorer();
 }
 
 // ─── INTERACTION ──────────────────────────────────────────────
@@ -739,7 +727,6 @@ if (typeof window !== 'undefined') {
         _rowClick: _handleRowClick,
         _rowDblClick: _handleRowDblClick,
         _emitSelect: _emitSelect,
-        _toggleHidden: _toggleHidden,
         _retry: _retry,
         getWorkspaceType: () => explorerState.workspaceType,
         getIndexedFingerprints: () => explorerState.indexedFingerprints,

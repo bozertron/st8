@@ -109,7 +109,10 @@
       "file": "src/frontend/components/file-explorer/file-explorer.js",
       "lineHint": "178-185 (_toggleHidden)",
       "summary": "_toggleHidden() calls localStorage.setItem(LS_SHOW_HIDDEN, ...) but LS_SHOW_HIDDEN is never declared. The function is also never wired into the rendered UI (no button calls it).",
-      "proposed": "Remove _toggleHidden and the showHidden state, or define LS_SHOW_HIDDEN and add a toggle button."
+      "proposed": "Remove _toggleHidden and the showHidden state, or define LS_SHOW_HIDDEN and add a toggle button.",
+      "status": "executed",
+      "executedBy": "wave-5h-executor",
+      "actionsTaken": "Chose REMOVAL (option a). Verification before removal: grep across src/ and tests/ for `_toggleHidden|toggleHidden` returned only the two in-file references (definition at line 178 + export at line 742) — ZERO external callers, no UI button wired to it, no test exercising it. Additional verification: explorerState.showHidden was set to `true` at init and only toggled by the dead function — `_filterEntries` (line 111) is `return entries` (a no-op), so showHidden never gated any rendering. Removed three things from src/frontend/components/file-explorer/file-explorer.js: (1) the `showHidden: true` field from the explorerState initializer (line 28), (2) the entire `_toggleHidden` function block + `HIDDEN FILES TOGGLE` section header (lines 176-185), (3) the `_toggleHidden: _toggleHidden` line from the public window.FileExplorer export object (line 742). Net deletion: 11 lines. Eliminates the undeclared-global ReferenceError that would have fired the first time anything called `_toggleHidden` (LS_SHOW_HIDDEN was an implicit global / typo that would throw in strict mode). Tests remain at 363/0/0/0."
     },
     {
       "id": "FRONT-005",
