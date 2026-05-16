@@ -12,28 +12,41 @@
 'use strict';
 
 // ─── D3 LOADING ──────────────────────────────────────────────
+//
+// OFFLINE-FIRST (Wave 5H ticket 4):
+//   D3.js is vendored locally at src/frontend/vendor/d3/d3.v7.min.js
+//   (served from the same origin as everything else under STATIC_DIR
+//   == repo root). Previously the script src pointed at
+//   https://d3js.org/d3.v7.min.js — that broke the desktop-first /
+//   offline stance set during Sonic integration and was also a CSP
+//   liability. No network fetch is attempted; if the vendored file
+//   is missing, loadD3 rejects (no silent CDN fallback). To refresh:
+//     curl -sLo src/frontend/vendor/d3/d3.v7.min.js https://d3js.org/d3.v7.min.js
+//   Version pinned to v7.9.0 (matches the previous CDN target).
 
 let d3 = null;
 
+const D3_VENDOR_URL = '/src/frontend/vendor/d3/d3.v7.min.js';
+
 function loadD3() {
     if (d3) return d3;
-    
-    // Try to load D3 from CDN
+
+    // Load D3 from the local vendored copy (offline-first, no CDN).
     return new Promise(function(resolve, reject) {
         if (window.d3) {
             d3 = window.d3;
             resolve(d3);
             return;
         }
-        
+
         var script = document.createElement('script');
-        script.src = 'https://d3js.org/d3.v7.min.js';
+        script.src = D3_VENDOR_URL;
         script.onload = function() {
             d3 = window.d3;
             resolve(d3);
         };
         script.onerror = function() {
-            reject(new Error('Failed to load D3.js'));
+            reject(new Error('Failed to load D3.js from ' + D3_VENDOR_URL + ' — vendored file missing? Refresh with: curl -sLo src/frontend/vendor/d3/d3.v7.min.js https://d3js.org/d3.v7.min.js'));
         };
         document.head.appendChild(script);
     });
