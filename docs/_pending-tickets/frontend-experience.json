@@ -29,7 +29,12 @@
     "filepath": "/home/user/st8/src/frontend/app.js",
     "userNote": "The 5-second `setInterval` in `bootConstellation` re-fetches `/api/connection-state.json` and re-colors every particle on every tick. This is wasteful and also already-covered: `initMutationStream` connects to `/api/mutations` SSE for the toast handler, and per-file mutation events arrive there. Wire `St8Constellation.updateFileStatus(fingerprint, status)` into the SSE `onmessage` callback and drop the poll.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "YELLOW",
+    "executedBy": "wave-7b-executor",
+    "executionStatus": "resolved-upstream",
+    "upstreamCluster": "lifecycle-and-eventing",
+    "upstreamCommit": "59325e8",
+    "actionsTaken": "RESOLVED-UPSTREAM by Wave 4D ticket 1 (lifecycle-and-eventing cluster, commit 59325e8). The 5s setInterval poll of /api/connection-state.json was deleted; constellation recolor now subscribes to the existing /api/mutations SSE stream via a `st8:mutation` CustomEvent rebroadcast. Verified by `grep \"setInterval.*connection-state\" src/frontend/app.js` → 0 hits (only a comment at L273 documents the migration). Wave 4D's review verdict was ack with mutation probe; no further action required from this cluster."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
