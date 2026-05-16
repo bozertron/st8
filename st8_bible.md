@@ -2596,6 +2596,52 @@ For each of 43 schema cards in `st8_json/schema-cards/`: recover original filepa
 
 ### Louis Concept (captured for future session — not implemented yet)
 
+> **Louis Cross-References (Wave 8A — ticket 1)**
+>
+> The Louis design is fragmented across this bible. **The canonical
+> spec is no longer the bible itself — it is
+> `docs/components/louis-and-locking.md`** (a Wave-7-era consolidation
+> + Wave 8A annotations). The bible holds the original design memo and
+> a handful of forward-pointing mentions; future Louis work should
+> cite the component doc and the roadmap, not duplicate either here.
+>
+> Every Louis mention in the bible as of Wave 8A:
+>
+> - **§Batch 021 (this section, lines 2527-2610)** — original "Lock 'em
+>   up Louis" design memo. The three-tab description, the three
+>   integration paths (A/B/C), the Path C plan, and the captured chmod
+>   primitive sketch. Source of truth for the *concept*; superseded for
+>   *implementation* by the component doc.
+> - **§Batch 023 (hooks-architecture)** — "future modules — Louis,
+>   plugins, external integrations" appears in the rationale for why
+>   the hook chain needed to be lifted out of `main.js`. Forward
+>   pointer only.
+> - **§LifecyclePhase / FileStatus enum tables** — the `LOCKED` slot is
+>   reserved in both enums but never written. Phase L1 of the roadmap
+>   adds the write path.
+> - **§Constellation color slot** — `STATUS_COLOR.LOCKED` reserves the
+>   pink token (`{r:201, g:116, b:143}`); now lives in
+>   `src/frontend/components/status-colors.js` (Wave 7C ticket 9
+>   consolidation).
+> - **§Line ~1617 ("Defined-but-never-fired")** — the `LOCK` mutation
+>   type in the type system that the Wave-8A audit-trail decision
+>   (component doc, "Lock-history audit trail — DECIDED") finally
+>   binds to a firing site.
+>
+> **Authoritative documents** (in priority order):
+>
+> 1. `docs/components/louis-and-locking.md` — canonical spec, decisions
+>    D1–D7, chmod primitive in full, boundary docs, audit-trail
+>    decision.
+> 2. `docs/_pending-roadmap/louis-and-locking.md` — Phase L1–L4 build
+>    plan with exit criteria + dependency graph.
+> 3. `docs/_pending-tickets/louis-and-locking.json` — per-file
+>    backlog, mostly GREEN forward-looking entries.
+>
+> Future Louis batches: add a cross-link entry here pointing at the
+> batch number, but keep the prose in the component doc. The bible is
+> the design-decision log, not the spec.
+
 The founder uploaded `Louis/` (commit `1df677b` on `master`): a 1463-line PyQt6 desktop app called "Lock 'em up Louis" containing three fused tools:
 
 1. **👮 Louis (Warden)** — File locking. `chmod 444` to lock, `chmod 644` to unlock. State in `~/.louis-control/{louis-config.json, protected-files.txt, lock-history.log}`. Optional `.git/hooks/pre-commit` that refuses commits to protected files.

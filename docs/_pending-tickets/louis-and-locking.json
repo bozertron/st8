@@ -11,7 +11,9 @@
     "filepath": "/home/user/st8/st8_bible.md",
     "userNote": "The Louis design memo is fragmented across the bible. Batch 021 (lines 2527-2610) holds the canonical Path C plan + the 50-line chmod primitive. References to Louis surface in batch 023 (hooks-architecture: 'future modules — Louis, plugins...'), in the LifecyclePhase/FileStatus enum tables (LOCKED slot reserved), and in the constellation's LOCKED color slot. A new contributor cannot read 'the Louis spec' as one document. docs/components/louis-and-locking.md consolidates everything in one place — this ticket exists to track the fact that the bible itself is not the canonical implementation spec; the docs/components/ entry is. If/when batches 028+ touch Louis again, the bible entry should link forward to the consolidated doc, not duplicate it.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-8a-executor",
+    "wave8aOutcome": "Added a 'Louis Cross-References (Wave 8A — ticket 1)' blockquote at the top of bible §Batch 021's 'Louis Concept' subsection. The block enumerates every Louis mention in the bible (Batch 021 design memo, Batch 023 hooks-arch forward pointer, LifecyclePhase/FileStatus enum tables, constellation STATUS_COLOR.LOCKED slot, line ~1617 'Defined-but-never-fired' note for the LOCK mutationType), lists the three authoritative documents in priority order (component doc > roadmap > tickets JSON), and sets the forward-going convention: 'future Louis batches add a cross-link entry here but keep the prose in the component doc.' Closes the 'no single Louis spec' problem this ticket raised."
   },
   {
     "filepath": "/home/user/st8/Louis/lock_em_up_louis_v2.py",
