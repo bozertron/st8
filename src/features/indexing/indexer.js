@@ -242,17 +242,24 @@ async function buildGraph(files, targetDir) {
     const graphBuilder = getGraphBuilder();
     if (!graphBuilder) {
         console.warn('[st8:indexer] Graph builder not available, using basic classification');
-        return classifyBasic(files, targetDir);
+        return { classifications: classifyBasic(files, targetDir), cycles: [] };
     }
-    
+
     try {
         // The maestro graphBuilder exports buildDependencyGraph (async)
         if (typeof graphBuilder.buildDependencyGraph === 'function') {
             const report = await graphBuilder.buildDependencyGraph(targetDir);
-            
+
             // CR-02 FIX: Transform from { nodes: [...], circularDeps: [...], ... }
-            // to array of { filepath, status, reachabilityScore, impactRadius }
-            // The merge logic in indexDirectory expects an array with .find()
+            // to array of { filepath, status, reachabilityScore, impactRadius }.
+            // The merge loop in indexDirectory expects an array with .find().
+            //
+            // Batch 030: ALSO surface report.circularDeps so the
+            // cycle-insight-emitter subscriber (INDEX_COMPLETE P=37) can write
+            // canonical `circular_dependency` InsightRecords. Without this the
+            // DFS-detected cycles get computed and dropped on every index pass.
+            // See bible batch 030 + docs/_pending-roadmap/sonic-and-search.md
+            // (P2 Layer 2 Pass-2 — "each pass be its own hook subscriber").
             if (report && Array.isArray(report.nodes)) {
                 const healthToStatus = {
                     'healthy': 'GREEN',
@@ -260,8 +267,8 @@ async function buildGraph(files, targetDir) {
                     'unused': 'YELLOW',
                     'partial': 'YELLOW'
                 };
-                
-                return report.nodes
+
+                const classifications = report.nodes
                     .filter(node => node.path) // Only nodes with file paths
                     .map(node => ({
                         filepath: node.path,
@@ -270,16 +277,20 @@ async function buildGraph(files, targetDir) {
                         reachabilityScore: node.health === 'healthy' ? 0.95 : (node.health === 'unused' ? 0.1 : 0.0),
                         impactRadius: node.impactRadius || 0
                     }));
+                return {
+                    classifications,
+                    cycles: Array.isArray(report.circularDeps) ? report.circularDeps : []
+                };
             }
-            
+
             // Fallback if unexpected shape
             console.warn('[st8:indexer] buildDependencyGraph returned unexpected shape, using basic classification');
-            return classifyBasic(files, targetDir);
+            return { classifications: classifyBasic(files, targetDir), cycles: [] };
         }
-        return classifyBasic(files, targetDir);
+        return { classifications: classifyBasic(files, targetDir), cycles: [] };
     } catch (err) {
         console.error('[st8:indexer] Error building graph:', err.message);
-        return classifyBasic(files, targetDir);
+        return { classifications: classifyBasic(files, targetDir), cycles: [] };
     }
 }
 
@@ -420,9 +431,12 @@ async function indexDirectory(targetDir, options = {}) {
         };
     });
     
-    // Build graph and classify (await: buildGraph is now async due to async graphBuilder)
-    const classifiedFiles = await buildGraph(parsedFiles, targetDir);
-    
+    // Build graph and classify (await: buildGraph is now async due to async graphBuilder).
+    // Batch 030: destructure into classifications + cycles so the cycle data
+    // (previously dropped by the CR-02 transformation) survives to indexDirectory's
+    // return value and reaches INDEX_COMPLETE subscribers via result.cycles.
+    const { classifications: classifiedFiles, cycles } = await buildGraph(parsedFiles, targetDir);
+
     // Merge classification with parsed data
     const finalFiles = parsedFiles.map(file => {
         const classification = classifiedFiles.find(c => c.filepath === file.filepath) || {};
@@ -481,7 +495,11 @@ async function indexDirectory(targetDir, options = {}) {
         }
     }
 
-    return { files: finalFiles, manifest, identityRisk: fbSummary };
+    // Batch 030: include `cycles` (empty array when the graph builder didn't
+    // produce any) so the INDEX_COMPLETE cycle-insight-emitter subscriber
+    // can emit canonical `circular_dependency` insights via the existing
+    // insight-store.addInsightsBatch() path.
+    return { files: finalFiles, manifest, identityRisk: fbSummary, cycles: cycles || [] };
 }
 
 // ─── CLI ENTRY POINT ─────────────────────────────────────────

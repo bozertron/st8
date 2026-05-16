@@ -223,6 +223,38 @@ function registerDefaultSubscribers(registry) {
     }
   }, { priority: 35, source: 'insight-store-populator' });
 
+  // P=37 — cycle-insight-emitter (Batch 030).
+  //
+  // First slice of the sonic-and-search roadmap's P2 Layer 2 Pass-2
+  // ("Dependency Health"). Reads ctx.result.cycles — the circular-
+  // dependency data computed by src/features/graph/builder.js and
+  // surfaced through indexer.js as of Batch 030 (previously dropped by
+  // the CR-02 transformation). Emits one canonical `circular_dependency`
+  // InsightRecord per detected cycle via the same insight-store path the
+  // populator uses, so a future GET /api/insights?category=circular_dependency
+  // query returns real data.
+  //
+  // Runs AFTER insight-store-populator (P=35) so the InsightStore's
+  // FileInsightSlots already have rows for any cycle participant —
+  // ensureFileSlot is idempotent so this is belt-and-braces rather
+  // than required ordering. Runs BEFORE intent-seeder (P=40).
+  registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
+    try {
+      const cycles = (ctx && ctx.result && Array.isArray(ctx.result.cycles)) ? ctx.result.cycles : [];
+      if (cycles.length === 0) {
+        // Silent: no cycles is the normal-and-good case.
+        return;
+      }
+      const { emitCycleInsights } = require('../../features/analysis/cycle-insight-emitter');
+      const result = emitCycleInsights(cycles, { projectId: 'st8' });
+      console.log(
+        `[st8] Cycle insights: ${result.inserted} circular_dependency records emitted (${result.skipped} skipped — no file data)`
+      );
+    } catch (err) {
+      console.error('[st8] cycle-insight-emitter failed:', err.message);
+    }
+  }, { priority: 37, source: 'cycle-insight-emitter' });
+
   // P=50 — file_mutation_log retention (ticket 10, Wave 1B).
   //
   // Policy:
