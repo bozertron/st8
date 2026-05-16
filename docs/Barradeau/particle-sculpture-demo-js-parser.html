@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>particle-sculpture-demo-js-parser</title>
+  <style>
+    :root {
+      --bg: #050608;
+      --surface: rgba(255,255,255,0.05);
+      --surface-2: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.12);
+      --text: #f3f4f7;
+      --muted: #a9b0bc;
+      --accent: #8fe6ff;
+      --fn: #9dc5ff;
+      --kw: #ff9bd3;
+      --str: #8effc1;
+      --num: #ffd780;
+      --com: #93a0b4;
+      --op: #dfc6ff;
+      --imp: #ffb18a;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #0f141b 0%, #07090c 50%, #020304 100%); color: var(--text); font-family: var(--sans); }
+    body { overflow: hidden; }
+    #bg, #app { position: fixed; inset: 0; }
+    #bg { z-index: 0; opacity: 0.12; pointer-events: none; }
+    #app { z-index: 1; width: 100%; height: 100%; display: block; }
+    .shell { position: fixed; inset: 0; z-index: 2; display: grid; grid-template-columns: 430px 1fr; gap: 16px; padding: 16px; pointer-events: none; }
+    .panel { pointer-events: auto; align-self: start; background: linear-gradient(180deg, rgba(14,18,24,0.9), rgba(8,10,14,0.78)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(18px); overflow: hidden; }
+    .panel-inner { padding: 18px; display: grid; gap: 12px; }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .logo { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: var(--accent); background: linear-gradient(135deg, rgba(143,230,255,0.24), rgba(255,255,255,0.08)); border: 1px solid rgba(255,255,255,0.12); }
+    h1 { margin: 0; font-size: 1.08rem; }
+    .sub { margin: 5px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+    .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: #d8f8ff; margin-top: 4px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .toolbar, .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip, button, select, textarea, input { border-radius: 12px; border: 1px solid var(--border); color: var(--text); font: inherit; }
+    .chip { padding: 6px 9px; font-size: 0.76rem; background: rgba(255,255,255,0.05); }
+    .chip.fn { color: var(--fn); } .chip.kw { color: var(--kw); } .chip.str { color: var(--str); } .chip.num { color: var(--num); } .chip.com { color: var(--com); } .chip.op { color: var(--op); } .chip.imp { color: var(--imp); }
+    label { display: grid; gap: 6px; font-size: 0.84rem; color: var(--muted); }
+    textarea, select, input { width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); outline: none; }
+    textarea { min-height: 240px; resize: vertical; font-family: var(--mono); line-height: 1.45; }
+    input[type="range"] { padding: 0; background: transparent; border: none; }
+    button { cursor: pointer; padding: 10px 13px; background: linear-gradient(180deg, rgba(143,230,255,0.18), rgba(143,230,255,0.08)); transition: 180ms ease; }
+    button:hover { transform: translateY(-1px); border-color: rgba(143,230,255,0.38); }
+    .secondary { background: rgba(255,255,255,0.04); }
+    .dropzone { border: 1px dashed rgba(143,230,255,0.35); background: rgba(143,230,255,0.05); border-radius: 14px; padding: 14px; text-align: center; color: var(--muted); }
+    .hidden { display: none !important; }
+    .status { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--muted); font-size: 0.82rem; font-family: var(--mono); white-space: pre-wrap; }
+    .note, .list { color: var(--muted); font-size: 0.79rem; line-height: 1.45; }
+    .right { display: grid; align-content: end; justify-items: end; gap: 10px; }
+    .pill { pointer-events: auto; background: rgba(7,9,12,0.72); border: 1px solid var(--border); border-radius: 999px; padding: 9px 12px; color: var(--muted); font-size: 0.8rem; backdrop-filter: blur(12px); }
+    @media (max-width: 980px) { body { overflow: auto; } .shell { grid-template-columns: 1fr; } .right { justify-items: stretch; align-content: start; } }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <canvas id="app"></canvas>
+
+  <div class="shell">
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="brand">
+          <div class="logo">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <circle cx="12" cy="12" r="7.5"></circle><path d="M4 12h16"></path><path d="M12 4v16"></path>
+            </svg>
+          </div>
+          <div>
+            <h1>AST-Aware JS Particle Sculpture</h1>
+            <p class="sub">Upgraded version with an Acorn JavaScript parser example, AST walking, and node-aware particle subfields.</p>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="section-title">JavaScript / TypeScript starting point</div>
+          <div class="note">Drop a <strong>.js</strong>, <strong>.mjs</strong>, <strong>.cjs</strong>, <strong>.ts</strong>, or <strong>.jsx</strong> file, or edit the sample below. The parser pipeline is the part meant for you to extend.</div>
+          <input id="fileInput" type="file" class="hidden" accept=".js,.mjs,.cjs,.jsx,.ts,.tsx,.json,.txt,.md" />
+        </div>
+
+        <div class="legend">
+          <span class="chip imp">import/export</span>
+          <span class="chip fn">function/call</span>
+          <span class="chip kw">control flow</span>
+          <span class="chip str">string</span>
+          <span class="chip num">number</span>
+          <span class="chip com">comment</span>
+          <span class="chip op">operator</span>
+        </div>
+
+        <label>
+          JavaScript source
+          <textarea id="textInput" spellcheck="false">import { Vector3 } from 'three';
+
+export function buildField(source, options = {}) {
+  const scale = options.scale ?? 1.0;
+  const threshold = 0.42;
+
+  function projectToken(token) {
+    if (typeof token.value === 'number') {
+      return token.value * scale;
+    }
+    return String(token.value || '').length * threshold;
+  }
+
+  const points = [];
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === '{' || ch === '}') continue;
+    points.push(new Vector3(i * 0.01, Math.sin(i * 0.1), Math.cos(i * 0.07)));
+  }
+
+  return points.map((p, index) => ({
+    index,
+    x: p.x,
+    y: p.y,
+    z: p.z,
+    weight: projectToken({ value: index })
+  }));
+}</textarea>
+        </label>
+
+        <div class="row">
+          <label>
+            Parse mode
+            <select id="parseMode">
+              <option value="module" selected>ECMAScript module</option>
+              <option value="script">Classic script</option>
+            </select>
+          </label>
+          <label>
+            Texture size
+            <select id="sizeSelect">
+              <option value="128">128²</option>
+              <option value="256" selected>256²</option>
+              <option value="512">512²</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            AST lift
+            <input id="astLift" type="range" min="0" max="4" step="0.01" value="1.6" />
+          </label>
+          <label>
+            Flow strength
+            <input id="flowStrength" type="range" min="0" max="1" step="0.01" value="0.24" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            Point size
+            <input id="pointSize" type="range" min="0.6" max="5" step="0.1" value="1.9" />
+          </label>
+          <label>
+            Noise strength
+            <input id="noiseStrength" type="range" min="0" max="1.4" step="0.01" value="0.18" />
+          </label>
+        </div>
+
+        <div class="toolbar">
+          <button id="applyBtn">Parse + sculpt</button>
+          <button id="sampleBtn" class="secondary">Load sample</button>
+          <button id="pauseBtn" class="secondary">Pause</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+
+        <div class="status" id="status">ready</div>
+
+        <div class="list">
+          <div class="section-title">Parser pipeline</div>
+          This demo parses source with Acorn, walks the AST, derives semantic node records, aligns comments and token ranges, and converts those records into particle fields. It is designed to be swapped for Babel, SWC, Tree-sitter, or a custom parser later.
+        </div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="pill" id="summaryPill">mode: js-parser · particles: 65536</div>
+      <div class="pill" id="astPill">ast nodes: 0 · comments: 0</div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import * as acorn from 'https://cdn.jsdelivr.net/npm/acorn@8.14.0/+esm';
+    import * as acornWalk from 'https://cdn.jsdelivr.net/npm/acorn-walk@8.3.4/+esm';
+
+    const statusEl = document.getElementById('status');
+    const summaryPill = document.getElementById('summaryPill');
+    const astPill = document.getElementById('astPill');
+    const textInput = document.getElementById('textInput');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const parseModeEl = document.getElementById('parseMode');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const astLiftEl = document.getElementById('astLift');
+    const flowStrengthEl = document.getElementById('flowStrength');
+    const pointSizeEl = document.getElementById('pointSize');
+    const noiseStrengthEl = document.getElementById('noiseStrength');
+    const applyBtn = document.getElementById('applyBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const state = {
+      mode: 'js-parser',
+      running: true,
+      size: Number(sizeSelect.value),
+      count: Number(sizeSelect.value) ** 2,
+      rtA: null,
+      rtB: null,
+      geometry: null,
+      points: null,
+      materials: {},
+      currentFileName: null,
+      astNodeCount: 0,
+      commentCount: 0,
+      orbit: { yaw: 0, pitch: 0.16, radius: 11.5 },
+      dragging: false,
+      lastPointer: null,
+      mouse: new THREE.Vector2(0, 0),
+    };
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function setSummary() {
+      summaryPill.textContent = `mode: ${state.mode} · particles: ${state.count}${state.currentFileName ? ` · file: ${state.currentFileName}` : ''}`;
+      astPill.textContent = `ast nodes: ${state.astNodeCount} · comments: ${state.commentCount}`;
+    }
+    function ext(name='') { const idx = name.lastIndexOf('.'); return idx >= 0 ? name.slice(idx + 1).toLowerCase() : ''; }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function smooth01(v) { return v * v * (3 - 2 * v); }
+    function hashString(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+    function rangeNorm(v, a, b) { return b === a ? 0 : (v - a) / (b - a); }
+
+    particlesJS('bg', {
+      particles: {
+        number: { value: 56, density: { enable: true, value_area: 1200 } },
+        color: { value: '#d7f8ff' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.24, random: true },
+        size: { value: 2.0, random: true },
+        line_linked: { enable: false },
+        move: { enable: true, speed: 0.46, direction: 'none', random: true, out_mode: 'out' }
+      },
+      interactivity: { detect_on: 'canvas', events: { onhover: { enable: false }, onclick: { enable: false }, resize: true } },
+      retina_detect: true
+    });
+
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('app'), antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    const simScene = new THREE.Scene();
+    const simCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    function makeDataTexture(data, size) {
+      const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.FloatType);
+      tex.needsUpdate = true;
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      return tex;
+    }
+
+    function buildResources(size) {
+      if (state.points) { scene.remove(state.points); state.geometry.dispose(); state.materials.render.dispose(); }
+      if (state.materials.sim) { state.materials.sim.dispose(); while (simScene.children.length) simScene.remove(simScene.children[0]); }
+      if (state.rtA) state.rtA.dispose();
+      if (state.rtB) state.rtB.dispose();
+
+      state.rtA = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.FloatType, depthBuffer: false, stencilBuffer: false });
+      state.rtB = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.FloatType, depthBuffer: false, stencilBuffer: false });
+
+      state.materials.sim = new THREE.ShaderMaterial({
+        uniforms: {
+          uPositions: { value: null },
+          uTarget: { value: null },
+          uFlowTex: { value: null },
+          uDensityTex: { value: null },
+          uTime: { value: 0 },
+          uDelta: { value: 0.016 },
+          uFlowStrength: { value: Number(flowStrengthEl.value) },
+          uNoiseStrength: { value: Number(noiseStrengthEl.value) },
+          uMouse: { value: new THREE.Vector3(0, 0, 0) },
+        },
+        vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vUv;
+          uniform sampler2D uPositions;
+          uniform sampler2D uTarget;
+          uniform sampler2D uFlowTex;
+          uniform sampler2D uDensityTex;
+          uniform float uTime;
+          uniform float uDelta;
+          uniform float uFlowStrength;
+          uniform float uNoiseStrength;
+          uniform vec3 uMouse;
+
+          vec3 hash3(vec3 p){
+            p = vec3(dot(p, vec3(127.1,311.7,74.7)), dot(p, vec3(269.5,183.3,246.1)), dot(p, vec3(113.5,271.9,124.6)));
+            return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+          }
+          vec3 noiseVec(vec3 p, float t){ return normalize(hash3(p * 1.9 + vec3(t * 0.13, t * 0.09, t * 0.11)) + 1e-5); }
+
+          void main(){
+            vec4 p4 = texture2D(uPositions, vUv);
+            vec3 pos = p4.xyz;
+            float alive = p4.w;
+            vec4 t4 = texture2D(uTarget, vUv);
+            vec3 target = t4.xyz;
+            float density = texture2D(uDensityTex, vUv).r;
+            vec3 flow = texture2D(uFlowTex, vUv).xyz * 2.0 - 1.0;
+            vec3 n = noiseVec(pos, uTime);
+
+            vec3 v = (target - pos) * (0.08 + density * 0.32);
+            v += flow * uFlowStrength * (0.3 + density);
+            v += n * uNoiseStrength * (0.18 + density * 0.82);
+
+            vec3 away = pos - uMouse;
+            float md = length(away) + 0.0001;
+            v += normalize(away) * smoothstep(3.6, 0.0, md) * 0.08;
+
+            pos += v * uDelta * 60.0;
+            pos = mix(pos, target, 0.01 + density * 0.05);
+            gl_FragColor = vec4(pos, alive * t4.w);
+          }
+        `
+      });
+      simScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), state.materials.sim));
+
+      const refs = new Float32Array(size * size * 2);
+      const verts = new Float32Array(size * size * 3);
+      for (let i = 0; i < size * size; i++) {
+        const x = i % size, y = Math.floor(i / size);
+        refs[i * 2] = (x + 0.5) / size;
+        refs[i * 2 + 1] = (y + 0.5) / size;
+      }
+      state.geometry = new THREE.BufferGeometry();
+      state.geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      state.geometry.setAttribute('ref', new THREE.BufferAttribute(refs, 2));
+
+      state.materials.render = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uPositions: { value: null },
+          uColorTex: { value: null },
+          uPointSize: { value: Number(pointSizeEl.value) },
+          uViewportHeight: { value: window.innerHeight },
+        },
+        vertexShader: `
+          precision highp float;
+          attribute vec2 ref;
+          uniform sampler2D uPositions;
+          uniform float uPointSize;
+          uniform float uViewportHeight;
+          varying vec2 vRef;
+          varying float vAlpha;
+          void main(){
+            vRef = ref;
+            vec4 p = texture2D(uPositions, ref);
+            vec4 mv = modelViewMatrix * vec4(p.xyz, 1.0);
+            gl_Position = projectionMatrix * mv;
+            gl_PointSize = uPointSize * (uViewportHeight / 900.0) * (1.0 / max(0.35, -mv.z));
+            vAlpha = p.w;
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vRef;
+          varying float vAlpha;
+          uniform sampler2D uColorTex;
+          void main(){
+            vec2 c = gl_PointCoord - 0.5;
+            float d = dot(c, c);
+            float mask = smoothstep(0.25, 0.0, d);
+            vec4 col = texture2D(uColorTex, vRef);
+            gl_FragColor = vec4(col.rgb, col.a * vAlpha * mask * 0.92);
+          }
+        `
+      });
+
+      state.points = new THREE.Points(state.geometry, state.materials.render);
+      scene.add(state.points);
+    }
+
+    function swapRT() { const t = state.rtA; state.rtA = state.rtB; state.rtB = t; }
+
+    function classifyNode(node, parent = null) {
+      if (!node) return 'other';
+      if (node.type === 'ImportDeclaration' || node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration' || node.type === 'ExportAllDeclaration') return 'importExport';
+      if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') return 'function';
+      if (node.type === 'CallExpression' || node.type === 'NewExpression') return 'call';
+      if (node.type === 'IfStatement' || node.type === 'ForStatement' || node.type === 'ForOfStatement' || node.type === 'ForInStatement' || node.type === 'WhileStatement' || node.type === 'DoWhileStatement' || node.type === 'SwitchStatement' || node.type === 'ReturnStatement' || node.type === 'ThrowStatement' || node.type === 'TryStatement') return 'control';
+      if (node.type === 'Literal') {
+        if (typeof node.value === 'string') return 'string';
+        if (typeof node.value === 'number') return 'number';
+      }
+      if (node.type === 'TemplateElement') return 'string';
+      if (node.type === 'BinaryExpression' || node.type === 'LogicalExpression' || node.type === 'AssignmentExpression' || node.type === 'UpdateExpression' || node.type === 'UnaryExpression' || node.type === 'ConditionalExpression') return 'operator';
+      if (node.type === 'Identifier') {
+        if (parent && (parent.type === 'FunctionDeclaration' || parent.type === 'FunctionExpression') && parent.id === node) return 'functionName';
+        return 'identifier';
+      }
+      return 'other';
+    }
+
+    function styleForKind(kind) {
+      switch (kind) {
+        case 'importExport': return { color: [1.0, 0.69, 0.54], z: 1.95, spread: 0.45, alpha: 1.0, flow: [0.95, 0.58, 0.26] };
+        case 'function':
+        case 'functionName':
+        case 'call': return { color: [0.62, 0.77, 1.0], z: 1.35, spread: 0.52, alpha: 0.98, flow: [0.3, 0.55, 0.98] };
+        case 'control': return { color: [1.0, 0.61, 0.83], z: 0.95, spread: 0.5, alpha: 1.0, flow: [0.9, 0.34, 0.8] };
+        case 'string': return { color: [0.56, 1.0, 0.76], z: 0.45, spread: 0.7, alpha: 0.96, flow: [0.22, 0.93, 0.62] };
+        case 'number': return { color: [1.0, 0.84, 0.5], z: 0.2, spread: 0.34, alpha: 1.0, flow: [0.92, 0.74, 0.25] };
+        case 'comment': return { color: [0.58, 0.63, 0.7], z: -1.45, spread: 1.0, alpha: 0.44, flow: [0.52, 0.58, 0.68] };
+        case 'operator': return { color: [0.87, 0.78, 1.0], z: 1.12, spread: 0.48, alpha: 0.9, flow: [0.78, 0.46, 1.0] };
+        case 'identifier': return { color: [0.88, 0.92, 1.0], z: -0.1, spread: 0.68, alpha: 0.86, flow: [0.4, 0.48, 0.7] };
+        default: return { color: [0.9, 0.93, 0.98], z: -0.35, spread: 0.95, alpha: 0.18, flow: [0.5, 0.5, 0.5] };
+      }
+    }
+
+    function parseJavaScript(source) {
+      const comments = [];
+      const tokens = [];
+      const ast = acorn.parse(source, {
+        ecmaVersion: 'latest',
+        sourceType: parseModeEl.value,
+        locations: true,
+        ranges: true,
+        onComment: comments,
+        onToken: tokens,
+        allowHashBang: true,
+      });
+      return { ast, comments, tokens };
+    }
+
+    function collectSemanticNodes(ast, source) {
+      const nodes = [];
+      acornWalk.fullAncestor(ast, (node, ancestors) => {
+        const parent = ancestors.length > 1 ? ancestors[ancestors.length - 2] : null;
+        const kind = classifyNode(node, parent);
+        if (kind === 'other') return;
+        const text = source.slice(node.start, node.end);
+        nodes.push({
+          kind,
+          type: node.type,
+          text,
+          start: node.start,
+          end: node.end,
+          loc: node.loc,
+          depth: ancestors.length,
+          length: Math.max(1, node.end - node.start),
+        });
+      });
+      return nodes;
+    }
+
+    function commentsToRecords(comments, source) {
+      return comments.map(c => ({
+        kind: 'comment',
+        type: c.type || 'Comment',
+        text: source.slice(c.start, c.end),
+        start: c.start,
+        end: c.end,
+        loc: c.loc,
+        depth: 1,
+        length: Math.max(1, c.end - c.start),
+      }));
+    }
+
+    function astToBundle(source, size) {
+      const { ast, comments } = parseJavaScript(source);
+      const nodes = collectSemanticNodes(ast, source);
+      const commentRecords = commentsToRecords(comments, source);
+      const records = [...nodes, ...commentRecords].sort((a, b) => a.start - b.start);
+      state.astNodeCount = nodes.length;
+      state.commentCount = commentRecords.length;
+      setSummary();
+
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+      const maxDepth = Math.max(1, ...records.map(r => r.depth || 1));
+      const totalLength = Math.max(1, source.length);
+      const astLift = Number(astLiftEl.value);
+
+      for (let i = 0; i < count; i++) {
+        const rec = records[i % Math.max(records.length, 1)] || { kind: 'other', text: ' ', start: 0, end: 1, depth: 1, length: 1 };
+        const style = styleForKind(rec.kind);
+        const h = hashString(`${rec.kind}:${rec.type}:${rec.start}:${rec.text.slice(0, 32)}`);
+        const center = (rec.start + rec.end) * 0.5;
+        const xNorm = rangeNorm(center, 0, totalLength);
+        const x = xNorm * 10 - 5;
+        const depthNorm = (rec.depth || 1) / maxDepth;
+        const y = 3.4 - depthNorm * 7.0;
+        const lenNorm = Math.min(1, rec.length / 80);
+        const jitterX = (((h & 1023) / 1023) - 0.5) * style.spread;
+        const jitterY = ((((h >> 10) & 1023) / 1023) - 0.5) * style.spread * 0.7;
+        const jitterZ = ((((h >> 20) & 1023) / 1023) - 0.5) * 0.6;
+
+        targetPosition[i * 4 + 0] = x + jitterX;
+        targetPosition[i * 4 + 1] = y + jitterY;
+        targetPosition[i * 4 + 2] = style.z * astLift + depthNorm * 0.9 + lenNorm * 0.4 + jitterZ;
+        targetPosition[i * 4 + 3] = rec.kind === 'comment' ? 0.56 : 1.0;
+
+        flow[i * 4 + 0] = clamp(style.flow[0] * 0.7 + smooth01(((h >> 5) & 255) / 255) * 0.3, 0, 1);
+        flow[i * 4 + 1] = clamp(style.flow[1] * 0.7 + smooth01(((h >> 13) & 255) / 255) * 0.3, 0, 1);
+        flow[i * 4 + 2] = clamp(style.flow[2] * 0.7 + smooth01(((h >> 21) & 255) / 255) * 0.3, 0, 1);
+        flow[i * 4 + 3] = 1;
+
+        density[i * 4 + 0] = rec.kind === 'comment' ? 0.16 : 0.35 + lenNorm * 0.65;
+        density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+
+        color[i * 4 + 0] = style.color[0];
+        color[i * 4 + 1] = style.color[1];
+        color[i * 4 + 2] = style.color[2];
+        color[i * 4 + 3] = style.alpha;
+      }
+
+      setStatus(`AST parsed successfully\nProgram body: ${ast.body.length}\nSemantic records: ${records.length}`);
+      return { meta: { sourceType: 'js-ast', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'ast-aware' }, targetPosition, flow, density, color };
+    }
+
+    async function loadBundle(bundle) {
+      state.size = bundle.meta.width;
+      state.count = bundle.meta.particleCount;
+      buildResources(state.size);
+
+      const posTex = makeDataTexture(bundle.targetPosition, state.size);
+      const flowTex = makeDataTexture(bundle.flow, state.size);
+      const densityTex = makeDataTexture(bundle.density, state.size);
+      const colorTex = makeDataTexture(bundle.color, state.size);
+
+      state.materials.sim.uniforms.uPositions.value = posTex;
+      state.materials.sim.uniforms.uTarget.value = posTex;
+      state.materials.sim.uniforms.uFlowTex.value = flowTex;
+      state.materials.sim.uniforms.uDensityTex.value = densityTex;
+      state.materials.render.uniforms.uPositions.value = posTex;
+      state.materials.render.uniforms.uColorTex.value = colorTex;
+
+      renderer.setRenderTarget(state.rtA);
+      renderer.clear();
+      renderer.render(simScene, simCamera);
+      renderer.setRenderTarget(null);
+      state.materials.render.uniforms.uPositions.value = state.rtA.texture;
+
+      setSummary();
+    }
+
+    async function applyCurrent() {
+      try {
+        state.mode = 'js-parser';
+        const bundle = astToBundle(textInput.value, Number(sizeSelect.value));
+        await loadBundle(bundle);
+      } catch (err) {
+        setStatus(`Parse error\n${err.message}`);
+      }
+    }
+
+    async function handleFile(file) {
+      state.currentFileName = file.name;
+      const extension = ext(file.name);
+      const allowed = new Set(['js','mjs','cjs','jsx','ts','tsx','json','txt','md']);
+      if (!allowed.has(extension)) {
+        setStatus(`Unsupported file type for parser demo: .${extension}`);
+        return;
+      }
+      const text = await file.text();
+      textInput.value = text;
+      await applyCurrent();
+    }
+
+    function loadSample() {
+      state.currentFileName = null;
+      textInput.value = `import fs from 'node:fs';
+import path from 'node:path';
+
+export async function buildParticleField(entries = []) {
+  const scale = 0.75;
+  const filtered = entries.filter((entry) => entry.enabled !== false);
+
+  function weightOf(entry) {
+    if (entry.score > 10) {
+      return entry.score * scale;
+    }
+    return Number(entry.score || 0) + filtered.length;
+  }
+
+  const result = [];
+  for (const entry of filtered) {
+    const filePath = path.join(entry.root, entry.name);
+    if (!fs.existsSync(filePath)) continue;
+    result.push({
+      name: entry.name,
+      weight: weightOf(entry),
+      label: \`node:\${entry.name}\`
+    });
+  }
+
+  return result.map((item, index) => ({ ...item, index }));
+}`;
+      applyCurrent();
+    }
+
+    applyBtn.addEventListener('click', applyCurrent);
+    sampleBtn.addEventListener('click', loadSample);
+    pauseBtn.addEventListener('click', () => { state.running = !state.running; pauseBtn.textContent = state.running ? 'Pause' : 'Resume'; });
+    clearBtn.addEventListener('click', () => { state.currentFileName = null; state.astNodeCount = 0; state.commentCount = 0; textInput.value = ''; applyCurrent(); });
+    sizeSelect.addEventListener('change', applyCurrent);
+    parseModeEl.addEventListener('change', applyCurrent);
+    astLiftEl.addEventListener('input', applyCurrent);
+    flowStrengthEl.addEventListener('input', () => state.materials.sim && (state.materials.sim.uniforms.uFlowStrength.value = Number(flowStrengthEl.value)));
+    pointSizeEl.addEventListener('input', () => state.materials.render && (state.materials.render.uniforms.uPointSize.value = Number(pointSizeEl.value)));
+    noiseStrengthEl.addEventListener('input', () => state.materials.sim && (state.materials.sim.uniforms.uNoiseStrength.value = Number(noiseStrengthEl.value)));
+    fileInput.addEventListener('change', e => { const file = e.target.files[0]; if (file) handleFile(file); });
+    dropzone.addEventListener('click', () => fileInput.click());
+    ;['dragenter','dragover'].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.8)'; }));
+    ;['dragleave','drop'].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.35)'; }));
+    dropzone.addEventListener('drop', e => { const file = e.dataTransfer.files[0]; if (file) handleFile(file); });
+
+    renderer.domElement.addEventListener('pointerdown', e => { state.dragging = true; state.lastPointer = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('pointerup', () => { state.dragging = false; state.lastPointer = null; });
+    window.addEventListener('pointermove', e => {
+      state.mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+      if (state.dragging && state.lastPointer) {
+        const dx = e.clientX - state.lastPointer.x, dy = e.clientY - state.lastPointer.y;
+        state.orbit.yaw += dx * 0.005;
+        state.orbit.pitch = clamp(state.orbit.pitch + dy * 0.005, -1.1, 1.1);
+        state.lastPointer = { x: e.clientX, y: e.clientY };
+      }
+    });
+    window.addEventListener('wheel', e => { state.orbit.radius = clamp(state.orbit.radius + e.deltaY * 0.005, 4.5, 28); }, { passive: true });
+    window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); if (state.materials.render) state.materials.render.uniforms.uViewportHeight.value = window.innerHeight; });
+
+    const clock = new THREE.Clock();
+    const mouseWorld = new THREE.Vector3();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      const t = clock.elapsedTime;
+
+      camera.position.set(
+        Math.sin(state.orbit.yaw) * Math.cos(state.orbit.pitch) * state.orbit.radius,
+        Math.sin(state.orbit.pitch) * state.orbit.radius,
+        Math.cos(state.orbit.yaw) * Math.cos(state.orbit.pitch) * state.orbit.radius
+      );
+      camera.lookAt(0, 0, 0);
+      mouseWorld.set(state.mouse.x * 4.8, state.mouse.y * 3.2, 0);
+
+      if (state.materials.sim && state.running) {
+        state.materials.sim.uniforms.uTime.value = t;
+        state.materials.sim.uniforms.uDelta.value = dt;
+        state.materials.sim.uniforms.uMouse.value.copy(mouseWorld);
+        state.materials.sim.uniforms.uPositions.value = state.rtA.texture;
+
+        renderer.setRenderTarget(state.rtB);
+        renderer.render(simScene, simCamera);
+        renderer.setRenderTarget(null);
+        swapRT();
+        state.materials.render.uniforms.uPositions.value = state.rtA.texture;
+      }
+
+      if (state.points) {
+        state.points.rotation.y = t * 0.11;
+        state.points.rotation.x = Math.sin(t * 0.15) * 0.07;
+      }
+      renderer.render(scene, camera);
+    }
+
+    await applyCurrent();
+    animate();
+  </script>
+</body>
+</html>

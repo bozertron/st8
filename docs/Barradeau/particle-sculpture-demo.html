@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>particle-sculpture-demo</title>
+  <style>
+    :root {
+      --bg: #060709;
+      --surface: rgba(255,255,255,0.05);
+      --surface-2: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.12);
+      --text: #f3f4f7;
+      --muted: #a9b0bc;
+      --accent: #8fe6ff;
+      --accent-2: #d1f4ff;
+      --danger: #ff8d8d;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #0f1720 0%, #060709 45%, #030405 100%); color: var(--text); font-family: var(--sans); }
+    body { overflow: hidden; }
+    #bg, #app { position: fixed; inset: 0; }
+    #bg { z-index: 0; opacity: 0.14; pointer-events: none; }
+    #app { z-index: 1; width: 100%; height: 100%; display: block; }
+    .shell {
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px;
+    }
+    .panel {
+      pointer-events: auto;
+      align-self: start;
+      background: linear-gradient(180deg, rgba(14,18,24,0.88), rgba(8,10,14,0.78));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+    .panel-inner { padding: 18px; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, rgba(143,230,255,0.24), rgba(255,255,255,0.08));
+      border: 1px solid rgba(255,255,255,0.12);
+      display: grid; place-items: center; color: var(--accent);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.01em; }
+    .sub { color: var(--muted); font-size: 0.93rem; margin: 6px 0 0; line-height: 1.45; }
+    .grid { display: grid; gap: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: grid; gap: 6px; font-size: 0.84rem; color: var(--muted); }
+    input, select, textarea, button {
+      font: inherit; color: var(--text);
+      border-radius: 12px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05); outline: none;
+    }
+    input, select, textarea { width: 100%; padding: 10px 12px; }
+    textarea { min-height: 112px; resize: vertical; font-family: var(--mono); line-height: 1.45; }
+    input[type="range"] { padding: 0; background: transparent; border: none; }
+    button {
+      padding: 11px 14px; cursor: pointer; transition: 180ms ease;
+      background: linear-gradient(180deg, rgba(143,230,255,0.18), rgba(143,230,255,0.08));
+    }
+    button:hover { transform: translateY(-1px); border-color: rgba(143,230,255,0.35); }
+    .secondary { background: rgba(255,255,255,0.04); }
+    .danger { background: rgba(255,141,141,0.12); color: #ffd8d8; }
+    .segmented { display: flex; gap: 8px; flex-wrap: wrap; }
+    .segmented button { flex: 1 1 100px; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+    .hint, .meta, .list { color: var(--muted); font-size: 0.79rem; line-height: 1.45; }
+    .meta strong, .list strong { color: var(--text); }
+    .status {
+      padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--muted); font-size: 0.82rem;
+      font-family: var(--mono);
+    }
+    .dropzone {
+      border: 1px dashed rgba(143,230,255,0.35);
+      background: rgba(143,230,255,0.05);
+      border-radius: 14px; padding: 14px; text-align: center; color: var(--muted);
+    }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); font-size: 0.74rem; color: var(--accent-2); }
+    .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-2); margin: 8px 0 2px; }
+    .footer-note { margin-top: 8px; font-size: 0.76rem; color: var(--muted); }
+    .right {
+      display: grid; align-content: end; justify-items: end; gap: 10px;
+      pointer-events: none;
+    }
+    .pill {
+      pointer-events: auto;
+      background: rgba(7,9,12,0.72); border: 1px solid var(--border); border-radius: 999px;
+      padding: 9px 12px; color: var(--muted); font-size: 0.8rem; backdrop-filter: blur(12px);
+    }
+    .hidden { display: none !important; }
+    @media (max-width: 980px) {
+      body { overflow: auto; }
+      #app, #bg { position: fixed; }
+      .shell { grid-template-columns: 1fr; align-content: start; }
+      .right { justify-items: stretch; align-content: start; }
+    }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <canvas id="app"></canvas>
+
+  <div class="shell">
+    <section class="panel">
+      <div class="panel-inner grid">
+        <div>
+          <div class="brand">
+            <div class="logo" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <circle cx="12" cy="12" r="8"></circle>
+                <path d="M12 4v16M4 12h16"></path>
+                <path d="M6.5 6.5c3 2.3 8 2.3 11 0M6.5 17.5c3-2.3 8-2.3 11 0"></path>
+              </svg>
+            </div>
+            <div>
+              <h1>Particle Sculpture Demo</h1>
+              <p class="sub">Single-file Three.js/WebGL FBO scaffold with a unified input-to-field schema, plus a lightweight particles.js ambience layer.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="badge">Drop file or click to open</div>
+          <p class="footer-note">Images, text/code files, audio, CSV/TSV/JSON are supported.</p>
+          <input id="fileInput" type="file" class="hidden" accept="image/*,audio/*,.csv,.tsv,.json,.txt,.md,.rs,.ts,.js,.tsx,.jsx,.html,.htm,.css,.py,.go,.java,.c,.cc,.cpp,.h,.hpp,.cs,.swift,.kt,.kts,.rb,.php,.sh,.bash,.zsh,.fish,.sql,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.graphql,.gql,.vue,.svelte,.astro,.mjs,.cjs" />
+        </div>
+
+        <div>
+          <div class="section-title">Input mode</div>
+          <div class="segmented">
+            <button data-mode="image">Image</button>
+            <button data-mode="text">Text / Code</button>
+            <button data-mode="audio">Audio</button>
+            <button data-mode="csv">CSV / TSV / JSON</button>
+          </div>
+        </div>
+
+        <label>
+          Text / code source
+          <textarea id="textInput" spellcheck="false">export function particleField(input: Float32Array) {
+  return input.map((v, i) => Math.sin(v + i * 0.01));
+}
+
+const sculpt = (density, flow) => density * 0.72 + flow * 0.28;</textarea>
+        </label>
+
+        <div class="row">
+          <label>
+            Preset
+            <select id="presetSelect">
+              <option value="code">Code cloud</option>
+              <option value="spiral">Audio spiral</option>
+              <option value="portrait">Image relief</option>
+              <option value="constellation">CSV constellation</option>
+            </select>
+          </label>
+          <label>
+            Texture size
+            <select id="sizeSelect">
+              <option value="128">128²</option>
+              <option value="256" selected>256²</option>
+              <option value="512">512²</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            Point size
+            <input id="pointSize" type="range" min="0.6" max="5" step="0.1" value="1.8" />
+          </label>
+          <label>
+            Flow strength
+            <input id="flowStrength" type="range" min="0" max="1" step="0.01" value="0.18" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            Attractor strength
+            <input id="attractorStrength" type="range" min="0" max="1" step="0.01" value="0.22" />
+          </label>
+          <label>
+            Noise strength
+            <input id="noiseStrength" type="range" min="0" max="1.2" step="0.01" value="0.15" />
+          </label>
+        </div>
+
+        <div class="toolbar">
+          <button id="applyBtn">Apply current input</button>
+          <button id="sampleBtn" class="secondary">Load sample data</button>
+          <button id="shuffleBtn" class="secondary">Reseed</button>
+          <button id="pauseBtn" class="secondary">Pause</button>
+          <button id="clearBtn" class="danger">Clear</button>
+        </div>
+
+        <div class="status" id="status">ready</div>
+
+        <div class="list">
+          <div class="section-title">Code file support</div>
+          <strong>Included:</strong> .rs, .ts, .js, .tsx, .jsx, .html, .htm, .css, .py, .go, .java, .c, .cc, .cpp, .h, .hpp, .cs, .swift, .kt, .kts, .rb, .php, .sh, .bash, .zsh, .fish, .sql, .xml, .yaml, .yml, .toml, .ini, .cfg, .conf, .graphql, .gql, .vue, .svelte, .astro, .mjs, .cjs, .txt, .md, .json.
+        </div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="pill" id="summaryPill">mode: text/code · particles: 65536</div>
+      <div class="pill">mouse: orbit bias · wheel: camera zoom</div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    const statusEl = document.getElementById('status');
+    const summaryPill = document.getElementById('summaryPill');
+    const textInput = document.getElementById('textInput');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const presetSelect = document.getElementById('presetSelect');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const pointSizeEl = document.getElementById('pointSize');
+    const flowStrengthEl = document.getElementById('flowStrength');
+    const attractorStrengthEl = document.getElementById('attractorStrength');
+    const noiseStrengthEl = document.getElementById('noiseStrength');
+    const applyBtn = document.getElementById('applyBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const state = {
+      mode: 'text',
+      running: true,
+      size: Number(sizeSelect.value),
+      count: Number(sizeSelect.value) ** 2,
+      bundle: null,
+      targetTexture: null,
+      mouse: new THREE.Vector2(0, 0),
+      audio: { context: null, analyser: null, source: null, element: null },
+      orbit: { yaw: 0, pitch: 0.18, radius: 11 },
+      dragging: false,
+      lastPointer: null,
+      currentFileName: null,
+    };
+
+    const supportedTextExtensions = new Set([
+      'txt','md','rs','ts','js','tsx','jsx','html','htm','css','py','go','java','c','cc','cpp','h','hpp','cs','swift','kt','kts','rb','php','sh','bash','zsh','fish','sql','xml','yaml','yml','toml','ini','cfg','conf','graphql','gql','vue','svelte','astro','mjs','cjs','json'
+    ]);
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function setSummary() {
+      summaryPill.textContent = `mode: ${state.mode} · particles: ${state.count}${state.currentFileName ? ` · file: ${state.currentFileName}` : ''}`;
+    }
+    function ext(name='') {
+      const idx = name.lastIndexOf('.');
+      return idx >= 0 ? name.slice(idx + 1).toLowerCase() : '';
+    }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function smooth01(v) { return v * v * (3 - 2 * v); }
+    function luma(r,g,b){ return 0.299*r + 0.587*g + 0.114*b; }
+
+    particlesJS('bg', {
+      particles: {
+        number: { value: 64, density: { enable: true, value_area: 1100 } },
+        color: { value: '#d9f7ff' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.26, random: true },
+        size: { value: 2.1, random: true },
+        line_linked: { enable: false },
+        move: { enable: true, speed: 0.5, direction: 'none', random: true, straight: false, out_mode: 'out' }
+      },
+      interactivity: { detect_on: 'canvas', events: { onhover: { enable: false }, onclick: { enable: false }, resize: true } },
+      retina_detect: true
+    });
+
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('app'), antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, state.orbit.radius);
+
+    const simScene = new THREE.Scene();
+    const simCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    let rtA, rtB, simMaterial, renderMaterial, points, geometry;
+
+    function rtOptions() {
+      return {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        depthBuffer: false,
+        stencilBuffer: false,
+      };
+    }
+
+    function makeDataTexture(data, size) {
+      const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.FloatType);
+      tex.needsUpdate = true;
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      return tex;
+    }
+
+    function buildRendererResources(size) {
+      if (points) { scene.remove(points); geometry.dispose(); renderMaterial.dispose(); }
+      if (simMaterial) { simMaterial.dispose(); while (simScene.children.length) simScene.remove(simScene.children[0]); }
+      if (rtA) rtA.dispose();
+      if (rtB) rtB.dispose();
+
+      rtA = new THREE.WebGLRenderTarget(size, size, rtOptions());
+      rtB = new THREE.WebGLRenderTarget(size, size, rtOptions());
+
+      simMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          uPositions: { value: null },
+          uTarget: { value: null },
+          uFlowTex: { value: null },
+          uDensityTex: { value: null },
+          uTime: { value: 0 },
+          uDelta: { value: 0.016 },
+          uFlowStrength: { value: Number(flowStrengthEl.value) },
+          uAttractStrength: { value: Number(attractorStrengthEl.value) },
+          uNoiseStrength: { value: Number(noiseStrengthEl.value) },
+          uMouse: { value: new THREE.Vector3(0, 0, 0) },
+        },
+        vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vUv;
+          uniform sampler2D uPositions;
+          uniform sampler2D uTarget;
+          uniform sampler2D uFlowTex;
+          uniform sampler2D uDensityTex;
+          uniform float uTime;
+          uniform float uDelta;
+          uniform float uFlowStrength;
+          uniform float uAttractStrength;
+          uniform float uNoiseStrength;
+          uniform vec3 uMouse;
+
+          vec3 hash3(vec3 p){
+            p = vec3(dot(p, vec3(127.1,311.7,74.7)), dot(p, vec3(269.5,183.3,246.1)), dot(p, vec3(113.5,271.9,124.6)));
+            return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+          }
+
+          vec3 noiseVec(vec3 p, float t){
+            vec3 h = hash3(p * 1.7 + vec3(t * 0.11, t * 0.09, t * 0.13));
+            return normalize(h + 1e-5);
+          }
+
+          void main(){
+            vec4 pos4 = texture2D(uPositions, vUv);
+            vec3 pos = pos4.xyz;
+            float alive = pos4.w;
+
+            vec4 target4 = texture2D(uTarget, vUv);
+            vec3 target = target4.xyz;
+            float targetAlive = target4.w;
+
+            vec3 flowSample = texture2D(uFlowTex, vUv).xyz * 2.0 - 1.0;
+            float density = texture2D(uDensityTex, vUv).r;
+            vec3 n = noiseVec(pos + flowSample * 0.5, uTime);
+            vec3 toTarget = (target - pos) * (uAttractStrength * (0.35 + density));
+            vec3 flow = flowSample * uFlowStrength;
+            vec3 noise = n * uNoiseStrength * (0.2 + density);
+
+            vec3 mouseDir = pos - uMouse;
+            float md = length(mouseDir) + 0.001;
+            vec3 mouseForce = normalize(mouseDir) * smoothstep(3.5, 0.0, md) * 0.08;
+
+            vec3 vel = toTarget + flow + noise + mouseForce;
+            pos += vel * uDelta * 60.0;
+            pos = mix(pos, target, 0.02 + density * 0.04);
+
+            gl_FragColor = vec4(pos, alive * targetAlive);
+          }
+        `
+      });
+
+      simScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), simMaterial));
+
+      const refs = new Float32Array(size * size * 2);
+      const verts = new Float32Array(size * size * 3);
+      let p = 0;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          refs[p * 2] = (x + 0.5) / size;
+          refs[p * 2 + 1] = (y + 0.5) / size;
+          verts[p * 3] = verts[p * 3 + 1] = verts[p * 3 + 2] = 0;
+          p++;
+        }
+      }
+
+      geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      geometry.setAttribute('ref', new THREE.BufferAttribute(refs, 2));
+
+      renderMaterial = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uPositions: { value: null },
+          uColorTex: { value: null },
+          uPointSize: { value: Number(pointSizeEl.value) },
+          uViewportHeight: { value: window.innerHeight },
+        },
+        vertexShader: `
+          precision highp float;
+          attribute vec2 ref;
+          uniform sampler2D uPositions;
+          uniform float uPointSize;
+          uniform float uViewportHeight;
+          varying float vAlpha;
+          varying vec2 vRef;
+          void main(){
+            vRef = ref;
+            vec4 posTex = texture2D(uPositions, ref);
+            vec4 mv = modelViewMatrix * vec4(posTex.xyz, 1.0);
+            gl_Position = projectionMatrix * mv;
+            gl_PointSize = uPointSize * (uViewportHeight / 900.0) * (1.0 / max(0.35, -mv.z));
+            vAlpha = posTex.w;
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+          varying float vAlpha;
+          varying vec2 vRef;
+          uniform sampler2D uColorTex;
+          void main(){
+            vec2 c = gl_PointCoord - 0.5;
+            float d = dot(c, c);
+            float mask = smoothstep(0.25, 0.0, d);
+            vec4 color = texture2D(uColorTex, vRef);
+            gl_FragColor = vec4(color.rgb, color.a * vAlpha * mask * 0.88);
+          }
+        `
+      });
+
+      points = new THREE.Points(geometry, renderMaterial);
+      scene.add(points);
+    }
+
+    function swapRT() { const t = rtA; rtA = rtB; rtB = t; }
+
+    function emptyBundle(size) {
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+      for (let i = 0; i < count; i++) {
+        targetPosition[i * 4 + 0] = (Math.random() * 2 - 1) * 0.2;
+        targetPosition[i * 4 + 1] = (Math.random() * 2 - 1) * 0.2;
+        targetPosition[i * 4 + 2] = (Math.random() * 2 - 1) * 0.2;
+        targetPosition[i * 4 + 3] = 0;
+        flow[i * 4 + 0] = 0.5; flow[i * 4 + 1] = 0.5; flow[i * 4 + 2] = 0.5; flow[i * 4 + 3] = 1;
+        density[i * 4 + 0] = 0; density[i * 4 + 1] = density[i * 4 + 2] = 0; density[i * 4 + 3] = 1;
+        color[i * 4 + 0] = 0.8; color[i * 4 + 1] = 0.9; color[i * 4 + 2] = 1.0; color[i * 4 + 3] = 0;
+      }
+      return { meta: { sourceType: 'empty', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'mono' }, targetPosition, flow, density, color };
+    }
+
+    async function encodeImageElement(img, size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, size, size);
+      const px = ctx.getImageData(0, 0, size, size).data;
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+
+      const lum = new Float32Array(count);
+      for (let i = 0; i < count; i++) {
+        const r = px[i * 4] / 255;
+        const g = px[i * 4 + 1] / 255;
+        const b = px[i * 4 + 2] / 255;
+        const a = px[i * 4 + 3] / 255;
+        lum[i] = luma(r, g, b) * a;
+      }
+
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const i = y * size + x;
+          const r = px[i * 4] / 255;
+          const g = px[i * 4 + 1] / 255;
+          const b = px[i * 4 + 2] / 255;
+          const a = px[i * 4 + 3] / 255;
+          const l = lum[i];
+          const u = x / (size - 1);
+          const v = y / (size - 1);
+          const gx = (lum[Math.min(size * size - 1, y * size + Math.min(size - 1, x + 1))] - lum[y * size + Math.max(0, x - 1)]) * 0.5;
+          const gy = (lum[Math.min(size * size - 1, Math.min(size - 1, y + 1) * size + x)] - lum[Math.max(0, y - 1) * size + x]) * 0.5;
+
+          targetPosition[i * 4 + 0] = (u * 2 - 1) * 4.8;
+          targetPosition[i * 4 + 1] = -(v * 2 - 1) * 4.8;
+          targetPosition[i * 4 + 2] = (l - 0.5) * 2.8;
+          targetPosition[i * 4 + 3] = a > 0.02 ? 1 : 0;
+
+          flow[i * 4 + 0] = clamp(gx * 0.5 + 0.5, 0, 1);
+          flow[i * 4 + 1] = clamp(-gy * 0.5 + 0.5, 0, 1);
+          flow[i * 4 + 2] = clamp(l * 0.8 + 0.2, 0, 1);
+          flow[i * 4 + 3] = 1;
+
+          density[i * 4 + 0] = l;
+          density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+
+          color[i * 4 + 0] = r;
+          color[i * 4 + 1] = g;
+          color[i * 4 + 2] = b;
+          color[i * 4 + 3] = Math.max(a, 0.4);
+        }
+      }
+      return { meta: { sourceType: 'image', width: size, height: size, particleCount: count, domain: '2.5d', colorMode: 'source' }, targetPosition, flow, density, color };
+    }
+
+    function textToBundle(text, size, isCode = true) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = 'white';
+      ctx.font = `${Math.floor(size * 0.065)}px ${getComputedStyle(document.body).fontFamily}`;
+      ctx.textBaseline = 'top';
+
+      const lines = text.replace(/\t/g, '  ').split('\n').slice(0, Math.max(20, Math.floor(size / 10)));
+      const lineH = Math.floor(size * 0.07);
+      lines.forEach((line, idx) => ctx.fillText(line.slice(0, 64), 12, 10 + idx * lineH));
+
+      const img = new Image();
+      img.src = canvas.toDataURL();
+      return new Promise(resolve => {
+        img.onload = async () => {
+          const base = await encodeImageElement(img, size);
+          for (let i = 0; i < size * size; i++) {
+            const d = base.density[i * 4];
+            base.targetPosition[i * 4 + 2] += (Math.sin(i * 0.013) * 0.35 + d * 1.2);
+            base.flow[i * 4 + 2] = clamp(0.5 + Math.cos(i * 0.019) * 0.5, 0, 1);
+            if (isCode) {
+              base.color[i * 4 + 0] = 0.82 + d * 0.18;
+              base.color[i * 4 + 1] = 0.92 + d * 0.08;
+              base.color[i * 4 + 2] = 1.0;
+            }
+          }
+          base.meta.sourceType = isCode ? 'code' : 'text';
+          resolve(base);
+        };
+      });
+    }
+
+    function csvToRows(text, filename='') {
+      const extension = ext(filename);
+      if (extension === 'json') {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed : Array.isArray(parsed.data) ? parsed.data : [];
+      }
+      const delimiter = extension === 'tsv' ? '\t' : (text.includes('\t') && !text.includes(',') ? '\t' : ',');
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      const headers = lines.shift().split(delimiter).map(h => h.trim());
+      return lines.map(line => {
+        const cells = line.split(delimiter);
+        const row = {};
+        headers.forEach((h, i) => row[h] = cells[i]);
+        return row;
+      });
+    }
+
+    function rowsToBundle(rows, size) {
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+      const keys = Object.keys(rows[0] || {});
+      const numericKeys = keys.filter(k => rows.some(r => Number.isFinite(+r[k])));
+      const [kx, ky, kz] = [numericKeys[0], numericKeys[1] || numericKeys[0], numericKeys[2] || numericKeys[1] || numericKeys[0]];
+      const xs = rows.map(r => +r[kx]).filter(Number.isFinite);
+      const ys = rows.map(r => +r[ky]).filter(Number.isFinite);
+      const zs = rows.map(r => +r[kz]).filter(Number.isFinite);
+      const minX = Math.min(...xs, 0), maxX = Math.max(...xs, 1);
+      const minY = Math.min(...ys, 0), maxY = Math.max(...ys, 1);
+      const minZ = Math.min(...zs, 0), maxZ = Math.max(...zs, 1);
+      const norm = (v, mn, mx) => mx === mn ? 0 : ((v - mn) / (mx - mn)) * 2 - 1;
+
+      for (let i = 0; i < count; i++) {
+        const row = rows[i % Math.max(1, rows.length)] || {};
+        const x = norm(+row[kx] || 0, minX, maxX) * 4.6;
+        const y = norm(+row[ky] || 0, minY, maxY) * 4.6;
+        const z = norm(+row[kz] || 0, minZ, maxZ) * 4.6;
+        const cyc = i / count;
+        targetPosition[i * 4 + 0] = x;
+        targetPosition[i * 4 + 1] = y;
+        targetPosition[i * 4 + 2] = z;
+        targetPosition[i * 4 + 3] = rows.length ? 1 : 0;
+
+        flow[i * 4 + 0] = clamp(0.5 + x / 10, 0, 1);
+        flow[i * 4 + 1] = clamp(0.5 + y / 10, 0, 1);
+        flow[i * 4 + 2] = clamp(0.5 + Math.sin(cyc * Math.PI * 6) * 0.5, 0, 1);
+        flow[i * 4 + 3] = 1;
+
+        density[i * 4 + 0] = 0.45 + 0.55 * smooth01((z + 4.6) / 9.2);
+        density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+
+        color[i * 4 + 0] = 0.75 + 0.25 * smooth01((x + 4.6) / 9.2);
+        color[i * 4 + 1] = 0.82 + 0.18 * smooth01((y + 4.6) / 9.2);
+        color[i * 4 + 2] = 0.95;
+        color[i * 4 + 3] = 0.95;
+      }
+      return { meta: { sourceType: 'csv', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'mapped', keys: numericKeys }, targetPosition, flow, density, color };
+    }
+
+    function audioFrameToBundle(freq, size) {
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+      const bins = freq.length || 1;
+
+      for (let i = 0; i < count; i++) {
+        const band = freq[i % bins] / 255;
+        const t = i / count;
+        const angle = t * Math.PI * 20;
+        const radius = 1.4 + band * 3.4;
+        const y = (i % size) / size * 7.2 - 3.6;
+        targetPosition[i * 4 + 0] = Math.cos(angle) * radius;
+        targetPosition[i * 4 + 1] = y;
+        targetPosition[i * 4 + 2] = Math.sin(angle) * radius;
+        targetPosition[i * 4 + 3] = 1;
+
+        flow[i * 4 + 0] = clamp(0.5 + Math.cos(angle + band) * 0.5, 0, 1);
+        flow[i * 4 + 1] = clamp(0.5 + band * 0.5, 0, 1);
+        flow[i * 4 + 2] = clamp(0.5 + Math.sin(angle - band) * 0.5, 0, 1);
+        flow[i * 4 + 3] = 1;
+
+        density[i * 4 + 0] = 0.2 + band * 0.8;
+        density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+
+        color[i * 4 + 0] = 0.55 + band * 0.45;
+        color[i * 4 + 1] = 0.75 + band * 0.25;
+        color[i * 4 + 2] = 1.0;
+        color[i * 4 + 3] = 0.95;
+      }
+      return { meta: { sourceType: 'audio', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'mapped' }, targetPosition, flow, density, color };
+    }
+
+    async function loadBundle(bundle) {
+      state.bundle = bundle;
+      state.size = bundle.meta.width;
+      state.count = bundle.meta.particleCount;
+      buildRendererResources(state.size);
+
+      const positionTex = makeDataTexture(bundle.targetPosition, state.size);
+      const flowTex = makeDataTexture(bundle.flow, state.size);
+      const densityTex = makeDataTexture(bundle.density, state.size);
+      const colorTex = makeDataTexture(bundle.color, state.size);
+      state.targetTexture = positionTex;
+
+      simMaterial.uniforms.uPositions.value = positionTex;
+      simMaterial.uniforms.uTarget.value = positionTex;
+      simMaterial.uniforms.uFlowTex.value = flowTex;
+      simMaterial.uniforms.uDensityTex.value = densityTex;
+      renderMaterial.uniforms.uPositions.value = positionTex;
+      renderMaterial.uniforms.uColorTex.value = colorTex;
+
+      renderer.setRenderTarget(rtA);
+      renderer.clear();
+      renderer.render(simScene, simCamera);
+      renderer.setRenderTarget(null);
+      renderMaterial.uniforms.uPositions.value = rtA.texture;
+
+      setSummary();
+      setStatus(`loaded ${bundle.meta.sourceType} bundle @ ${state.size}²`);
+    }
+
+    async function sampleBundleFromPreset() {
+      const size = Number(sizeSelect.value);
+      if (presetSelect.value === 'spiral') {
+        const freq = new Uint8Array(128);
+        for (let i = 0; i < 128; i++) freq[i] = (Math.sin(i * 0.17) * 0.5 + 0.5) * 255;
+        return audioFrameToBundle(freq, size);
+      }
+      if (presetSelect.value === 'portrait') {
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        const g = ctx.createRadialGradient(size*0.48,size*0.42,size*0.06,size*0.5,size*0.5,size*0.45);
+        g.addColorStop(0, '#f3f3f3'); g.addColorStop(0.4, '#8ea0b0'); g.addColorStop(1, '#11161d');
+        ctx.fillStyle = '#11161d'; ctx.fillRect(0,0,size,size);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(size*0.5,size*0.48,size*0.23,size*0.29,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#060709'; ctx.beginPath(); ctx.ellipse(size*0.43,size*0.46,size*0.03,size*0.02,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(size*0.57,size*0.46,size*0.03,size*0.02,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#dce4ea'; ctx.fillRect(size*0.46,size*0.57,size*0.08,2);
+        const img = new Image(); img.src = c.toDataURL(); await img.decode();
+        return encodeImageElement(img, size);
+      }
+      if (presetSelect.value === 'constellation') {
+        const rows = Array.from({ length: 240 }, (_, i) => ({ x: Math.sin(i * 0.17) * 12 + i * 0.02, y: Math.cos(i * 0.11) * 8, z: Math.sin(i * 0.07) * Math.cos(i * 0.13) * 10 }));
+        return rowsToBundle(rows, size);
+      }
+      return textToBundle(textInput.value, size, true);
+    }
+
+    async function applyCurrentInput() {
+      state.currentFileName = state.currentFileName || null;
+      const size = Number(sizeSelect.value);
+      let bundle;
+      if (state.mode === 'text') bundle = await textToBundle(textInput.value, size, true);
+      else bundle = await sampleBundleFromPreset();
+      await loadBundle(bundle);
+    }
+
+    async function handleFile(file) {
+      state.currentFileName = file.name;
+      const extension = ext(file.name);
+      const size = Number(sizeSelect.value);
+      setStatus(`loading ${file.name}...`);
+
+      if (file.type.startsWith('image/')) {
+        state.mode = 'image';
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        const bundle = await encodeImageElement(img, size);
+        URL.revokeObjectURL(url);
+        await loadBundle(bundle);
+        return;
+      }
+
+      if (file.type.startsWith('audio/')) {
+        state.mode = 'audio';
+        if (!state.audio.context) state.audio.context = new (window.AudioContext || window.webkitAudioContext)();
+        if (state.audio.element) { state.audio.element.pause(); state.audio.element.src = ''; }
+        const audio = new Audio(URL.createObjectURL(file));
+        audio.loop = true;
+        await audio.play().catch(() => {});
+        const source = state.audio.context.createMediaElementSource(audio);
+        const analyser = state.audio.context.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyser.connect(state.audio.context.destination);
+        state.audio.element = audio;
+        state.audio.source = source;
+        state.audio.analyser = analyser;
+        const freq = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(freq);
+        await loadBundle(audioFrameToBundle(freq, size));
+        return;
+      }
+
+      const text = await file.text();
+      if (extension === 'csv' || extension === 'tsv' || extension === 'json') {
+        state.mode = 'csv';
+        const rows = csvToRows(text, file.name);
+        await loadBundle(rowsToBundle(rows, size));
+        return;
+      }
+
+      if (supportedTextExtensions.has(extension) || file.type.startsWith('text/')) {
+        state.mode = 'text';
+        textInput.value = text;
+        await loadBundle(await textToBundle(text, size, supportedTextExtensions.has(extension)));
+        return;
+      }
+
+      textInput.value = text;
+      state.mode = 'text';
+      await loadBundle(await textToBundle(text, size, true));
+    }
+
+    document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', async () => {
+      state.mode = btn.dataset.mode === 'text' ? 'text' : btn.dataset.mode;
+      state.currentFileName = null;
+      if (state.mode === 'audio') {
+        const freq = new Uint8Array(128);
+        for (let i = 0; i < 128; i++) freq[i] = (Math.sin(i * 0.19) * 0.5 + 0.5) * 255;
+        await loadBundle(audioFrameToBundle(freq, Number(sizeSelect.value)));
+      } else if (state.mode === 'csv') {
+        const rows = Array.from({ length: 100 }, (_, i) => ({ x: i, y: Math.sin(i * 0.21) * 20, z: Math.cos(i * 0.17) * 12 }));
+        await loadBundle(rowsToBundle(rows, Number(sizeSelect.value)));
+      } else if (state.mode === 'image') {
+        presetSelect.value = 'portrait';
+        await loadBundle(await sampleBundleFromPreset());
+      } else {
+        await loadBundle(await textToBundle(textInput.value, Number(sizeSelect.value), true));
+      }
+    }));
+
+    applyBtn.addEventListener('click', applyCurrentInput);
+    sampleBtn.addEventListener('click', async () => { state.currentFileName = null; await loadBundle(await sampleBundleFromPreset()); });
+    shuffleBtn.addEventListener('click', async () => {
+      const size = Number(sizeSelect.value);
+      const bundle = emptyBundle(size);
+      bundle.targetPosition.forEach((_, i, arr) => { if (i % 4 !== 3) arr[i] += (Math.random() * 2 - 1) * 0.8; else arr[i] = 1; });
+      await loadBundle(bundle);
+    });
+    pauseBtn.addEventListener('click', () => { state.running = !state.running; pauseBtn.textContent = state.running ? 'Pause' : 'Resume'; });
+    clearBtn.addEventListener('click', async () => { state.currentFileName = null; await loadBundle(emptyBundle(Number(sizeSelect.value))); });
+    sizeSelect.addEventListener('change', async () => { await applyCurrentInput(); });
+    pointSizeEl.addEventListener('input', () => renderMaterial && (renderMaterial.uniforms.uPointSize.value = Number(pointSizeEl.value)));
+    flowStrengthEl.addEventListener('input', () => simMaterial && (simMaterial.uniforms.uFlowStrength.value = Number(flowStrengthEl.value)));
+    attractorStrengthEl.addEventListener('input', () => simMaterial && (simMaterial.uniforms.uAttractStrength.value = Number(attractorStrengthEl.value)));
+    noiseStrengthEl.addEventListener('input', () => simMaterial && (simMaterial.uniforms.uNoiseStrength.value = Number(noiseStrengthEl.value)));
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => { const file = e.target.files[0]; if (file) handleFile(file); });
+    ;['dragenter','dragover'].forEach(type => dropzone.addEventListener(type, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.8)'; }));
+    ;['dragleave','drop'].forEach(type => dropzone.addEventListener(type, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.35)'; }));
+    dropzone.addEventListener('drop', e => { const file = e.dataTransfer.files[0]; if (file) handleFile(file); });
+
+    const canvas = renderer.domElement;
+    canvas.addEventListener('pointerdown', e => { state.dragging = true; state.lastPointer = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('pointerup', () => { state.dragging = false; state.lastPointer = null; });
+    window.addEventListener('pointermove', e => {
+      state.mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+      if (state.dragging && state.lastPointer) {
+        const dx = e.clientX - state.lastPointer.x;
+        const dy = e.clientY - state.lastPointer.y;
+        state.orbit.yaw += dx * 0.005;
+        state.orbit.pitch = clamp(state.orbit.pitch + dy * 0.005, -1.1, 1.1);
+        state.lastPointer = { x: e.clientX, y: e.clientY };
+      }
+    });
+    window.addEventListener('wheel', e => { state.orbit.radius = clamp(state.orbit.radius + e.deltaY * 0.005, 4.5, 28); }, { passive: true });
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      if (renderMaterial) renderMaterial.uniforms.uViewportHeight.value = window.innerHeight;
+    });
+
+    const clock = new THREE.Clock();
+    const mouseWorld = new THREE.Vector3();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      const t = clock.elapsedTime;
+
+      const cp = state.orbit.pitch;
+      const cy = state.orbit.yaw;
+      camera.position.set(
+        Math.sin(cy) * Math.cos(cp) * state.orbit.radius,
+        Math.sin(cp) * state.orbit.radius,
+        Math.cos(cy) * Math.cos(cp) * state.orbit.radius
+      );
+      camera.lookAt(0, 0, 0);
+
+      mouseWorld.set(state.mouse.x * 4.5, state.mouse.y * 3.0, 0);
+
+      if (simMaterial && state.running) {
+        simMaterial.uniforms.uTime.value = t;
+        simMaterial.uniforms.uDelta.value = dt;
+        simMaterial.uniforms.uMouse.value.copy(mouseWorld);
+        simMaterial.uniforms.uPositions.value = rtA.texture;
+
+        if (state.mode === 'audio' && state.audio.analyser) {
+          const freq = new Uint8Array(state.audio.analyser.frequencyBinCount);
+          state.audio.analyser.getByteFrequencyData(freq);
+          const fresh = audioFrameToBundle(freq, state.size);
+          const targetTex = makeDataTexture(fresh.targetPosition, state.size);
+          const flowTex = makeDataTexture(fresh.flow, state.size);
+          const densityTex = makeDataTexture(fresh.density, state.size);
+          const colorTex = makeDataTexture(fresh.color, state.size);
+          simMaterial.uniforms.uTarget.value = targetTex;
+          simMaterial.uniforms.uFlowTex.value = flowTex;
+          simMaterial.uniforms.uDensityTex.value = densityTex;
+          renderMaterial.uniforms.uColorTex.value = colorTex;
+        }
+
+        renderer.setRenderTarget(rtB);
+        renderer.render(simScene, simCamera);
+        renderer.setRenderTarget(null);
+        swapRT();
+        renderMaterial.uniforms.uPositions.value = rtA.texture;
+      }
+
+      if (points) {
+        points.rotation.y = t * 0.11;
+        points.rotation.x = Math.sin(t * 0.17) * 0.08;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    await loadBundle(await textToBundle(textInput.value, state.size, true));
+    animate();
+  </script>
+</body>
+</html>

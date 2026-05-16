@@ -1,6 +1,6 @@
 # ST8 File Map
 
-**Generated:** 2026-05-15
+**Generated:** 2026-05-16
 **Purpose:** Complete inventory of all source files for gap analysis and integration planning
 
 ---
@@ -9,25 +9,11 @@
 
 | File | Lines | Purpose | Dependencies |
 |------|-------|---------|--------------|
-| `0_BACKEND_INDEX.md` | 426 | - | - |
-| `0_FRONTEND_INDEX.md` | 237 | - | - |
-| `0_INDEXER_JS_INDEX.md` | 342 | - | st8-types, path, fs, crypto |
-| `0_INDEX_JS_INDEX.md` | 274 | - | indexer, persistence, manifestGenerator, fileWatcher, server, st8-types, schemaCardEmitter, schemaCardPrinter, notificationBus, gapAnalyzer, intentSeeder, manifestGenerator, path |
-| `0_LIB_COMMANDS_INDEX.md` | 453 | - | - |
-| `0_LIB_UTILS_INDEX.md` | 174 | - | - |
-| `0_LINE_COUNT_REPORT.md` | 344 | - | - |
-| `0_LINE_COUNT_REPORT_V2.md` | 316 | - | - |
-| `0_MASTER_INDEX.md` | 235 | - | - |
-| `0_PERSISTENCE_JS_INDEX.md` | 453 | - | st8-types, st8-types, path, fs, better-sqlite3 |
-| `0_PRESSURE_TEST.md` | 451 | - | persistence |
-| `0_SERVER_JS_INDEX.md` | 452 | - | indexer, manifestGenerator, persistence, persistence, persistence, notificationBus, prdGenerator, gapAnalyzer, brunoOscar, brunoOscar, http, fs, path |
-| `CODEBASE_ARCHITECTURE_RESEARCH.md` | 1176 | - | persistence, server, pino |
-| `DIRECTORY_STRUCTURE_VISUAL.md` | 346 | - | - |
 | `README.md` | 278 | - | - |
 | `ai-signal.toml` | 3 | - | - |
 | `connection-state.json` | 1329 | - | - |
 | `package.json` | 28 | - | - |
-| `st8-filemap.md` | 206 | - | - |
+| `st8-filemap.md` | 383 | - | - |
 | `st8.code-workspace` | 7 | - | - |
 | `st8_bible.md` | 2943 | - | persistence, fs |
 | `start.js` | 148 | ST8 — Startup Script | path, fs, child_process, open |

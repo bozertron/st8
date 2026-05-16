@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>particle-sculpture-demo-syntax</title>
+  <style>
+    :root {
+      --bg: #060709;
+      --surface: rgba(255,255,255,0.05);
+      --surface-2: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.12);
+      --text: #f3f4f7;
+      --muted: #a9b0bc;
+      --accent: #8fe6ff;
+      --keyword: #ff9bd3;
+      --string: #8effc1;
+      --comment: #93a0b4;
+      --number: #ffd780;
+      --ident: #9dc5ff;
+      --operator: #dfc6ff;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #10141b 0%, #07090c 48%, #020304 100%); color: var(--text); font-family: var(--sans); }
+    body { overflow: hidden; }
+    #bg, #app { position: fixed; inset: 0; }
+    #bg { z-index: 0; opacity: 0.12; pointer-events: none; }
+    #app { z-index: 1; display: block; width: 100%; height: 100%; }
+    .shell { position: fixed; inset: 0; z-index: 2; display: grid; grid-template-columns: 410px 1fr; gap: 16px; padding: 16px; pointer-events: none; }
+    .panel { pointer-events: auto; align-self: start; background: linear-gradient(180deg, rgba(14,18,24,0.9), rgba(8,10,14,0.78)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(18px); overflow: hidden; }
+    .panel-inner { padding: 18px; display: grid; gap: 12px; }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .logo { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: var(--accent); background: linear-gradient(135deg, rgba(143,230,255,0.24), rgba(255,255,255,0.08)); border: 1px solid rgba(255,255,255,0.12); }
+    h1 { margin: 0; font-size: 1.1rem; }
+    .sub { margin: 5px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+    .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: #d8f8ff; margin-top: 4px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .toolbar, .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+    .legend { margin-top: 2px; }
+    .chip, button, select, textarea, input { border-radius: 12px; border: 1px solid var(--border); color: var(--text); font: inherit; }
+    .chip { padding: 6px 9px; font-size: 0.76rem; background: rgba(255,255,255,0.05); }
+    .chip.keyword { color: var(--keyword); }
+    .chip.string { color: var(--string); }
+    .chip.comment { color: var(--comment); }
+    .chip.number { color: var(--number); }
+    .chip.ident { color: var(--ident); }
+    .chip.operator { color: var(--operator); }
+    label { display: grid; gap: 6px; font-size: 0.84rem; color: var(--muted); }
+    textarea, select, input { width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); outline: none; }
+    textarea { min-height: 180px; resize: vertical; font-family: var(--mono); line-height: 1.45; }
+    input[type="range"] { padding: 0; background: transparent; border: none; }
+    button { cursor: pointer; padding: 10px 13px; background: linear-gradient(180deg, rgba(143,230,255,0.18), rgba(143,230,255,0.08)); transition: 180ms ease; }
+    button:hover { transform: translateY(-1px); border-color: rgba(143,230,255,0.38); }
+    .secondary { background: rgba(255,255,255,0.04); }
+    .dropzone { border: 1px dashed rgba(143,230,255,0.35); background: rgba(143,230,255,0.05); border-radius: 14px; padding: 14px; text-align: center; color: var(--muted); }
+    .hidden { display: none !important; }
+    .status { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--muted); font-size: 0.82rem; font-family: var(--mono); }
+    .note, .list { color: var(--muted); font-size: 0.79rem; line-height: 1.45; }
+    .right { display: grid; align-content: end; justify-items: end; gap: 10px; }
+    .pill { pointer-events: auto; background: rgba(7,9,12,0.72); border: 1px solid var(--border); border-radius: 999px; padding: 9px 12px; color: var(--muted); font-size: 0.8rem; backdrop-filter: blur(12px); }
+    @media (max-width: 980px) { body { overflow: auto; } .shell { grid-template-columns: 1fr; } .right { justify-items: stretch; align-content: start; } }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <canvas id="app"></canvas>
+
+  <div class="shell">
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="brand">
+          <div class="logo">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M4 12h16"></path><path d="M12 4v16"></path><circle cx="12" cy="12" r="7.5"></circle>
+            </svg>
+          </div>
+          <div>
+            <h1>Syntax-Aware Particle Sculpture</h1>
+            <p class="sub">Second version with token-aware code parsing, token-class particle subfields, and Barradeau-style FBO rendering.</p>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="section-title">Code / data input</div>
+          <div class="note">Drop a code file or click to choose one. Images, audio, CSV/JSON, and plain text still work too.</div>
+          <input id="fileInput" type="file" class="hidden" accept="image/*,audio/*,.csv,.tsv,.json,.txt,.md,.rs,.ts,.js,.tsx,.jsx,.html,.htm,.css,.py,.go,.java,.c,.cc,.cpp,.h,.hpp,.cs,.swift,.kt,.kts,.rb,.php,.sh,.bash,.zsh,.fish,.sql,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.graphql,.gql,.vue,.svelte,.astro,.mjs,.cjs" />
+        </div>
+
+        <div class="legend">
+          <span class="chip keyword">keyword</span>
+          <span class="chip string">string</span>
+          <span class="chip comment">comment</span>
+          <span class="chip number">number</span>
+          <span class="chip ident">identifier</span>
+          <span class="chip operator">operator</span>
+        </div>
+
+        <label>
+          Source code / text
+          <textarea id="textInput" spellcheck="false">export type FieldBundle = {
+  targetPosition: Float32Array;
+  flow: Float32Array;
+  density: Float32Array;
+  color: Float32Array;
+};
+
+export function encodeTokens(source: string) {
+  const keywords = ['export', 'type', 'function', 'const', 'return'];
+  // Token-aware mapping for particle sculpture.
+  const score = source.length * 0.618;
+  return { keywords, score, source };
+}</textarea>
+        </label>
+
+        <div class="row">
+          <label>
+            Language hint
+            <select id="languageHint">
+              <option value="auto">Auto</option>
+              <option value="js">JavaScript / TypeScript</option>
+              <option value="rs">Rust</option>
+              <option value="py">Python</option>
+              <option value="html">HTML / XML</option>
+              <option value="css">CSS</option>
+              <option value="sql">SQL</option>
+              <option value="sh">Shell</option>
+            </select>
+          </label>
+          <label>
+            Texture size
+            <select id="sizeSelect">
+              <option value="128">128²</option>
+              <option value="256" selected>256²</option>
+              <option value="512">512²</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            Token separation
+            <input id="tokenLift" type="range" min="0" max="3" step="0.01" value="1.4" />
+          </label>
+          <label>
+            Flow strength
+            <input id="flowStrength" type="range" min="0" max="1" step="0.01" value="0.22" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label>
+            Point size
+            <input id="pointSize" type="range" min="0.6" max="5" step="0.1" value="1.9" />
+          </label>
+          <label>
+            Noise strength
+            <input id="noiseStrength" type="range" min="0" max="1.4" step="0.01" value="0.18" />
+          </label>
+        </div>
+
+        <div class="toolbar">
+          <button id="applyBtn">Apply syntax field</button>
+          <button id="sampleBtn" class="secondary">Load sample</button>
+          <button id="pauseBtn" class="secondary">Pause</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+
+        <div class="status" id="status">ready</div>
+
+        <div class="list">
+          <div class="section-title">Token behavior</div>
+          Keywords become a high, magnetized stratum; strings sweep in arcs; comments diffuse into low-density fog; numbers cluster into tighter beads; identifiers fill the mid-body; operators form edge turbulence.
+        </div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="pill" id="summaryPill">mode: syntax code · particles: 65536</div>
+      <div class="pill" id="tokenPill">tokens: 0</div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    const statusEl = document.getElementById('status');
+    const summaryPill = document.getElementById('summaryPill');
+    const tokenPill = document.getElementById('tokenPill');
+    const textInput = document.getElementById('textInput');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const languageHintEl = document.getElementById('languageHint');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const tokenLiftEl = document.getElementById('tokenLift');
+    const flowStrengthEl = document.getElementById('flowStrength');
+    const pointSizeEl = document.getElementById('pointSize');
+    const noiseStrengthEl = document.getElementById('noiseStrength');
+    const applyBtn = document.getElementById('applyBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const supportedTextExtensions = new Set(['txt','md','rs','ts','js','tsx','jsx','html','htm','css','py','go','java','c','cc','cpp','h','hpp','cs','swift','kt','kts','rb','php','sh','bash','zsh','fish','sql','xml','yaml','yml','toml','ini','cfg','conf','graphql','gql','vue','svelte','astro','mjs','cjs','json']);
+
+    const state = {
+      mode: 'syntax-code',
+      running: true,
+      size: Number(sizeSelect.value),
+      count: Number(sizeSelect.value) ** 2,
+      bundle: null,
+      rtA: null,
+      rtB: null,
+      materials: {},
+      points: null,
+      geometry: null,
+      currentFileName: null,
+      tokenCount: 0,
+      orbit: { yaw: 0, pitch: 0.16, radius: 11.5 },
+      dragging: false,
+      lastPointer: null,
+      mouse: new THREE.Vector2(0, 0),
+      audio: { context: null, analyser: null, source: null, element: null },
+    };
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function setSummary() {
+      summaryPill.textContent = `mode: ${state.mode} · particles: ${state.count}${state.currentFileName ? ` · file: ${state.currentFileName}` : ''}`;
+      tokenPill.textContent = `tokens: ${state.tokenCount}`;
+    }
+    function ext(name='') { const idx = name.lastIndexOf('.'); return idx >= 0 ? name.slice(idx + 1).toLowerCase() : ''; }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function smooth01(v) { return v * v * (3 - 2 * v); }
+    function hashString(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+    particlesJS('bg', {
+      particles: {
+        number: { value: 54, density: { enable: true, value_area: 1200 } },
+        color: { value: '#d7f8ff' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.24, random: true },
+        size: { value: 2.0, random: true },
+        line_linked: { enable: false },
+        move: { enable: true, speed: 0.46, direction: 'none', random: true, out_mode: 'out' }
+      },
+      interactivity: { detect_on: 'canvas', events: { onhover: { enable: false }, onclick: { enable: false }, resize: true } },
+      retina_detect: true
+    });
+
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('app'), antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    const simScene = new THREE.Scene();
+    const simCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    function makeDataTexture(data, size) {
+      const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.FloatType);
+      tex.needsUpdate = true;
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      return tex;
+    }
+
+    function buildResources(size) {
+      if (state.points) { scene.remove(state.points); state.geometry.dispose(); state.materials.render.dispose(); }
+      if (state.materials.sim) { state.materials.sim.dispose(); while (simScene.children.length) simScene.remove(simScene.children[0]); }
+      if (state.rtA) state.rtA.dispose();
+      if (state.rtB) state.rtB.dispose();
+
+      state.rtA = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.FloatType, depthBuffer: false, stencilBuffer: false });
+      state.rtB = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.FloatType, depthBuffer: false, stencilBuffer: false });
+
+      state.materials.sim = new THREE.ShaderMaterial({
+        uniforms: {
+          uPositions: { value: null },
+          uTarget: { value: null },
+          uFlowTex: { value: null },
+          uDensityTex: { value: null },
+          uTime: { value: 0 },
+          uDelta: { value: 0.016 },
+          uFlowStrength: { value: Number(flowStrengthEl.value) },
+          uNoiseStrength: { value: Number(noiseStrengthEl.value) },
+          uMouse: { value: new THREE.Vector3(0, 0, 0) },
+        },
+        vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vUv;
+          uniform sampler2D uPositions;
+          uniform sampler2D uTarget;
+          uniform sampler2D uFlowTex;
+          uniform sampler2D uDensityTex;
+          uniform float uTime;
+          uniform float uDelta;
+          uniform float uFlowStrength;
+          uniform float uNoiseStrength;
+          uniform vec3 uMouse;
+
+          vec3 hash3(vec3 p){
+            p = vec3(dot(p, vec3(127.1,311.7,74.7)), dot(p, vec3(269.5,183.3,246.1)), dot(p, vec3(113.5,271.9,124.6)));
+            return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+          }
+          vec3 noiseVec(vec3 p, float t){ return normalize(hash3(p * 1.9 + vec3(t * 0.13, t * 0.09, t * 0.11)) + 1e-5); }
+
+          void main(){
+            vec4 p4 = texture2D(uPositions, vUv);
+            vec3 pos = p4.xyz;
+            float alive = p4.w;
+            vec4 t4 = texture2D(uTarget, vUv);
+            vec3 target = t4.xyz;
+            float density = texture2D(uDensityTex, vUv).r;
+            vec3 flow = texture2D(uFlowTex, vUv).xyz * 2.0 - 1.0;
+            vec3 n = noiseVec(pos, uTime);
+
+            vec3 v = (target - pos) * (0.08 + density * 0.3);
+            v += flow * uFlowStrength * (0.25 + density);
+            v += n * uNoiseStrength * (0.15 + density * 0.85);
+
+            vec3 away = pos - uMouse;
+            float md = length(away) + 0.0001;
+            v += normalize(away) * smoothstep(3.4, 0.0, md) * 0.08;
+
+            pos += v * uDelta * 60.0;
+            pos = mix(pos, target, 0.01 + density * 0.05);
+            gl_FragColor = vec4(pos, alive * t4.w);
+          }
+        `
+      });
+
+      simScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), state.materials.sim));
+
+      const refs = new Float32Array(size * size * 2);
+      const verts = new Float32Array(size * size * 3);
+      for (let i = 0; i < size * size; i++) {
+        const x = i % size;
+        const y = Math.floor(i / size);
+        refs[i * 2] = (x + 0.5) / size;
+        refs[i * 2 + 1] = (y + 0.5) / size;
+      }
+
+      state.geometry = new THREE.BufferGeometry();
+      state.geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      state.geometry.setAttribute('ref', new THREE.BufferAttribute(refs, 2));
+
+      state.materials.render = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uPositions: { value: null },
+          uColorTex: { value: null },
+          uPointSize: { value: Number(pointSizeEl.value) },
+          uViewportHeight: { value: window.innerHeight },
+        },
+        vertexShader: `
+          precision highp float;
+          attribute vec2 ref;
+          uniform sampler2D uPositions;
+          uniform float uPointSize;
+          uniform float uViewportHeight;
+          varying vec2 vRef;
+          varying float vAlpha;
+          void main(){
+            vRef = ref;
+            vec4 p = texture2D(uPositions, ref);
+            vec4 mv = modelViewMatrix * vec4(p.xyz, 1.0);
+            gl_Position = projectionMatrix * mv;
+            gl_PointSize = uPointSize * (uViewportHeight / 900.0) * (1.0 / max(0.35, -mv.z));
+            vAlpha = p.w;
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vRef;
+          varying float vAlpha;
+          uniform sampler2D uColorTex;
+          void main(){
+            vec2 c = gl_PointCoord - 0.5;
+            float d = dot(c, c);
+            float mask = smoothstep(0.25, 0.0, d);
+            vec4 col = texture2D(uColorTex, vRef);
+            gl_FragColor = vec4(col.rgb, col.a * vAlpha * mask * 0.92);
+          }
+        `
+      });
+
+      state.points = new THREE.Points(state.geometry, state.materials.render);
+      scene.add(state.points);
+    }
+
+    function swapRT() { const t = state.rtA; state.rtA = state.rtB; state.rtB = t; }
+
+    function keywordSet(lang='auto') {
+      const common = ['if','else','for','while','return','const','let','var','function','class','import','export','from','new','try','catch','finally','switch','case','break','continue','throw','await','async','public','private','protected','static','enum','type','interface','extends','implements','fn','impl','struct','enum','match','pub','use','mod','trait','where','mut','ref','in','as','package','def','lambda','yield','with','select','insert','update','delete','create','drop','alter'];
+      const rust = ['fn','let','mut','impl','trait','struct','enum','match','pub','use','mod','crate','Self','self','where'];
+      const py = ['def','class','lambda','yield','with','async','await','pass','elif','None','True','False','import','from'];
+      const sql = ['select','from','where','join','left','right','inner','outer','group','by','order','having','limit','insert','into','update','delete','create','table','drop','alter','as'];
+      const html = ['div','span','script','style','head','body','html','meta','link','main','section','article','header','footer','nav','canvas','svg'];
+      if (lang === 'rs') return new Set([...common, ...rust]);
+      if (lang === 'py') return new Set([...common, ...py]);
+      if (lang === 'sql') return new Set([...common, ...sql]);
+      if (lang === 'html') return new Set([...common, ...html]);
+      return new Set(common);
+    }
+
+    function detectLanguage(source, filename='', hint='auto') {
+      if (hint !== 'auto') return hint;
+      const extension = ext(filename);
+      if (['rs'].includes(extension)) return 'rs';
+      if (['py'].includes(extension)) return 'py';
+      if (['html','htm','xml'].includes(extension)) return 'html';
+      if (['css'].includes(extension)) return 'css';
+      if (['sql'].includes(extension)) return 'sql';
+      if (['sh','bash','zsh','fish'].includes(extension)) return 'sh';
+      if (source.includes('fn ') || source.includes('impl ') || source.includes('::')) return 'rs';
+      if (source.includes('def ') || source.includes('import ') && source.includes(':\n')) return 'py';
+      if (source.includes('<div') || source.includes('</') || source.includes('<html')) return 'html';
+      if (source.includes('SELECT ') || source.includes('FROM ')) return 'sql';
+      return 'js';
+    }
+
+    function tokenize(source, lang='auto') {
+      const kws = keywordSet(lang);
+      const tokens = [];
+      let i = 0;
+      const push = (type, value) => tokens.push({ type, value });
+      while (i < source.length) {
+        const ch = source[i];
+        const next = source[i + 1] || '';
+
+        if (/\s/.test(ch)) {
+          let j = i + 1; while (j < source.length && /\s/.test(source[j])) j++;
+          push('whitespace', source.slice(i, j)); i = j; continue;
+        }
+
+        if ((ch === '/' && next === '/') || ch === '#') {
+          let j = i + 1; while (j < source.length && source[j] !== '\n') j++;
+          push('comment', source.slice(i, j)); i = j; continue;
+        }
+        if (ch === '/' && next === '*') {
+          let j = i + 2; while (j < source.length && !(source[j] === '*' && source[j + 1] === '/')) j++;
+          j = Math.min(source.length, j + 2); push('comment', source.slice(i, j)); i = j; continue;
+        }
+        if ((ch === '"' || ch === '\'' || ch === '`')) {
+          const q = ch; let j = i + 1; let escaped = false;
+          while (j < source.length) {
+            const c = source[j];
+            if (!escaped && c === q) { j++; break; }
+            escaped = !escaped && c === '\\';
+            if (escaped && c !== '\\') escaped = false;
+            j++;
+          }
+          push('string', source.slice(i, j)); i = j; continue;
+        }
+        if (/\d/.test(ch)) {
+          let j = i + 1; while (j < source.length && /[\d._xobA-Fa-f]/.test(source[j])) j++;
+          push('number', source.slice(i, j)); i = j; continue;
+        }
+        if (/[A-Za-z_$]/.test(ch)) {
+          let j = i + 1; while (j < source.length && /[A-Za-z0-9_$:-]/.test(source[j])) j++;
+          const value = source.slice(i, j);
+          push(kws.has(value) || kws.has(value.toLowerCase()) ? 'keyword' : 'identifier', value);
+          i = j; continue;
+        }
+        if (/[{}()[\].,;:+\-*/%!=<>|&^~?@]/.test(ch)) {
+          let j = i + 1;
+          while (j < source.length && /[=<>|&:+\-]/.test(source[j])) j++;
+          push('operator', source.slice(i, j)); i = j; continue;
+        }
+
+        push('other', ch); i++;
+      }
+      return tokens;
+    }
+
+    function tokenStyle(type) {
+      switch (type) {
+        case 'keyword': return { hue: [1.0, 0.61, 0.83], z: 1.7, spread: 0.55, flow: [0.86, 0.35, 0.8], alpha: 1.0 };
+        case 'string': return { hue: [0.56, 1.0, 0.76], z: 0.9, spread: 0.72, flow: [0.26, 0.95, 0.62], alpha: 0.95 };
+        case 'comment': return { hue: [0.58, 0.63, 0.7], z: -1.5, spread: 1.1, flow: [0.53, 0.58, 0.68], alpha: 0.46 };
+        case 'number': return { hue: [1.0, 0.83, 0.5], z: 0.35, spread: 0.34, flow: [0.88, 0.72, 0.24], alpha: 1.0 };
+        case 'identifier': return { hue: [0.62, 0.77, 1.0], z: 0.0, spread: 0.62, flow: [0.25, 0.55, 1.0], alpha: 0.92 };
+        case 'operator': return { hue: [0.87, 0.78, 1.0], z: 1.15, spread: 0.5, flow: [0.78, 0.46, 1.0], alpha: 0.9 };
+        default: return { hue: [0.92, 0.95, 1.0], z: -0.2, spread: 0.95, flow: [0.5, 0.5, 0.5], alpha: 0.22 };
+      }
+    }
+
+    function tokensToBundle(source, size, langHint='auto') {
+      const lang = detectLanguage(source, state.currentFileName || '', langHint);
+      const tokens = tokenize(source, lang).filter(t => t.value.length > 0);
+      state.tokenCount = tokens.length;
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+
+      const columns = Math.max(12, Math.floor(Math.sqrt(tokens.length) * 1.8));
+      const lineHeight = 0.23;
+      const tokenLift = Number(tokenLiftEl.value);
+
+      for (let i = 0; i < count; i++) {
+        const token = tokens[i % Math.max(tokens.length, 1)] || { type: 'other', value: ' ' };
+        const style = tokenStyle(token.type);
+        const hash = hashString(token.value + ':' + token.type + ':' + i.toString(36));
+        const tx = i % columns;
+        const ty = Math.floor(i / columns);
+        const baseX = (tx / Math.max(1, columns - 1)) * 10 - 5;
+        const baseY = -(ty * lineHeight) + 3.4;
+        const jitterX = (((hash & 1023) / 1023) - 0.5) * style.spread;
+        const jitterY = ((((hash >> 10) & 1023) / 1023) - 0.5) * style.spread * 0.7;
+        const jitterZ = ((((hash >> 20) & 1023) / 1023) - 0.5) * 0.65;
+        const lenWeight = Math.min(1.8, token.value.length / 10);
+
+        targetPosition[i * 4 + 0] = baseX + jitterX;
+        targetPosition[i * 4 + 1] = baseY + jitterY;
+        targetPosition[i * 4 + 2] = style.z * tokenLift + jitterZ + lenWeight * 0.12;
+        targetPosition[i * 4 + 3] = token.type === 'whitespace' ? 0.08 : 1.0;
+
+        flow[i * 4 + 0] = clamp(style.flow[0] * 0.7 + smooth01(((hash >> 6) & 255) / 255) * 0.3, 0, 1);
+        flow[i * 4 + 1] = clamp(style.flow[1] * 0.7 + smooth01(((hash >> 14) & 255) / 255) * 0.3, 0, 1);
+        flow[i * 4 + 2] = clamp(style.flow[2] * 0.7 + smooth01(((hash >> 22) & 255) / 255) * 0.3, 0, 1);
+        flow[i * 4 + 3] = 1.0;
+
+        density[i * 4 + 0] = token.type === 'comment' ? 0.18 : token.type === 'whitespace' ? 0.02 : 0.48 + Math.min(0.5, lenWeight * 0.22);
+        density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1.0;
+
+        color[i * 4 + 0] = style.hue[0];
+        color[i * 4 + 1] = style.hue[1];
+        color[i * 4 + 2] = style.hue[2];
+        color[i * 4 + 3] = style.alpha;
+      }
+
+      setSummary();
+      return { meta: { sourceType: 'syntax-code', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'token-class', language: lang }, targetPosition, flow, density, color };
+    }
+
+    async function encodeImageElement(img, size) {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, size, size);
+      const px = ctx.getImageData(0, 0, size, size).data;
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4);
+      const flow = new Float32Array(count * 4);
+      const density = new Float32Array(count * 4);
+      const color = new Float32Array(count * 4);
+      for (let i = 0; i < count; i++) {
+        const r = px[i * 4] / 255, g = px[i * 4 + 1] / 255, b = px[i * 4 + 2] / 255, a = px[i * 4 + 3] / 255;
+        const x = i % size, y = Math.floor(i / size), l = 0.299 * r + 0.587 * g + 0.114 * b;
+        targetPosition[i * 4 + 0] = (x / (size - 1) * 2 - 1) * 4.8;
+        targetPosition[i * 4 + 1] = -(y / (size - 1) * 2 - 1) * 4.8;
+        targetPosition[i * 4 + 2] = (l - 0.5) * 3.2;
+        targetPosition[i * 4 + 3] = a > 0.02 ? 1 : 0;
+        flow[i * 4 + 0] = clamp(0.5 + (r - b) * 0.5, 0, 1);
+        flow[i * 4 + 1] = clamp(0.5 + (g - r) * 0.5, 0, 1);
+        flow[i * 4 + 2] = clamp(0.5 + l * 0.5, 0, 1);
+        flow[i * 4 + 3] = 1;
+        density[i * 4 + 0] = l; density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+        color[i * 4 + 0] = r; color[i * 4 + 1] = g; color[i * 4 + 2] = b; color[i * 4 + 3] = Math.max(0.4, a);
+      }
+      return { meta: { sourceType: 'image', width: size, height: size, particleCount: count, domain: '2.5d', colorMode: 'source' }, targetPosition, flow, density, color };
+    }
+
+    function rowsToBundle(rows, size) {
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4), flow = new Float32Array(count * 4), density = new Float32Array(count * 4), color = new Float32Array(count * 4);
+      const keys = Object.keys(rows[0] || {});
+      const nums = keys.filter(k => rows.some(r => Number.isFinite(+r[k])));
+      const [kx, ky, kz] = [nums[0], nums[1] || nums[0], nums[2] || nums[1] || nums[0]];
+      const xs = rows.map(r => +r[kx]).filter(Number.isFinite), ys = rows.map(r => +r[ky]).filter(Number.isFinite), zs = rows.map(r => +r[kz]).filter(Number.isFinite);
+      const mm = arr => [Math.min(...arr, 0), Math.max(...arr, 1)];
+      const [mnx, mxx] = mm(xs), [mny, mxy] = mm(ys), [mnz, mxz] = mm(zs);
+      const norm = (v, mn, mx) => mx === mn ? 0 : ((v - mn) / (mx - mn)) * 2 - 1;
+      for (let i = 0; i < count; i++) {
+        const r = rows[i % Math.max(1, rows.length)] || {};
+        const x = norm(+r[kx] || 0, mnx, mxx) * 4.8, y = norm(+r[ky] || 0, mny, mxy) * 4.8, z = norm(+r[kz] || 0, mnz, mxz) * 4.8;
+        targetPosition[i * 4 + 0] = x; targetPosition[i * 4 + 1] = y; targetPosition[i * 4 + 2] = z; targetPosition[i * 4 + 3] = 1;
+        flow[i * 4 + 0] = clamp(0.5 + x / 10, 0, 1); flow[i * 4 + 1] = clamp(0.5 + y / 10, 0, 1); flow[i * 4 + 2] = clamp(0.5 + z / 10, 0, 1); flow[i * 4 + 3] = 1;
+        density[i * 4 + 0] = 0.4 + smooth01((z + 4.8) / 9.6) * 0.6; density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+        color[i * 4 + 0] = 0.72; color[i * 4 + 1] = 0.86; color[i * 4 + 2] = 1.0; color[i * 4 + 3] = 0.95;
+      }
+      state.tokenCount = rows.length;
+      setSummary();
+      return { meta: { sourceType: 'csv', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'mapped' }, targetPosition, flow, density, color };
+    }
+
+    function csvToRows(text, filename='') {
+      const extension = ext(filename);
+      if (extension === 'json') { const parsed = JSON.parse(text); return Array.isArray(parsed) ? parsed : Array.isArray(parsed.data) ? parsed.data : []; }
+      const delimiter = extension === 'tsv' ? '\t' : (text.includes('\t') && !text.includes(',') ? '\t' : ',');
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      const headers = (lines.shift() || '').split(delimiter).map(v => v.trim());
+      return lines.map(line => { const cells = line.split(delimiter); const obj = {}; headers.forEach((h, i) => obj[h] = cells[i]); return obj; });
+    }
+
+    function audioFrameToBundle(freq, size) {
+      const count = size * size;
+      const targetPosition = new Float32Array(count * 4), flow = new Float32Array(count * 4), density = new Float32Array(count * 4), color = new Float32Array(count * 4);
+      for (let i = 0; i < count; i++) {
+        const band = freq[i % freq.length] / 255;
+        const t = i / count;
+        const ang = t * Math.PI * 18.0;
+        const rad = 1.2 + band * 3.8;
+        targetPosition[i * 4 + 0] = Math.cos(ang) * rad;
+        targetPosition[i * 4 + 1] = ((i % size) / size) * 7 - 3.5;
+        targetPosition[i * 4 + 2] = Math.sin(ang) * rad;
+        targetPosition[i * 4 + 3] = 1;
+        flow[i * 4 + 0] = clamp(0.5 + Math.cos(ang) * 0.5, 0, 1); flow[i * 4 + 1] = clamp(0.5 + band * 0.5, 0, 1); flow[i * 4 + 2] = clamp(0.5 + Math.sin(ang) * 0.5, 0, 1); flow[i * 4 + 3] = 1;
+        density[i * 4 + 0] = 0.2 + band * 0.8; density[i * 4 + 1] = density[i * 4 + 2] = density[i * 4 + 3] = 1;
+        color[i * 4 + 0] = 0.6 + band * 0.4; color[i * 4 + 1] = 0.8 + band * 0.2; color[i * 4 + 2] = 1.0; color[i * 4 + 3] = 0.95;
+      }
+      state.tokenCount = freq.length;
+      setSummary();
+      return { meta: { sourceType: 'audio', width: size, height: size, particleCount: count, domain: '3d', colorMode: 'mapped' }, targetPosition, flow, density, color };
+    }
+
+    async function loadBundle(bundle) {
+      state.bundle = bundle;
+      state.size = bundle.meta.width;
+      state.count = bundle.meta.particleCount;
+      buildResources(state.size);
+
+      const posTex = makeDataTexture(bundle.targetPosition, state.size);
+      const flowTex = makeDataTexture(bundle.flow, state.size);
+      const densityTex = makeDataTexture(bundle.density, state.size);
+      const colorTex = makeDataTexture(bundle.color, state.size);
+
+      state.materials.sim.uniforms.uPositions.value = posTex;
+      state.materials.sim.uniforms.uTarget.value = posTex;
+      state.materials.sim.uniforms.uFlowTex.value = flowTex;
+      state.materials.sim.uniforms.uDensityTex.value = densityTex;
+      state.materials.render.uniforms.uPositions.value = posTex;
+      state.materials.render.uniforms.uColorTex.value = colorTex;
+
+      renderer.setRenderTarget(state.rtA);
+      renderer.clear();
+      renderer.render(simScene, simCamera);
+      renderer.setRenderTarget(null);
+      state.materials.render.uniforms.uPositions.value = state.rtA.texture;
+
+      setStatus(`loaded ${bundle.meta.sourceType} bundle @ ${state.size}²`);
+      setSummary();
+    }
+
+    async function handleFile(file) {
+      state.currentFileName = file.name;
+      const extension = ext(file.name);
+      const size = Number(sizeSelect.value);
+      setStatus(`loading ${file.name}...`);
+
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file); const img = new Image(); img.src = url; await img.decode();
+        await loadBundle(await encodeImageElement(img, size)); URL.revokeObjectURL(url); return;
+      }
+
+      if (file.type.startsWith('audio/')) {
+        state.mode = 'audio';
+        if (!state.audio.context) state.audio.context = new (window.AudioContext || window.webkitAudioContext)();
+        if (state.audio.element) { state.audio.element.pause(); state.audio.element.src = ''; }
+        const audio = new Audio(URL.createObjectURL(file)); audio.loop = true; await audio.play().catch(() => {});
+        const source = state.audio.context.createMediaElementSource(audio); const analyser = state.audio.context.createAnalyser(); analyser.fftSize = 256;
+        source.connect(analyser); analyser.connect(state.audio.context.destination); state.audio.element = audio; state.audio.source = source; state.audio.analyser = analyser;
+        const freq = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(freq); await loadBundle(audioFrameToBundle(freq, size)); return;
+      }
+
+      const text = await file.text();
+      if (extension === 'csv' || extension === 'tsv' || extension === 'json') {
+        state.mode = 'csv'; await loadBundle(rowsToBundle(csvToRows(text, file.name), size)); return;
+      }
+
+      if (supportedTextExtensions.has(extension) || file.type.startsWith('text/')) {
+        state.mode = 'syntax-code'; textInput.value = text; await loadBundle(tokensToBundle(text, size, languageHintEl.value)); return;
+      }
+
+      state.mode = 'syntax-code'; textInput.value = text; await loadBundle(tokensToBundle(text, size, languageHintEl.value));
+    }
+
+    async function applyCurrent() {
+      state.mode = 'syntax-code';
+      await loadBundle(tokensToBundle(textInput.value, Number(sizeSelect.value), languageHintEl.value));
+    }
+
+    async function loadSample() {
+      state.currentFileName = null;
+      textInput.value = `use std::collections::HashMap;
+
+pub struct ParticleField {
+    pub density: Vec<f32>,
+    pub flow: Vec<[f32; 3]>,
+}
+
+impl ParticleField {
+    pub fn sculpt(input: &str) -> Self {
+        // Syntax-aware mapping for Rust tokens.
+        let weight = input.len() as f32 * 0.618;
+        let mut tags = HashMap::new();
+        tags.insert("keywords", 12);
+        tags.insert("identifiers", 42);
+        Self { density: vec![weight], flow: vec![[0.0, 1.0, 0.2]] }
+    }
+}`;
+      await applyCurrent();
+    }
+
+    applyBtn.addEventListener('click', applyCurrent);
+    sampleBtn.addEventListener('click', loadSample);
+    pauseBtn.addEventListener('click', () => { state.running = !state.running; pauseBtn.textContent = state.running ? 'Pause' : 'Resume'; });
+    clearBtn.addEventListener('click', async () => { state.currentFileName = null; state.tokenCount = 0; await loadBundle(tokensToBundle('', Number(sizeSelect.value), languageHintEl.value)); });
+    sizeSelect.addEventListener('change', applyCurrent);
+    languageHintEl.addEventListener('change', applyCurrent);
+    tokenLiftEl.addEventListener('input', applyCurrent);
+    flowStrengthEl.addEventListener('input', () => state.materials.sim && (state.materials.sim.uniforms.uFlowStrength.value = Number(flowStrengthEl.value)));
+    pointSizeEl.addEventListener('input', () => state.materials.render && (state.materials.render.uniforms.uPointSize.value = Number(pointSizeEl.value)));
+    noiseStrengthEl.addEventListener('input', () => state.materials.sim && (state.materials.sim.uniforms.uNoiseStrength.value = Number(noiseStrengthEl.value)));
+    fileInput.addEventListener('change', e => { const file = e.target.files[0]; if (file) handleFile(file); });
+    dropzone.addEventListener('click', () => fileInput.click());
+    ;['dragenter','dragover'].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.8)'; }));
+    ;['dragleave','drop'].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); dropzone.style.borderColor = 'rgba(143,230,255,0.35)'; }));
+    dropzone.addEventListener('drop', e => { const file = e.dataTransfer.files[0]; if (file) handleFile(file); });
+
+    renderer.domElement.addEventListener('pointerdown', e => { state.dragging = true; state.lastPointer = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('pointerup', () => { state.dragging = false; state.lastPointer = null; });
+    window.addEventListener('pointermove', e => {
+      state.mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+      if (state.dragging && state.lastPointer) {
+        const dx = e.clientX - state.lastPointer.x; const dy = e.clientY - state.lastPointer.y;
+        state.orbit.yaw += dx * 0.005; state.orbit.pitch = clamp(state.orbit.pitch + dy * 0.005, -1.1, 1.1); state.lastPointer = { x: e.clientX, y: e.clientY };
+      }
+    });
+    window.addEventListener('wheel', e => { state.orbit.radius = clamp(state.orbit.radius + e.deltaY * 0.005, 4.5, 28); }, { passive: true });
+    window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); if (state.materials.render) state.materials.render.uniforms.uViewportHeight.value = window.innerHeight; });
+
+    const clock = new THREE.Clock();
+    const mouseWorld = new THREE.Vector3();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      const t = clock.elapsedTime;
+
+      camera.position.set(
+        Math.sin(state.orbit.yaw) * Math.cos(state.orbit.pitch) * state.orbit.radius,
+        Math.sin(state.orbit.pitch) * state.orbit.radius,
+        Math.cos(state.orbit.yaw) * Math.cos(state.orbit.pitch) * state.orbit.radius
+      );
+      camera.lookAt(0, 0, 0);
+      mouseWorld.set(state.mouse.x * 4.8, state.mouse.y * 3.2, 0);
+
+      if (state.materials.sim && state.running) {
+        state.materials.sim.uniforms.uTime.value = t;
+        state.materials.sim.uniforms.uDelta.value = dt;
+        state.materials.sim.uniforms.uMouse.value.copy(mouseWorld);
+        state.materials.sim.uniforms.uPositions.value = state.rtA.texture;
+
+        if (state.mode === 'audio' && state.audio.analyser) {
+          const freq = new Uint8Array(state.audio.analyser.frequencyBinCount);
+          state.audio.analyser.getByteFrequencyData(freq);
+          const fresh = audioFrameToBundle(freq, state.size);
+          state.materials.sim.uniforms.uTarget.value = makeDataTexture(fresh.targetPosition, state.size);
+          state.materials.sim.uniforms.uFlowTex.value = makeDataTexture(fresh.flow, state.size);
+          state.materials.sim.uniforms.uDensityTex.value = makeDataTexture(fresh.density, state.size);
+          state.materials.render.uniforms.uColorTex.value = makeDataTexture(fresh.color, state.size);
+        }
+
+        renderer.setRenderTarget(state.rtB);
+        renderer.render(simScene, simCamera);
+        renderer.setRenderTarget(null);
+        swapRT();
+        state.materials.render.uniforms.uPositions.value = state.rtA.texture;
+      }
+
+      if (state.points) {
+        state.points.rotation.y = t * 0.11;
+        state.points.rotation.x = Math.sin(t * 0.15) * 0.07;
+      }
+      renderer.render(scene, camera);
+    }
+
+    await applyCurrent();
+    animate();
+  </script>
+</body>
+</html>

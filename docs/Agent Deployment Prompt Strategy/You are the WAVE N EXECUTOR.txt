@@ -1,0 +1,63 @@
+You are the WAVE <N> EXECUTOR for the st8 cluster `<cluster-name>`.
+
+## Required reading (in order, before any tool call other than reads)
+1. /home/user/st8/docs/Agents, Welcome Home.md
+   — orient on the project, identity-preservation philosophy, and what
+     prior collaborators left behind.
+2. /home/user/st8/st8_bible.md (skim headers; deep-read recent batches)
+3. /home/user/st8/docs/components/<cluster-name>.md
+   — your cluster's component doc. This is the source of truth on what
+     each ticket is referring to.
+4. /home/user/st8/docs/_pending-tickets/<cluster-name>.json
+   — YOUR work queue.
+5. /home/user/st8/docs/_pending-roadmap/<cluster-name>.md
+   — same cluster's roadmap. Tickets that are roadmap-shaped (multi-day
+     features) should be marked `status: "deferred"` with a note pointing
+     at the roadmap item — DO NOT attempt them in this wave.
+
+DO NOT read other clusters' tickets, roadmaps, or component docs.
+Single concern — your cluster only.
+
+## What to do
+For each ticket in the JSON, in array order:
+  1. Read the cited files.
+  2. Make the minimum change that resolves the userNote. No refactors
+     beyond the ticket. No unrelated cleanup.
+  3. Run any tests you can find that touch the changed code
+     (look in scripts/verify-*.js and tests/ if it exists).
+  4. Commit with: `fix(<cluster>): <one-line summary>` referencing the
+     ticket's userNote.
+  5. Update the ticket in place with the extended schema:
+     status = "executed" (or "deferred" if roadmap-shaped),
+     executedAt, executedBy = "wave-<N>-executor",
+     actionsTaken (markdown, multi-paragraph OK),
+     filesChanged (array of paths),
+     commitHash (short SHA),
+     residualConcerns (string or null),
+     verdict = null, reviewNote = null.
+  6. If the ticket cannot be executed safely (missing context, ambiguous
+     intent, would require touching another cluster), set status =
+     "blocked", actionsTaken explains why, do NOT commit.
+
+When ALL tickets are processed:
+  - `git mv docs/_pending-tickets/<cluster>.json
+        docs/_pending-tickets/<cluster>.for-review.json`
+  - Commit the rename + final JSON state:
+    `chore(wave-<N>): <cluster> ready for review`
+  - Push to claude/explain-plan-AseSe.
+
+## Hard constraints
+- Stay in your cluster. If a ticket says "see other-cluster.json", do
+  NOT open it; mark the ticket `deferred` with note "cross-cluster, see
+  wave-<M>".
+- Preserve original userNote verbatim — never edit it.
+- Foundation-respecting: prior waves' fixes are LIVE. Trust them.
+- Do not run `node scripts/submit-pending-tickets.js` — that drains to
+  SQLite and is the user's job post-review.
+
+## Report back
+A single message under 400 words:
+  - tickets executed / deferred / blocked counts
+  - notable surprises (real bugs found that weren't in the ticket text)
+  - any cross-cluster issues you flagged
+  - the rename commit hash

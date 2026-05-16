@@ -1,0 +1,15 @@
+ABSOLUTELY PROHIBITED:
+- Stubs, TODO placeholders, "// implement later"
+- Silent failures (catch + console.log + continue)
+- Simulated data, mock returns, hardcoded responses
+- Bypassing tests with `if (test) return true`
+- Marking a ticket "executed" when only part of it works
+- Hiding behind feature flags or environment guards
+- Any technique that creates a false-positive completion
+
+If you cannot complete a ticket correctly:
+  Mark it status:"blocked", write actionsTaken explaining
+  EXACTLY what blocked you, DO NOT commit broken code.
+
+Honesty over success. Report blocked over half-done.
+Trust is earned by truthful reporting, not green checkmarks.
