@@ -3057,3 +3057,138 @@ CONNECTED <sonic-server v1.4.9>
 **Layers 2-5 of PM-1 remain unbuilt** — captured in batch 025's roadmap. Layer 1 (this batch) is the foundation; subsequent layers wire the dead modules onto it.
 
 **Commit:** `7f16a65`
+
+### Batch 028 — `meta-dogfood-wave-0`
+
+First time pointing st8's analysis pipeline at the st8 codebase itself. Goal: shake out doc-vs-implementation drift and identify the real engineering backlog before the next sprint plans its waves. Probed the documented API surface from CLAUDE.md, generated insights via `/api/generate-report`, inspected SQLite tables, exercised `/api/signal-path`. No code changes — pure observation. Output captured as a ticket cluster in `docs/_pending-tickets/meta-dogfood.md` (214 LOC).
+
+**What was probed:**
+
+- All routes listed in CLAUDE.md's API table (status + handler shape vs. doc).
+- `/api/generate-report` invocation with several `format` / `scope` combinations.
+- SQLite tables enumerated via `PRAGMA table_info` to validate persistence-layer claims.
+- `/api/signal-path` exercised with sample fingerprints from the manifest.
+- File-watcher behaviour observed across an edit cycle.
+
+**Key findings (each becomes its own ticket in the cluster):**
+
+| Finding | Severity | Notes |
+|---|---|---|
+| `/api/state` and `/api/manifests` are NOT registered in `app.js` | high | CLAUDE.md lists both as documented endpoints — drift |
+| `/api/generate-report` wedges the event loop indefinitely | high | No timeout; awaits something that never resolves |
+| `insights` table does not exist in SQLite | high | Multiple docs claim "insight-store persistence" — no table backs it |
+| OGB/*.txt files parsed as live JS | high | ~75% of the connection graph poisoned (271/375 RED, ~30K spurious edges) |
+| `lastManifestUpdate` consistently null | medium | Field declared, never assigned |
+| `/api/signal-path` returns insight-store data, not signal paths | medium | Semantic mismatch with the route name |
+| Several CLAUDE.md route descriptions don't match handlers | medium | Auth column wrong in 3 rows |
+| `--port` precedence: argv ignored in favour of env | low | Flag silently no-op when `PORT=` already set |
+
+**Important caveat surfaced after the report shipped:** the "OGB contamination" framing was technically accurate but architecturally misdirected. OGB was retained as an intentional scaffold for the post-refactor gap analysis (founder direction), not as orphaned reference code. The right fix is OGB removal once gap analysis closes — not a parser filter. This is reflected in batch 029.
+
+**Other dogfood findings stand independently of OGB** — the `/api/generate-report` wedge, the missing endpoints, the insight-store persistence gap, the `lastManifestUpdate` smell, etc. are real and unrelated.
+
+**Commit:** `03c20d2`
+
+### Batch 029 — `settings-reader-port` (closes the OGB gap)
+
+After batch 028, the founder ran an offline OGB-vs-`src/` gap analysis to validate that OGB removal was safe. Two files surfaced:
+
+- `OGB/settings-reader.js.txt` (3.5 KB) — `SettingsReader` class with `LocalStorageAdapter` + `MemoryAdapter`, schema-driven validation, `on('change')` subscriber API.
+- `OGB/src/frontend/services/state.js.txt` — byte-identical to the first (same module kept in two scaffold locations).
+
+So: **one real missing module**, not two. This batch closes that gap so OGB can be removed cleanly.
+
+**Why it had been retired (per `index.html` load-order comment in the refactor):**
+
+> dead code — never script-loaded by the original `st8.html`, had its own hardcoded `DEFAULT_VOIDFLOW` that duplicated `settings.js`'s defaults (silent divergence risk).
+
+The retirement decision was correct — but the *capabilities* (reactive change-event subscription + swappable storage adapter + public live POJO) were not absorbed into the replacement `settings.js`.
+
+**Investigation findings (different from the first read):**
+
+The first analysis pass concluded "persistence is missing" — that turned out to be wrong. Settings.js already POSTs to `/api/settings` with revert-on-failure and type coercion (more sophisticated than the OGB module's `localStorage`). The genuine gap was specifically:
+
+- **No change-event subscriber API.** `coordination.js` had `addListener()` for manifest changes since Wave 4D; settings had no parallel.
+- **No swappable storage adapter.** Tests had to stub `fetch` directly instead of using a `MemoryAdapter`.
+- **No `window.*` accessor.** Other surfaces couldn't read live tunables without rendering the UI first.
+
+**Design decision — defaults DO NOT move into the service.** Re-creating the OGB module's hardcoded `DEFAULT_VOIDFLOW` would re-introduce exactly the silent-divergence risk that retired it. `DEFAULT_SETTINGS` stays in `settings.js` as the single source of truth; the service is pure data plumbing + reactivity. The service does not own state and does not own schema.
+
+**Files:**
+
+```
+src/frontend/services/settings-reader.js  (~150 LOC, NEW)
+  window.St8SettingsReader {
+    loadAll, persist, addListener, removeListener,
+    setAdapter, getAdapter, BackendAdapter, MemoryAdapter
+  }
+  - BackendAdapter (default) — POST/GET /api/settings, unchanged route
+  - MemoryAdapter (tests) — deterministic in-memory, seedable, snapshots
+  - emit AFTER successful persist; failed persist does NOT notify
+    (contract: every observed change is durable)
+  - listener-throw isolation: a thrower does not block siblings or
+    the persist itself
+
+src/frontend/components/settings/settings.js  (refactor)
+  _persistSetting + loadSettings delegate to St8SettingsReader
+  Throws loud if service not loaded — no compat shim
+  All schema / migration / coercion / render code preserved
+  (Per session-rule: no backwards-compat shims when you can just
+   change the code.)
+
+src/frontend/index.html
+  Script-order: services/settings-reader.js BEFORE
+  components/settings/settings.js (mirrors the existing
+  coordination.js precedent)
+  Stale "retired to OGB" comment rewritten
+
+src/frontend/app.js  (small-liberty consumer)
+  wireVoidflowToCSSVars() — subscribes via
+  St8SettingsReader.addListener and mirrors voidflow.* settings
+  onto document.documentElement as `--st8-voidflow-<key>` CSS
+  custom properties. Proves the reactive path end-to-end and
+  gives future surfaces (void-engine-style consumers, reveal
+  animations) a zero-plumbing channel to read live values.
+  Initial hydrate runs once on DOMContentLoaded; subsequent
+  changes flow via the subscriber.
+
+tests/frontend/services/settings-reader.test.js  (NEW, 17 tests)
+  - BackendAdapter fetch contract (URL, method, body shape)
+  - non-2xx returns false + does NOT emit
+  - network error returns false + logs + does not throw
+  - loadAll rejects on 5xx
+  - MemoryAdapter: seed snapshotting (no aliasing), empty start,
+    array-category whole-array replacement
+  - subscriber emit on success, removeListener selectivity,
+    listener-throw isolation, non-function listeners ignored
+  - setAdapter reflective swap
+
+tests/frontend/settings-module.test.js  (sandbox patch)
+  Loads settings-reader.js into the vm context before settings.js,
+  mirroring index.html script order. All 30 existing tests pass
+  against the delegating settings.js.
+```
+
+**Test count: 449 -> 466. All passing.** (CLAUDE.md still cites 207 — that count is stale; the suite has grown across the 23-wave sprint. Bringing the CLAUDE.md numbers in line is a candidate for the next housekeeping pass.)
+
+**Lesson — cross-realm `assert/strict`.** When code runs inside `vm.createContext`, the objects it creates carry that sandbox's `Object.prototype`. `node:assert/strict`'s `deepStrictEqual` rejects them even when structurally identical to host-realm peers — error: `Values have same structure but are not reference-equal: {}`. Worked around with a small `assertDeepEqJSON` helper that JSON-roundtrips both sides. Worth knowing for any future test that exercises a `window.*` API by loading its source into a sandbox.
+
+**What this unblocks:**
+
+- **OGB removal.** The two `.txt` files in `OGB/` that the gap analysis surfaced are the only files not represented in `src/`. After this batch, `OGB/` can be removed without losing any architectural pattern.
+- **OGB removal in turn resolves** batch 028's "OGB parsing contamination" finding (271 RED files, ~30K spurious edges in the connection graph). The dogfood-residuals planning should drop the "OGB parser filter" tickets — they become moot.
+- **Future reactive consumers** (theme tokens, void-engine, anything tunable) can subscribe via `St8SettingsReader.addListener` instead of polling `St8Settings.loadSettings()`.
+
+**What remains from batch 028 (independent of OGB):**
+
+- `/api/generate-report` wedge
+- `/api/state` + `/api/manifests` 404s vs. CLAUDE.md
+- `insights` table absence
+- `lastManifestUpdate` wiring
+- `/api/signal-path` semantic rename
+- `--port` argv precedence
+- CLAUDE.md API auth-column drift
+
+These become the input for the next wave's planning once the repo is clean.
+
+**Commit:** `32ac648`
