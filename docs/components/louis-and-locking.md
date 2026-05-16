@@ -510,6 +510,34 @@ These are explicitly **not** part of the Louis-in-st8 work:
   `_pending-tickets/louis-and-locking.json`, but it does not block the
   st8 port.
 
+### Louis-standalone tool boundary (Wave 8A explicit decision)
+
+`Louis/lock_em_up_louis_v2.py` is a **separate product** from st8. Any
+bugs, crashes, or UI regressions in the standalone PyQt6 app are
+**tracked outside this repository** and are explicitly NOT in scope for
+st8 work:
+
+- st8's Path C port reimplements the ~140-line Warden core in Node
+  (`src/features/locks/lock-manager.js`, to be created in Phase L1).
+  Python bugs in the standalone app do not migrate.
+- The Python source is included in the working tree only as a reference
+  implementation. Treat it like `OGB/` — read-only documentary
+  material, never imported, never edited from inside st8 sprint work.
+- If a contributor finds a PyQt6 lifecycle bug while reading
+  `lock_em_up_louis_v2.py`, the correct action is to log it in the
+  upstream Louis project's own issue tracker (or, if no such tracker
+  exists, raise it with the founder out-of-band). **Do not file an st8
+  ticket; do not edit the Python file from within an st8 wave.**
+- The standalone app's three-tab UI (Louis + Connie + Carl) is whole
+  beyond st8's interest in just the Warden. Even if Louis-standalone is
+  someday deprecated in favor of the in-st8 panel, that deprecation
+  decision is a founder-level call and would be its own batch.
+
+This boundary protects two things at once: it stops st8 sprint work
+from being derailed by out-of-tree bug-hunts, and it stops a
+well-meaning agent reading the 1463-line PyQt6 source from "helpfully"
+porting Connie or Carl in pursuit of completeness.
+
 ---
 
 ## See also

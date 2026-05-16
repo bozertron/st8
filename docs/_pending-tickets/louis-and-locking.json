@@ -17,7 +17,9 @@
     "filepath": "/home/user/st8/Louis/lock_em_up_louis_v2.py",
     "userNote": "Out-of-scope-for-st8 follow-up. The founder mentioned 'a couple errors but I've built it successfully before' about the standalone PyQt6 app. Louis/FIXES_APPLIED.md documents v1→v2 fixes (setup-wizard timing, path handling, layout-clearing on None, folder-checkboxes init order) but PyQt6 widget lifecycle bugs are notoriously easy to miss. Right places to audit if/when the standalone app gets attention again: LouisTab.__init__, ConnieTab.__init__, CarlTab.__init__ — race conditions on signal connect and uninitialized widget refs. Does NOT block the st8 port; Path C reimplements the Warden in Node, so any residual Python bugs do not migrate. Note: the Louis/ directory is not present in this working tree (uploaded by founder at commit 1df677b on master); this ticket is a future-self reminder, not an immediately actionable item.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-8a-executor",
+    "wave8aOutcome": "Boundary documented in docs/components/louis-and-locking.md under a new 'Louis-standalone tool boundary (Wave 8A explicit decision)' subsection inside 'Out of scope'. The doc now explicitly states: (1) Python bugs in lock_em_up_louis_v2.py are tracked outside this repo, (2) the file is reference-only — treat like OGB/, never imported, never edited from inside st8 sprint work, (3) lifecycle bugs found while reading get raised upstream / with the founder, not filed as st8 tickets, (4) Connie + Carl remain off-limits even if Louis-standalone is later deprecated. Closes the 'where do Python bugs go?' ambiguity that this ticket flagged."
   },
   {
     "filepath": "/home/user/st8/docs/components/louis-and-locking.md",
