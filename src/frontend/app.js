@@ -332,15 +332,106 @@
       });
     });
 
-    // From any flanking panel, ESC returns to st8 center (matches the
-    // "diamond closest to st8" semantic). Skip when the phreak TUI is
-    // active — it has its own ESC behavior.
+    // ─── CAROUSEL KEYBOARD NAV (ticket 7) ──────────────────────
+    // Carousel was one-button-deep before this: only ESC worked.
+    // Now wired:
+    //   ESC          → return to st8 center (matches "diamond closest to st8")
+    //   ArrowLeft    → slide one column left  (phreak→st8, st8→explorer)
+    //   ArrowRight   → slide one column right (explorer→st8, st8→phreak)
+    //   Home         → jump to leftmost column (explorer)
+    //   End          → jump to rightmost column (phreak)
+    //
+    // Suppression rules (skip the global handler):
+    //   - phreak TUI is active (it owns its own keymap)
+    //   - typeable focus: <input>, <textarea>, <select>, contenteditable
+    //     OR an open .notes-popup-overlay / .panel-overlay.open
+    //     (PRD wizard, notes popup own their own Tab/Esc focus context)
+    //   - any modifier key down (Ctrl/Meta/Alt/Shift) — preserves
+    //     browser shortcuts and avoids stealing Ctrl+ArrowLeft etc.
+    //
+    // Both the keydown router AND the slide-target computation are
+    // exported on window.St8Slide so tests/frontend can drive them
+    // as pure functions without a DOM.
+
+    /**
+     * Compute the next active panel given the current panel + a key.
+     * Pure function: no DOM, no side effects.
+     * Returns null when the key is unhandled or no slide should happen.
+     *
+     * @param {string} key       — KeyboardEvent.key value
+     * @param {string} current   — current panel ('explorer'|'st8'|'phreak')
+     * @returns {string|null}    — target panel or null
+     */
+    function nextSlideTarget(key, current) {
+      const order = ['explorer', 'st8', 'phreak'];
+      const idx = order.indexOf(current);
+      if (idx < 0) return null; // unknown current — no-op
+      if (key === 'Escape') return current === 'st8' ? null : 'st8';
+      if (key === 'ArrowLeft')  return idx > 0 ? order[idx - 1] : null;
+      if (key === 'ArrowRight') return idx < order.length - 1 ? order[idx + 1] : null;
+      if (key === 'Home') return current === 'explorer' ? null : 'explorer';
+      if (key === 'End')  return current === 'phreak'   ? null : 'phreak';
+      return null;
+    }
+
+    /**
+     * Return true if the keydown should be suppressed (a typeable
+     * element has focus, or an in-app modal owns the keymap).
+     * Pure function over `document` / event target only.
+     */
+    function shouldSuppressCarouselKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return true;
+      // Shift alone is allowed (no shifted form of ArrowLeft/Right
+      // collides), but Shift+Arrow inside a text input would already
+      // be caught by the input check below.
+      const t = e.target;
+      if (t) {
+        const tag = (t.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+        if (t.isContentEditable) return true;
+      }
+      // Modal overlays own their own keymap.
+      if (document.querySelector('.notes-popup-overlay')) return true;
+      const prdOverlay = document.getElementById('overlay-prd-wizard');
+      if (prdOverlay && prdOverlay.classList.contains('open')) return true;
+      // Phreak TUI owns its own keymap.
+      if (window.PhreakTerminal && window.PhreakTerminal.getState && window.PhreakTerminal.getState().isTUI) return true;
+      return false;
+    }
+
     document.addEventListener('keydown', function(e) {
-      if (e.key !== 'Escape') return;
-      if (window.PhreakTerminal && window.PhreakTerminal.getState && window.PhreakTerminal.getState().isTUI) return;
+      const key = e.key;
+      if (key !== 'Escape' && key !== 'ArrowLeft' && key !== 'ArrowRight'
+          && key !== 'Home' && key !== 'End') return;
+      if (shouldSuppressCarouselKey(e)) return;
       const current = strip && strip.getAttribute('data-active');
-      if (current && current !== 'st8') slideTo('st8');
+      const target = nextSlideTarget(key, current || 'st8');
+      if (!target) return;
+      e.preventDefault();
+      slideTo(target);
+      // Move focus to the slide-diamond that *would have triggered*
+      // this slide so screen readers announce the active control and
+      // subsequent keyboard actions stay on the carousel chrome
+      // instead of falling back to the body. The shelf's contextual
+      // visibility (.slide-left hidden when on explorer; .slide-right
+      // hidden when on phreak) means after the slide there's always a
+      // visible diamond pointing back to the previous panel; focus
+      // that.
+      try {
+        const back = (target === 'explorer') ? '.slide-right'
+                   : (target === 'phreak')   ? '.slide-left'
+                   : (current === 'explorer') ? '.slide-right' : '.slide-left';
+        const diamond = document.querySelector('.shelf ' + back);
+        if (diamond && typeof diamond.focus === 'function') diamond.focus();
+      } catch (_) { /* focus is best-effort */ }
     });
+
+    // Export the pure helpers so tests can verify the keymap without
+    // booting a full DOM. Append to window.St8Slide established above.
+    if (window.St8Slide) {
+      window.St8Slide.nextSlideTarget = nextSlideTarget;
+      window.St8Slide.shouldSuppressCarouselKey = shouldSuppressCarouselKey;
+    }
 
     // ─── PRD WIZARD ─────────────────────────────────────────
     //
