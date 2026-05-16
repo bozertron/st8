@@ -316,7 +316,10 @@
     "status": "executed",
     "executedBy": "wave-6d-executor",
     "actionsTaken": "KICKBACK FIX (wave-6d): added +70 to every line number in the TOC to compensate for the TOC's own inserted height. All 26 major-section entries and all 27 batch entries updated. Spot-check after fix: TOC batch 003 L1874 == actual L1874; batch 010 L2098 == actual L2098; batch 015 L2272 == actual L2272; batch 022 L2684 == actual L2684; batch 027 L2938 == actual L2938. Major sections: 'What is ST8?' TOC=L79 actual=L79; 'Database Schema' TOC=L751 actual=L751. Offset is uniformly +70 across all 53 rows — verified by re-running `grep -nE \"^(## |### Batch )\" st8_bible.md` and diffing against the updated TOC. Original wave-6c structural work (TOC structure + 53-row coverage) is preserved; only the numeric column changed.",
-    "verdict": null,
+    "commitHash": "54495cb",
+    "verdict": "ack",
+    "reviewNote": "KICKBACK RESOLVED. Re-spot-checked the three batches the 6C reviewer originally flagged: TOC batch 011 → L2135 (actual `grep -nE \"^### Batch 011\"` → L2135 ✓); TOC batch 019 → L2444 (actual L2444 ✓); TOC batch 027 → L2938 (actual L2938 ✓). Major sections also match: 'What is ST8?' TOC=L79 actual=L79; 'Architecture Overview' TOC=L107 actual=L107; 'Database Schema' TOC=L751 actual=L751. All 53 TOC rows are now byte-accurate against current bible state. Commit 54495cb (`fix(bible): correct TOC line numbers (+70 for TOC's own height) — kickback fix (ticket 20)`). Tests 423/423.",
+    "reviewedBy": "wave-6d-reviewer",
     "kickbackHistory": [
       {
         "wave": "6c",
@@ -427,10 +430,11 @@
       "scripts/migration/move-history-lookup.js",
       "tests/scripts/migration/move-history-lookup.test.js"
     ],
-    "commitHash": null,
+    "commitHash": "e93befc",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Independently reproduced both required test cases. (1) `node -e \"const {findMoves} = require('/home/user/st8/scripts/migration/move-history-lookup'); console.log(JSON.stringify(findMoves('src/features/indexing/background-indexer.js')))\"` → batch=background-indexer, match=to, from=lib/commands/backgroundIndexer.js — matches claim. (2) `findMoves('OGB/lib/commands/typeParser.js.txt')` → batch=indexing-parsers, match=ogb, from=lib/commands/typeParser.js, to=src/features/indexing/type-parser.js — matches claim. Three resolution paths (.to / .from / .ogb) exercised. Commit e93befc. Tests 423/423 (10 new probes account for the 413→423 baseline shift).",
+    "reviewedBy": "wave-6d-reviewer"
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
@@ -441,10 +445,11 @@
     "executedBy": "wave-6d-executor",
     "actionsTaken": "Added a ~35-line JSDoc block above ST8_SCHEMA in src/core/database/persistence.js documenting the FK cascade design. The block enumerates: (a) the four child tables that reference file_registry.fingerprint \u2014 connections.sourceFingerprint, file_intent.fingerprint, file_mutation_log.fingerprint, tickets.fingerprint; (b) why the schema deliberately omits ON DELETE CASCADE (so mutation_log can record the delete BEFORE the parent row disappears); (c) the canonical per-fingerprint delete order used by both deleteFile() and pruneFilesNotIn() \u2014 connections \u2192 intent \u2192 mutation_log \u2192 tickets \u2192 file_registry; (d) the rule of thumb 'never DELETE FROM file_registry WHERE filepath = ? directly; always go through deleteFile() or pruneFilesNotIn()'; (e) the contract for adding new child tables (declare FK, add delete*ForFile helper, wire into both cascade paths). Tests stay 413/413.",
     "filesChanged": ["src/core/database/persistence.js"],
-    "commitHash": null,
+    "commitHash": "b68e2f8",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Read the new JSDoc block (35 lines) inserted above ST8_SCHEMA in src/core/database/persistence.js. Block is factual and enumerates all four child tables (connections.sourceFingerprint, file_intent.fingerprint, file_mutation_log.fingerprint, tickets.fingerprint), explains why ON DELETE CASCADE is intentionally omitted (mutation_log audit ordering), specifies the 5-step per-fingerprint cascade order, states the rule-of-thumb against direct `DELETE FROM file_registry WHERE filepath=?`, and gives the contract for adding new child tables. Matches the ticket's userNote request exactly. Commit b68e2f8. Tests 423/423.",
+    "reviewedBy": "wave-6d-reviewer"
   },
   {
     "filepath": "/home/user/st8/st8.sqlite",
@@ -458,7 +463,8 @@
     "commitHash": null,
     "residualConcerns": "Until persistence's P1.1 lands, every new column added to ST8_SCHEMA after this date will silently NOT appear on existing st8.sqlite files. Workaround: delete st8.sqlite, or apply a one-off ALTER. Wave 1A's introspectSchema() will surface the drift as [st8:persistence:drift] warnings at boot.",
     "verdict": "defer-confirmed-upstream",
-    "reviewNote": "Annotation by wave-6d-executor pending wave-6d-reviewer audit."
+    "reviewNote": "Defer cross-ref verified. `jq '.[0] | {filepath, status, verdict}' docs/_pending-tickets/persistence-and-database.for-review.json` returns `{filepath: \"src/core/database/persistence.js\", status: \"deferred\", verdict: \"defer-confirmed\"}` with userNote opening 'NO MIGRATION FRAMEWORK. ST8_SCHEMA is one 150-line template literal applied via `CREATE TABLE IF NOT EXISTS`. …' — i.e. the canonical owner of the migration-framework work. Annotation-only commit 0a59441. No source code changed. Tests 423/423.",
+    "reviewedBy": "wave-6d-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/results.gap-analysis.md",
@@ -471,10 +477,11 @@
     "filesChanged": [
       "scripts/migration/results.gap-analysis.md"
     ],
-    "commitHash": null,
+    "commitHash": "15bc6bc",
     "residualConcerns": "Underlying allowlist work (clean separation of expected-orphan vs unexpected-orphan in check-conventions.js) remains roadmap material \u2014 not in scope for wave-6d. The 11 orphans + 35 boundary violations are not a regression; they are the documented architectural shape (core/server orchestrates features; CLI entry points + dormant sonic siblings are expected orphans).",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Reran `timeout 30 node scripts/migration/check-conventions.js` independently. Runtime tally: Naming=8, Zero-prefix=0, Empty=0, Stale OLD-path=1, Boundary=35, Orphans=11, Total=55. Cross-checked against scripts/migration/results.gap-analysis.md: section headers '## 1. Naming \u2026 8 finding(s)', '## 2. Zero-prefix residue \u2026 0', '## 3. Empty directories \u2026 0', '## 6. Orphan modules \u2026 11', and the report summary line `**Total findings: 55** \u2014 8 naming, 0 zero-prefix, 0 empty, 1 stale paths, 35 boundary, 11 orphans` \u2014 all match the runtime output exactly. The 31\u219255 growth is correctly attributed in executor's actionsTaken (indexed src/ grew + 6b orphan-detection reclassification + vendor files). Commit 15bc6bc. Tests 423/423.",
+    "reviewedBy": "wave-6d-reviewer"
   },
   {
     "filepath": "/home/user/st8/src/features/indexing/background-indexer.js",

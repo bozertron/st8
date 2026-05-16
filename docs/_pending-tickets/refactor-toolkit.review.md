@@ -132,3 +132,75 @@ Tickets covered: 4 (indices 20, 21, 24, 26 — `executedBy == "wave-6c-executor"
 **3 ack / 1 kickback**. Three claims (26, 24, 21) reproduce fully at HEAD `897a794`. Ticket 20's TOC structure is correct but its line numbers are unusable as a navigation aid until a +70 offset fix lands. Surfacing for 6D (final reviewer) or a follow-up sub-wave.
 
 Cluster remains open for Wave 6D. JSON intentionally NOT renamed.
+
+
+## Wave 6D Review
+
+Reviewer: `wave-6d-reviewer` (CLUSTER-CLOSE reviewer — owns rename + push).
+Reviewed commits: `54495cb`, `0a59441`, `b68e2f8`, `e93befc`, `4553d5e` (aborted-wip, no source effect), `15bc6bc`, `a593868` (range `e237bd3..a593868`).
+Tickets covered: 5 (indices 20, 27, 28, 29, 30 — `executedBy ∈ {wave-6d-executor, wave-6d-finish}`).
+
+### Pre-flight
+
+- `git ls-files src/0_` empty. `ls src/` shows `core features frontend shared`. Entry chain OK.
+- HEAD `a593868`. Baseline `npm test`: **423 / 423 pass / 0 fail / 0 skipped / 0 todo**. Matches Wave 6D expected baseline (Wave 6C added 10 more tier-1 probes than originally counted, so the true baseline is 423 — not the 413 from the 6C review note).
+
+### Ticket verifications
+
+**Ticket 20 — bible TOC kickback fix (commit `54495cb`).**
+- Re-spot-checked the three batches the 6C reviewer flagged. TOC entries now read: batch 011 → L2135, batch 019 → L2444, batch 027 → L2938. Running `grep -nE "^### Batch (011|019|027) " st8_bible.md` returns L2135, L2444, L2938 respectively — **all three coordinates now byte-match.**
+- Major-section spot-check: `What is ST8?` TOC=L79 actual=L79; `Architecture Overview` TOC=L107 actual=L107; `Database Schema` TOC=L751 actual=L751; `Refactor Batch Log — 2026-05-14` TOC=L1775 actual=L1775.
+- All 53 TOC rows (26 major sections + 27 batches) shifted uniformly by +70 to compensate for the TOC's own height.
+- Verdict: **ack**. Kickback resolved.
+
+**Ticket 27 — move-history reverse-lookup helper (commit `e93befc`).**
+- Reproduced both required test cases independently. `findMoves('src/features/indexing/background-indexer.js')` → `[{batch: 'background-indexer', completedAt: '2026-05-14T13:40:19.624Z', match: 'to', move: {from: 'lib/commands/backgroundIndexer.js', to: 'src/features/indexing/background-indexer.js'}}]`. `findMoves('OGB/lib/commands/typeParser.js.txt')` → `[{batch: 'indexing-parsers', match: 'ogb', move: {from: 'lib/commands/typeParser.js', to: 'src/features/indexing/type-parser.js'}}]`.
+- Three resolution paths (`.to` / `.from` / `.ogb`) all exercised in the two probes.
+- Suite `node --test tests/scripts/migration/move-history-lookup.test.js`: 10/10 pass (accounts for the 413 → 423 baseline shift).
+- Verdict: **ack**.
+
+**Ticket 28 — FK cascade docs (commit `b68e2f8`).**
+- Read the 35-line JSDoc block inserted above `ST8_SCHEMA` in `src/core/database/persistence.js`. Block enumerates all four child tables (`connections.sourceFingerprint`, `file_intent.fingerprint`, `file_mutation_log.fingerprint`, `tickets.fingerprint`), explains the deliberate omission of `ON DELETE CASCADE` (so `mutation_log` records the delete before the parent row dies), specifies the five-step per-fingerprint delete order, gives the rule-of-thumb against direct `DELETE FROM file_registry WHERE filepath=?`, and provides the contract for adding new child tables (FK declaration + `delete*ForFile` helper + wire-in to both cascade paths).
+- Matches the ticket's userNote request precisely.
+- Verdict: **ack**.
+
+**Ticket 29 — migration framework defer (commit `0a59441`).**
+- Cross-ref verified. `jq '.[0] | {filepath, status, verdict}' docs/_pending-tickets/persistence-and-database.for-review.json` returns `{filepath: "src/core/database/persistence.js", status: "deferred", verdict: "defer-confirmed"}` — the canonical owner of the migration-framework work. userNote opens "NO MIGRATION FRAMEWORK. ST8_SCHEMA is one 150-line template literal applied via `CREATE TABLE IF NOT EXISTS`. …" matching this cluster's ticket scope.
+- Annotation-only commit. No source code changed.
+- Verdict: **defer-confirmed-upstream**.
+
+**Ticket 30 — gap-analysis tally refresh (commit `15bc6bc`).**
+- Reran `timeout 30 node scripts/migration/check-conventions.js`. Runtime tally: Naming=8, Zero-prefix=0, Empty=0, Stale OLD-path=1, Boundary=35, Orphans=11, **Total=55**.
+- Cross-checked against `scripts/migration/results.gap-analysis.md`: section headers and the final `**Total findings: 55** — 8 naming, 0 zero-prefix, 0 empty, 1 stale paths, 35 boundary, 11 orphans` line match the runtime output exactly.
+- The 31 → 55 growth is explained correctly by the executor (src/ grew, 6b orphan-detection reclassification, vendor files surfacing under naming).
+- Verdict: **ack**.
+
+### Full suite
+
+`timeout 120 npm test` after all verifications: **423 / 423 pass**, 0 fail, 0 skipped, 0 todo. Working tree clean.
+
+### Cluster-close audit
+
+`git ls-files src/0_` → empty (canonical drift check from PRE_FLIGHT step 1 passes). `find src -maxdepth 2 -name "0_*"` → empty. Canonical structure verified.
+
+Note: `git log master..HEAD --name-only --pretty=format: | grep -E "^src/0_"` returns the historical create/delete pair from commits `36d9c16` + `d340af4` — this is the documented "0_ skeleton was created and then deleted within the sprint" lifecycle. CLAUDE.md explicitly classifies these as HISTORICAL ARTIFACTS. No drift at HEAD; all previous wave-cluster closes (3-wave + 4-wave + 5-wave) treat this identically.
+
+### Verdict summary
+
+**4 ack / 0 kickback / 1 defer-confirmed-upstream**. All 5 Wave 6D claims reproduce at HEAD `a593868`. The 6C kickback on ticket 20 is fully resolved.
+
+## Cluster Summary
+
+| Wave | Tickets | ack | kickback | defer-confirmed |
+|---|---|---|---|---|
+| 6A | 17 | 17 | 0 | 0 |
+| 6B | 7 | 7 | 0 | 0 |
+| 6C | 4 | 3 | 1 (ticket 20, resolved in 6D) | 0 |
+| 6D | 5 | 4 | 0 (kickback resolved) | 1 |
+| **Total** | **33 verdicts on 32 tickets** | **31** | **1 → resolved** | **1** |
+
+Tickets total: **32** (ticket 20 received two verdicts — 6C kickback then 6D ack, both recorded; 6D final verdict is ack).
+
+Net cluster state: **31 ack + 1 defer-confirmed-upstream** across 32 tickets — every ticket has a final positive verdict. No outstanding kickbacks. No source code regressions across the cluster. Tests grew **373 → 398 → 413 → 423** as new probes landed (6A → 6B → 6C → 6D).
+
+**Cluster status: CLOSED.** Ready for rename to `.for-review.json`.
