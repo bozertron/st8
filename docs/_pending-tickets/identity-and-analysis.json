@@ -44,7 +44,7 @@
     "filesChanged": [
       "tests/features/analysis/gap-analyzer.test.js"
     ],
-    "commitHash": null,
+    "commitHash": "670fdec0720a21cec8a6d50cb54b8aedb8c47292",
     "residualConcerns": "The intent-coverage percentage check at gap-analyzer.js:217 ('(not set)' sentinel) is now pinned by the D3 probe — if a future refactor changes the sentinel string the test will fail loudly. D4's CommonJS vs ES6 rule ('any import wins') is similarly pinned; if the rule changes to 'majority wins' or 'first wins' the mixed-imports probe surfaces it. D6's positive probe asserts endpointCoverage = 14/14 against the current 14-endpoint map in gap-analyzer.js — if the map grows or shrinks the test pin will need updating. These are intentional regression locks, not brittleness.",
     "verdict": null,
     "reviewNote": null

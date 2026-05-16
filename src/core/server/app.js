@@ -319,6 +319,9 @@ class St8Server {
             case '/api/insights':
                 this._handleInsights(req, res, url);
                 break;
+            case '/api/identity-risk':
+                this._handleIdentityRisk(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -1546,6 +1549,78 @@ class St8Server {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ ok: true, projectId, categorySummary: summary, recent, recentCount: recent.length }, null, 2));
             }
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: err.message }));
+        }
+    }
+
+    /**
+     * GET /api/identity-risk
+     *
+     * Wave 3C consumer for the `.st8/identity-risk.json` artefact written
+     * by the indexer when one or more files used the mtime-fallback path
+     * for birthTimestamp (stat.birthtime was epoch / pre-1980). Surfaces
+     * the identity-drift risk count + per-file record list so
+     * frontend / introspection tools have a stable contract instead of
+     * each having to find and parse the file themselves.
+     *
+     * Shape:
+     *   - file present:   { ok: true, count: N, records: [...], generatedAt }
+     *   - file absent:    { ok: true, count: 0, records: [], generatedAt: null }
+     *   - parse failure:  500 { ok: false, error }
+     *
+     * "File absent" is a CLEAN state (the indexer deletes the file on a
+     * clean run so consumers don't read stale data — see indexer.js
+     * around L476). We return 200 with count=0 rather than 404 so
+     * polling clients can render "no risks" without special-casing.
+     *
+     * No auth gate — matches the GET-route pattern used by /api/insights
+     * and /api/signal-path. The data is read-only and the underlying file
+     * is only accessible to anyone with FS access to the target dir.
+     */
+    _handleIdentityRisk(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+        if (!this.targetDir) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'No target directory configured' }));
+            return;
+        }
+        const riskPath = path.join(this.targetDir, '.st8', 'identity-risk.json');
+        try {
+            if (!fs.existsSync(riskPath)) {
+                // Clean run — indexer deleted the stale artefact. Return
+                // a count-zero envelope so callers don't need to special-
+                // case absence.
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    ok: true,
+                    count: 0,
+                    records: [],
+                    generatedAt: null,
+                    note: 'No identity-risk artefact present — clean run.',
+                }, null, 2));
+                return;
+            }
+            const raw = fs.readFileSync(riskPath, 'utf-8');
+            const parsed = JSON.parse(raw);
+            // Indexer writes { generatedAt, fallbackCount, records }.
+            // Surface fallbackCount as `count` for parity with the
+            // /api/insights envelope.
+            const count = typeof parsed.fallbackCount === 'number'
+                ? parsed.fallbackCount
+                : (Array.isArray(parsed.records) ? parsed.records.length : 0);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                ok: true,
+                count,
+                records: Array.isArray(parsed.records) ? parsed.records : [],
+                generatedAt: parsed.generatedAt || null,
+            }, null, 2));
         } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: false, error: err.message }));
