@@ -61,7 +61,16 @@
     "filepath": "src/core/database/persistence.js",
     "userNote": "SCHEMA GAP: file_registry.lifecyclePhase is TEXT DEFAULT 'DEVELOPMENT' with no CHECK constraint (line 60). Same for brunoStatus TEXT DEFAULT 'active' (line 70). A typo in _handleProductionPromote ('PORDUCTION') or any future setter lands silently. Add `CHECK (lifecyclePhase IN ('DEVELOPMENT', 'STAGING', 'PRODUCTION'))` and `CHECK (brunoStatus IN ('active', 'flagged', 'archived'))`. Indexes on both columns already exist (idx_file_registry_lifecycle, idx_file_registry_bruno) so the values are already grouped — the constraint just enforces what the queries already assume.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4b-executor",
+    "actionsTaken": "Added CHECK constraints to ST8_SCHEMA in src/core/database/persistence.js: (1) lifecyclePhase CHECK IN ('CONCEPT','LOCKED','WIRING','DEVELOPMENT','PRODUCTION') — matches the canonical LifecyclePhase enum in src/shared/types/st8-types.js. The ticket's suggested ('DEVELOPMENT','STAGING','PRODUCTION') would have rejected the existing CONCEPT/LOCKED writes (_handleConceptFile lifecyclePhase='CONCEPT', _handleMvpLock UPDATE … SET lifecyclePhase='LOCKED'); the executed set is the actual production-used surface. STAGING is doc-only (roadmap aspirational) and is correctly excluded. (2) brunoStatus CHECK IN ('active','flagged','archived') — matches the runBrunoCall / archiveFile / onEventTriggered call sites verbatim. SQLite ALTER TABLE cannot add CHECK to an existing column — these constraints land only on NEW databases. Existing st8.sqlite files retain the un-constrained columns until a migration framework lands (correctly deferred to P1.1 persistence roadmap). JS-side validators (claimTicket provider check, logActivity throw-on-unknown) cover the existing-DB gap. Test: new tests/core/database/lifecycle-check-constraints.test.js with 5 probes — (a) every canonical lifecyclePhase enum value inserts cleanly, (b) typos PORDUCTION / staging (lowercase) / development (lowercase) / STAGING / unknown are rejected with 'CHECK constraint failed', (c) every brunoStatus enum value inserts cleanly, (d) typos ACTIVE / Active / archive / flag / unknown are rejected, (e) defaults still land — bare INSERT without lifecyclePhase/brunoStatus yields ('DEVELOPMENT','active'). Targeted run 5 pass; full suite 218→223.",
+    "filesChanged": [
+      "src/core/database/persistence.js",
+      "tests/core/database/lifecycle-check-constraints.test.js"
+    ],
+    "commitHash": null,
+    "residualConcerns": "Existing st8.sqlite files (already-bootstrapped DBs) do not gain the CHECK constraint — SQLite cannot add CHECK via ALTER TABLE. A typo against a pre-existing DB would still land silently until a migration framework runs CREATE TABLE … new + INSERT SELECT + DROP + RENAME. The migration framework is the P1.1 persistence roadmap item — out of scope for Wave 4B."
   },
   {
     "filepath": "src/core/notification-bus.js",
@@ -108,7 +117,7 @@
     "executedBy": "wave-4b-executor",
     "actionsTaken": "DEFERRED to roadmap. Multi-target watcher is roadmap-scale work: (a) FileWatcher constructor must accept roots[] and pass the array form to chokidar.watch(); (b) main.js argv parser must accept repeated --watch <dir> or a comma-separated list; (c) manifest writer (writeManifests + connection-state.json shape) needs per-root keyed output OR a flattened single-manifest with root-prefixed filepaths; (d) the shared St8Persistence handle must partition file_registry rows by root (today filepath is relative-to-single-targetDir — multi-root would collide); (e) /api/mutations SSE channel needs root tagging so multi-root subscribers can filter. The existing roadmap entry at docs/_pending-roadmap/lifecycle-and-eventing.md (Priority 3: 'Multiple-target-dir support in the watcher') already captures the design surface; this defer adds nothing structurally new. No source change in Wave 4B — the work is correctly sized as its own future batch, not a sub-wave extra.",
     "filesChanged": [],
-    "commitHash": null,
+    "commitHash": "7e2757d",
     "residualConcerns": "Roadmap pointer: docs/_pending-roadmap/lifecycle-and-eventing.md — 'Priority 3 — Multiple-target-dir support in the watcher'. Single-target remains the supported mode."
   },
   {
