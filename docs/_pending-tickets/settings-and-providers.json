@@ -54,7 +54,9 @@
     "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
     "userNote": "`window.St8Settings.getLLMProviders()` (line 373) is exposed but no caller in src/ invokes it. Batch 025 added it specifically so the (future) `editEntry()` provider dropdown would consume it — but until that dropdown ships, the API is a dead export. Either ship the consumer or document the exposure as intentional future-facing.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "GREEN",
+    "executedBy": "wave-5d-executor",
+    "actionsTaken": "Added pure helper `buildProviderOptions(selectedId)` to settings.js that walks LLM_PROVIDERS and emits `<option value=...>name</option>` HTML, marking the matching id as selected. The helper is consumed by editEntry()'s provider field (ticket 0) and is the live caller of the registry — the previously-dead getLLMProviders() public API now mirrors the same source-of-truth. 4 tests in tests/frontend/settings-module.test.js cover (a) one option per provider, (b) selected attribute applied correctly, (c) unknown selectedId leaves nothing selected, (d) getLLMProviders() returns the same list buildProviderOptions consumes."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",

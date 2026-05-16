@@ -35,6 +35,11 @@ const INSTRUMENT_TAIL = `
     SETTINGS_KEY_MIGRATIONS: SETTINGS_KEY_MIGRATIONS,
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     SETTINGS_CATEGORIES: SETTINGS_CATEGORIES,
+    LLM_PROVIDERS: LLM_PROVIDERS,
+    buildProviderOptions: buildProviderOptions,
+    buildModelEntryFields: typeof buildModelEntryFields === 'function' ? buildModelEntryFields : null,
+    MODEL_ENTRY_SCHEMA: typeof MODEL_ENTRY_SCHEMA !== 'undefined' ? MODEL_ENTRY_SCHEMA : null,
+    settingsState: settingsState,
 };
 `;
 
@@ -196,6 +201,45 @@ test('ticket 5 — migrateCategoryKeys: renames an old key when a migration is r
     assert.equal(out.reveal_words_per_minute, 200, 'old value carried to new key');
     assert.equal(out.word_atomic, true, 'other keys preserved');
     assert.equal(out.reveal_wpm, undefined, 'old key removed');
+});
+
+// ─── Ticket 6 — getLLMProviders consumer / buildProviderOptions ──
+
+test('ticket 6 — buildProviderOptions emits one <option> per LLM_PROVIDERS entry', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const html = sandbox.window.__test.buildProviderOptions(null);
+    const providers = sandbox.window.__test.LLM_PROVIDERS;
+    providers.forEach((p) => {
+        assert.ok(html.includes('value="' + p.id + '"'),
+            'expected option for provider ' + p.id);
+        assert.ok(html.includes(p.name) || html.includes(p.name.replace(/&/g, '&amp;')),
+            'expected display name for ' + p.id);
+    });
+    // No selected attribute when selectedId is null
+    assert.ok(!html.includes(' selected>'),
+        'no option should be pre-selected when selectedId is null');
+});
+
+test('ticket 6 — buildProviderOptions marks the matching id as selected', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const html = sandbox.window.__test.buildProviderOptions('anthropic');
+    assert.match(html, /<option value="anthropic" selected>/);
+    // Only one selected option
+    assert.equal((html.match(/ selected>/g) || []).length, 1);
+});
+
+test('ticket 6 — buildProviderOptions: unknown selectedId selects nothing (graceful)', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const html = sandbox.window.__test.buildProviderOptions('nonexistent-provider');
+    assert.equal((html.match(/ selected>/g) || []).length, 0);
+});
+
+test('ticket 6 — getLLMProviders() public API returns the same list buildProviderOptions consumes', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const fromApi = sandbox.window.St8Settings.getLLMProviders();
+    const internal = sandbox.window.__test.LLM_PROVIDERS;
+    assert.equal(fromApi.length, internal.length);
+    fromApi.forEach((p, i) => assert.equal(p.id, internal[i].id));
 });
 
 test('ticket 5 — migrateCategoryKeys: if new key already exists, keep new (no clobber)', () => {

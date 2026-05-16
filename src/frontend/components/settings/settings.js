@@ -515,6 +515,24 @@ var SETTINGS_KEY_MIGRATIONS = {
     // 'voidflow.reveal_wpm': 'reveal_words_per_minute'
 };
 
+// ─── PROVIDER DROPDOWN HELPER (ticket 6) ─────────────────────
+//
+// Ticket 6 (Wave 5D): window.St8Settings.getLLMProviders() was added
+// in batch 025 but had no caller in src/. The editEntry() form (ticket
+// 0) now consumes the registry to populate the provider <select> when
+// editing a `models` entry.
+//
+// buildProviderOptions(selectedId) returns an HTML <option> string for
+// every entry in LLM_PROVIDERS, with the matching id pre-selected. The
+// function is pure (no DOM, no fetch) so it's exercised by node tests.
+function buildProviderOptions(selectedId) {
+    return LLM_PROVIDERS.map(function(p) {
+        var sel = (p.id === selectedId) ? ' selected' : '';
+        return '<option value="' + escapeHtml(p.id) + '"' + sel + '>' +
+               escapeHtml(p.name) + '</option>';
+    }).join('');
+}
+
 function migrateCategoryKeys(categoryId, entries) {
     if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return entries;
     var migrated = {};
