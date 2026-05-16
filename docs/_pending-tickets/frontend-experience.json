@@ -70,7 +70,14 @@
     "filepath": "/home/user/st8/src/frontend/index.html",
     "userNote": "The PRD wizard (`#overlay-prd-wizard`) still uses the pre-refactor `.panel-overlay.open` modal pattern — an absolute-positioned full-screen blur over the whole carousel — while the rest of the app has moved to slide-based panels. Stylistically inconsistent. Decide: (a) convert to a slide-in 4th panel, or (b) repurpose `.panel-overlay` as the canonical \"transient modal\" pattern and document it.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "YELLOW",
+    "executedBy": "wave-7b-executor",
+    "executionStatus": "defer-confirmed-upstream",
+    "upstreamCluster": "server-api-and-legacy-frontend",
+    "upstreamTicketId": "FRONT-006",
+    "upstreamCommit": "9f6e2dd",
+    "roadmapRef": "docs/_pending-roadmap/server-api-and-legacy-frontend.md#p33--migrate-prd-wizard-into-the-carousel-pattern",
+    "actionsTaken": "DUPLICATE-RESOLVED by Wave 5I (server-api-and-legacy-frontend ticket FRONT-006, commit 9f6e2dd). Decision: keep modal. Rationale documented inline at src/frontend/app.js:333-359 above window.openPRDWizard — modal isolates wizard from explorer context; founder's strip-not-add stance argues against promoting PRD to a permanent 4th carousel column. file-explorer.js:350 coupling to window.openPRDWizard() is accepted: when/if migration happens, the global becomes a slideTo('prd') shim and the call site is untouched. Carousel migration deferred to roadmap P3.3 with an 8-step scope. Wave 5I reviewer verdict was defer-confirmed."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
