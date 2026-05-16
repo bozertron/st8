@@ -419,7 +419,18 @@
     "filepath": "/home/user/st8/scripts/migration/move-history.json",
     "userNote": "Given a current path like 'src/features/indexing/background-indexer.js' or an OGB path 'OGB/lib/commands/typeParser.js.txt', there's no reverse-lookup tool to find which batch moved it. Today requires manually grepping the moves arrays in move-history.json. A small CLI: `node scripts/migration/which-batch.js <path>` would scan completedBatches and return the batch name + position.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6d-executor",
+    "actionsTaken": "Added scripts/migration/move-history-lookup.js exporting findMoves(), loadHistory(), normalize(), formatResult(). Resolution order: (1) exact match on move.to (current-path query), (2) exact match on move.from (original-path query), (3) OGB-prefix strip rule — strips leading 'OGB/' and trailing '.txt' then re-matches against move.from (batch 019 archival convention). CLI entry: `node scripts/migration/move-history-lookup.js <path>` prints batch + completedAt + from/to and exits 0 on hit, 1 on miss, 2 on usage/parse error. Manual verification (both required test cases passed):\\n  - `node scripts/migration/move-history-lookup.js 'src/features/indexing/background-indexer.js'` → batch=background-indexer, matched on .to, from: lib/commands/backgroundIndexer.js\\n  - `node scripts/migration/move-history-lookup.js 'OGB/lib/commands/typeParser.js.txt'` → batch=indexing-parsers, matched on .ogb, from: lib/commands/typeParser.js, to: src/features/indexing/type-parser.js\\nAdded tests/scripts/migration/move-history-lookup.test.js with 10 probes: loadHistory shape, normalize OGB+.txt stripping, normalize input validation, .to / .from / .ogb resolution paths (current path, original path, archive path), unknown-path returns [], pre-loaded history (no extra disk read), formatResult single-match and empty-match. Suite runs 10/10. Full repo test suite stays clean: 413 → 423 (added 10).",
+    "filesChanged": [
+      "scripts/migration/move-history-lookup.js",
+      "tests/scripts/migration/move-history-lookup.test.js"
+    ],
+    "commitHash": null,
+    "residualConcerns": null,
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
