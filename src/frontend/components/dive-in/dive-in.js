@@ -479,6 +479,21 @@ export function isOpen() {
   return !!(state.overlay && state.overlay.classList.contains('open'));
 }
 
+// PERF NOTE — ticket 16 (Wave 7C, deferred):
+// setStatus calls buildForFile which fully tears down + rebuilds
+// the geometry (BarradeauBuilding + Delaunay etc.) just to swap
+// the color. The cheap path is to keep the builder + cache the
+// color BufferAttribute and rewrite in place. Acceptable today
+// because (a) status flips are rare (debug-time bug-juice → green
+// or vice-versa, not a hot loop), (b) the dive-in is one file at
+// a time so the cost is bounded by a single building's particle
+// count (typically <500), and (c) the visible cost is invisible
+// against the 2500ms emergence animation that follows.
+// Threshold for revisiting: ship the in-place color update when
+// setStatus is called >1Hz (LIFECYCLE_TRANSITION batch flow) OR
+// the rebuild is measurably stutter-visible (>50ms on commodity
+// hardware). See docs/_pending-roadmap/frontend-experience.md
+// "Dive-in setStatus in-place color update".
 export function setStatus(file, status) {
   if (!state.points || !state.currentFile) return;
   if (file.fingerprint !== state.currentFile.fingerprint) return;

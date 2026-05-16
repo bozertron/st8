@@ -138,6 +138,23 @@ Priority key:
   between panels. Document the keymap somewhere visible (probably the
   shelf takeover for a `?` help glyph).
 
+- **Dive-in setStatus in-place color update**
+  `setStatus(file, status)` calls `buildForFile()` which tears down
+  and rebuilds the entire geometry (`new BarradeauBuilding(file).build()`
+  + Delaunay etc.) just to swap the per-particle color. Cheap path:
+  cache the builder + the color BufferAttribute and rewrite the
+  attribute in place + flag `needsUpdate=true`.
+
+  Measurement baseline (Wave 7C ticket 16 deferral): status flips are
+  rare today — debug-time bug-juice → green transitions, not a hot
+  loop — and the rebuild is bounded by a single building's particle
+  count (typically <500), invisible against the 2500ms emergence
+  animation that follows the rebuild. Threshold for re-prioritization:
+  ship the in-place update when setStatus is invoked at >1Hz (e.g. a
+  LIFECYCLE_TRANSITION batch flow that fans out many status changes)
+  OR when the rebuild becomes measurably stutter-visible (>50ms on
+  commodity hardware).
+
 - **Constellation spatial index**
   `nearestParticle` is O(N) per click. Add an 8×8 coarse spatial
   bucket keyed in `bindFilesToParticles()`. Becomes load-bearing once
