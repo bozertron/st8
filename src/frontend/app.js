@@ -227,23 +227,34 @@
     }
     bootConstellation();
 
-    // Live updates: when a mutation event arrives on the SSE stream, recolor
-    // the corresponding particle. The existing mutation toast handler already
-    // subscribes to /api/mutations — we piggyback by listening on the same
-    // window event the toast handler emits, but to keep coupling loose we
-    // just poll the manifest periodically too (cheap; 5s).
-    setInterval(function() {
+    // Live updates (post Wave 4D ticket 1): the constellation listens on
+    // the SAME /api/mutations stream the mutation toast handler uses. The
+    // window event 'st8:mutation' is dispatched from that handler below
+    // (see the mutationSource.onmessage block) with the parsed payload —
+    // we subscribe here and recolor a single particle on each event.
+    //
+    // Replaces the previous 5s setInterval poll of /api/connection-state.json:
+    // SSE delivers the same status signal with <1s latency and no idle
+    // round-trips. Initial constellation state still comes from the
+    // one-shot fetch in bootConstellation() above.
+    window.addEventListener('st8:mutation', function(ev) {
       if (!window.St8Constellation) return;
-      fetch('/api/connection-state.json')
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-          if (!data || !Array.isArray(data.files)) return;
-          data.files.forEach(function(f) {
-            window.St8Constellation.updateFileStatus(f.fingerprint, f.status);
-          });
-        })
-        .catch(function() {});
-    }, 5000);
+      var data = ev && ev.detail;
+      if (!data || !data.fingerprint) return;
+
+      // schemaCard carries the canonical GREEN/YELLOW/RED status the
+      // poller was reading from connection-state.json. For DELETE events
+      // schemaCard is null on purpose (file is gone); skip those — the
+      // particle will be reconciled on the next full manifest reload.
+      var status = data.schemaCard && data.schemaCard.status;
+      if (!status) return;
+
+      try {
+        window.St8Constellation.updateFileStatus(data.fingerprint, status);
+      } catch (err) {
+        console.warn('[st8] constellation updateFileStatus failed:', err && err.message);
+      }
+    });
 
     // Wire the contextual slide diamonds. Each .slide-diamond is either
     // .slide-left (in the left shelf slot) or .slide-right (right slot).
@@ -956,6 +967,16 @@
             }
 
             console.log('[st8] Mutation:', data.mutationType, data.filepath);
+
+            // Re-broadcast on the window so loose subscribers (e.g. the
+            // constellation recolor handler installed earlier in this file)
+            // can consume the same event without coupling to this closure.
+            // Wave 4D ticket 1: replaces the 5s connection-state.json poll.
+            try {
+              window.dispatchEvent(new CustomEvent('st8:mutation', { detail: data }));
+            } catch (err) {
+              console.warn('[st8] window.dispatchEvent failed:', err && err.message);
+            }
 
             // Display notification toast in UI
             showMutationToast(data);
