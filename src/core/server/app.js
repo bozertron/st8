@@ -781,6 +781,29 @@ class St8Server {
         });
     }
     
+    /**
+     * GET /api/files — list directory entries at `?path=`.
+     *
+     * SECURITY — path traversal boundary check (Wave 5G ticket 11 annotation).
+     *
+     * The boundary check uses `path.relative(base, candidate)` and treats
+     * the candidate as INSIDE the base iff the relative path is neither
+     * absolute nor starts with `..`. This is the canonical Node.js idiom
+     * for sandboxing a path to a directory; it correctly handles:
+     *
+     *   - symlink resolution differences (we resolve first via path.resolve)
+     *   - trailing slashes and `.` segments (normalized by path.relative)
+     *   - the classic `startsWith` foot-gun where '/home/bozertron2/evil'
+     *     is wrongly accepted by `candidate.startsWith('/home/bozertron')`
+     *     because they share a prefix but the second path is NOT inside the
+     *     first. `path.relative('/home/bozertron', '/home/bozertron2/evil')`
+     *     returns '../bozertron2/evil' — the leading '..' signals "outside".
+     *
+     * DO NOT regress to startsWith()-style checks. The codebase previously
+     * shipped that pattern and audit CR-02 replaced it. Any future path-
+     * accepting handler must use the same path.relative() shape (see also
+     * API-006 in this cluster's ticket file for the audit of other routes).
+     */
     _handleFileList(req, res, url) {
         const os = require('os');
         const requestedPath = url.searchParams.get('path') || this.targetDir;
@@ -793,11 +816,10 @@ class St8Server {
 
         const resolvedPath = path.resolve(dirPath);
 
-        // Directory traversal protection — restrict to home dir or targetDir
-        // CR-02 fix: use path.relative() to enforce path-boundary semantics.
-        // String startsWith('/home/bozertron') would incorrectly allow
-        // '/home/bozertron2/evil' — path.relative catches this because the
-        // relative path starts with '..' when outside the base directory.
+        // Directory traversal protection — restrict to home dir or targetDir.
+        // See JSDoc above for the full security rationale (CR-02 fix + Wave
+        // 5G ticket 11 annotation). path.relative() is the canonical Node
+        // boundary check; the previous startsWith() pattern was insecure.
         const homeDir = os.homedir();
         const relToHome = path.relative(homeDir, resolvedPath);
         const relToTarget = this.targetDir ? path.relative(this.targetDir, resolvedPath) : null;

@@ -149,7 +149,10 @@
       "file": "src/core/server/app.js",
       "lineHint": "519-534 (insideHome / insideTarget)",
       "summary": "_handleFileList correctly uses path.relative() to enforce path boundaries. The earlier startsWith()-based check was insecure. We should audit every other route that takes a path-shaped input — _handleIndex (`{path}`), _handleVerify (`{path}`), _handleConceptFile (`{filepath}`), _handleMarkReviewed (`{filepath}`), and _serveStaticFile (line 174 uses startsWith() — same insecure pattern that was fixed elsewhere).",
-      "proposed": "Replace startsWith() checks with path.relative() in _serveStaticFile and audit all path-accepting handlers for traversal."
+      "proposed": "Replace startsWith() checks with path.relative() in _serveStaticFile and audit all path-accepting handlers for traversal.",
+      "status": "executed",
+      "executedBy": "wave-5g-executor",
+      "actionsTaken": "Annotation-only per the wave prompt (path.relative() boundary in _handleFileList was already secure). Added a multi-line JSDoc block above _handleFileList in src/core/server/app.js documenting: (a) WHY path.relative() is the canonical Node boundary check, (b) the three foot-guns it correctly handles (symlinks, trailing slash/dot normalization, prefix-aliasing where '/home/bozertron2/evil' shares a prefix with '/home/bozertron' but is NOT inside it), (c) an explicit DO-NOT-REGRESS instruction pointing at the previous startsWith() pattern. Inline comment at the relToHome/relToTarget block now references the JSDoc instead of restating the rationale. No behaviour change — boundary check logic is byte-identical. The broader audit proposed in the original ticket (auditing _handleIndex / _handleVerify / _handleConceptFile / _handleMarkReviewed / _serveStaticFile) is preserved in the cluster's roadmap and is out of scope for Wave 5G's annotation-only scope per the wave prompt."
     },
     {
       "id": "API-007",
