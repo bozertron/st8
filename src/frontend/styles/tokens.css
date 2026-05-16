@@ -11,13 +11,15 @@
     --gold:   #D4AF37;
     --cyan:   #1FBDEA;
     --pink:   #C9748F;
+    --purple: #9D4EDD;   /* COMBAT state (agents-active, future) — ticket 10 */
 
     /* RGB triplets for the same hues (used in rgba() to compose
        translucent borders, glows, fills without re-hardcoding each
        color). Keep in sync with the hex above. */
-    --gold-rgb: 212, 175, 55;
-    --cyan-rgb: 31, 189, 234;
-    --pink-rgb: 201, 116, 143;
+    --gold-rgb:   212, 175, 55;
+    --cyan-rgb:   31, 189, 234;
+    --pink-rgb:   201, 116, 143;
+    --purple-rgb: 157, 78,  221;
 
     /* Default panel accent — used by .panel-frame and friends.
        Each panel column overrides this to set its own theme:
