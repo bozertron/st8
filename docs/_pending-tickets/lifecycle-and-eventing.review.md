@@ -157,3 +157,111 @@ Watcher invariants are tightened (dedup, scoped ignores, metrics), the
 hook publishers Wave 2B introduced remain wired, and the test suite is
 green at 218. 4B can layer LIFECYCLE_TRANSITION publishers and bruno
 automation on top without colliding with 4A's surface.
+
+---
+
+# Wave 4B Review — lifecycle-and-eventing
+
+**Reviewer:** wave-4b-reviewer
+**Date:** 2026-05-16
+**Pre-flight:** OK (tests=230, head=a7c1d07)
+**Tickets audited:** [5, 9, 10, 11, 12] (Wave 4B only). 4C/4D remain open.
+
+---
+
+## Verdicts
+
+| Ticket | Topic | Verdict |
+|---|---|---|
+| 5  | CHECK constraints lifecyclePhase + brunoStatus | ack |
+| 9  | bruno-oscar as INDEX_START subscriber | ack |
+| 10 | LIFECYCLE_TRANSITION publishers in bruno-oscar | ack |
+| 11 | _appendToParent wired into runOscarHouse | ack |
+| 12 | Multi-target FileWatcher | defer-confirmed |
+
+**Total: 4 ack / 0 kickback / 1 defer-confirmed.**
+
+---
+
+## Per-ticket findings
+
+### Ticket 5 — CHECK constraints
+- `src/core/database/persistence.js:41` — `lifecyclePhase TEXT DEFAULT 'DEVELOPMENT' CHECK (lifecyclePhase IN ('CONCEPT', 'LOCKED', 'WIRING', 'DEVELOPMENT', 'PRODUCTION'))`.
+- `src/core/database/persistence.js:51` — `brunoStatus TEXT DEFAULT 'active' CHECK (brunoStatus IN ('active', 'flagged', 'archived'))`.
+- Executor's enum decision is correct: `app.js:1031` writes `lifecyclePhase='CONCEPT'` and `app.js:1086` writes `'LOCKED'`. The ticket's suggested `('DEVELOPMENT','STAGING','PRODUCTION')` would have rejected real writes; the canonical LifecyclePhase enum from `src/shared/types/st8-types.js` was used instead.
+- `timeout 30 node --test tests/core/database/lifecycle-check-constraints.test.js` → 5 pass / 0 fail.
+- Residual (existing un-constrained DBs) correctly scoped to the persistence-migration roadmap.
+
+### Ticket 9 — INDEX_START subscriber
+- `src/core/hooks/default-subscribers.js:114-127` — registered at `priority: 20, source: 'bruno-session-start'`. Sonic-daemon retains P=10.
+- Lazy `require(...bruno-oscar)` + `require(...notification-bus)` inside body — same posture as FILE_AFTER_CHANGE subscribers.
+- Try/catch around the body — bruno failure does not poison the rest of the chain (matches the DRY+wrap convention).
+- `tests/core/hook-registry.test.js` correctly updated to expect 2 INDEX_START subscribers.
+- bruno-oscar.test.js (test "bruno-session-start subscriber registered on INDEX_START at P=20 after sonic-daemon") asserts both shape and order.
+
+### Ticket 10 — LIFECYCLE_TRANSITION publishers
+- Three fire sites in `bruno-oscar.js`: `runBrunoCall` line 87 (active→flagged), `runOscarHouse` line 148 (flagged→archived), `onEventTriggered` line 215 (archived→active).
+- `_fireLifecycleTransition` (lines 40–53) lazy-requires hook-registry via cached helper; try/catch isolates fire-failures from primary brunoStatus mutation.
+- Three test cases register a real subscriber on the singleton `hookRegistry` and verify payload `{ file: { fingerprint, filepath }, oldPhase, newPhase }` for each transition. Each test unsubscribes in `finally` — singleton stays clean across the suite.
+- `app.js` POST /api/bruno-call and POST /api/oscar-house await the now-async results (verified in commit 7c4b673).
+- Hook semantics residual (brunoStatus values reusing LIFECYCLE_TRANSITION instead of a dedicated BRUNO_STATUS_TRANSITION hook) is correctly surfaced; subscribers disambiguate on payload values today.
+
+### Ticket 11 — _appendToParent wire-up
+- `runOscarHouse` calls `this._appendToParent(file)` at line 133, BEFORE `archiveFile`. Best-effort (returns false on missing parent / read error, never throws).
+- bruno-oscar.test.js asserts (a) flagged file with `associatedWith` → parent file contains appended content with the `APPENDED BY OSCAR` marker, (b) `associatedWith=null` → archive proceeds cleanly with no FS fault.
+- Real read path traced through runOscarHouse, not test-only invocation.
+
+### Ticket 12 — multi-target defer
+- Roadmap entry at `docs/_pending-roadmap/lifecycle-and-eventing.md:22` ("Priority 3 — Multiple-target-dir support in the watcher") pre-existed and captures the design surface. The JSON ticket status="deferred" with that reference is correct posture.
+- Five design-surface considerations (roots[] constructor, argv parser, per-root manifest keying, per-root file_registry partition, SSE root-tagging) all accurate.
+- No source change in Wave 4B — correct.
+
+---
+
+## Mutation probe (mandatory)
+
+**Mutation:** Commented out the `await this._fireLifecycleTransition(file, 'active', 'flagged')` call inside `runBrunoCall` at `src/features/lifecycle/bruno-oscar.js:87`.
+
+**Result:** `timeout 30 node --test tests/features/lifecycle/bruno-oscar.test.js` → 6 pass / 1 fail. The single failure was exactly:
+
+```
+not ok 1 - runBrunoCall fires LIFECYCLE_TRANSITION active→flagged per stale file
+```
+
+The publisher contract IS load-bearing — the test catches missing fires, it isn't an `assert.ok(true)` cheat. Restored from `/tmp/bruno-oscar.backup.js`; targeted suite back to 7 pass / 0 fail; full suite back to 230 pass; `git status --short` empty.
+
+---
+
+## Test suite final count
+
+`timeout 60 npm test` → **230 pass / 0 fail / 0 skip / 0 todo**. Matches the 218→230 (+12) executor claim. The +12 breaks down as 5 (lifecycle-check-constraints) + 7 (bruno-oscar) new probes.
+
+---
+
+## Pre-existing Persistence Bug Surfaced by Wave 4B
+
+The executor honestly flagged in ticket 9's residualConcerns: `upsertFile` in `src/core/database/persistence.js:500–522` performs `INSERT OR REPLACE INTO file_registry (...)` with a column list that **omits brunoStatus** (also sessionsSinceAccess, lastAccessed, expiryDate, eventTrigger, needsAIReview, tripleAtCount, associatedWith, isFinalized). Because `INSERT OR REPLACE` is semantically `DELETE + INSERT`, every Pass-1 indexer reindex of a file **resets brunoStatus back to the column default 'active'**, clobbering any prior bruno flag or oscar archive.
+
+**Net effect on Wave 4B's bruno session-start subscriber:** bruno fires at INDEX_START (P=20) and correctly flips stale rows to brunoStatus='flagged'; the indexer's Pass-1 upsert loop (`src/core/server/main.js` indexer pass) then runs and silently flips them back to 'active' before INDEX_COMPLETE writes the manifest. The flag is observable inside the INDEX_START chain but invisible downstream.
+
+**Verification:** `grep -n "brunoStatus\|upsertFile" src/core/database/persistence.js` confirms upsertFile's column list at line 503–505 excludes brunoStatus while the schema at line 51 defines its default as 'active'. SQLite `INSERT OR REPLACE` will reset omitted columns to their declared defaults.
+
+**Cluster boundary:** Bug lives in the **persistence-and-database** cluster. NOT a Wave 4B kickback — it predates this wave. Wave 4B's subscriber wiring is correct; the downstream clobber is independent.
+
+**Recommendation for founder:** P1 follow-up roadmap item against `persistence-and-database`. Two viable shapes:
+- (a) Add the lifecycle columns (`brunoStatus`, `sessionsSinceAccess`, `lastAccessed`, `expiryDate`, `eventTrigger`, `associatedWith`, `needsAIReview`, `tripleAtCount`, `isFinalized`) to the INSERT OR REPLACE column list and forward their existing values from a pre-replace SELECT — preserves bruno/oscar state across reindex.
+- (b) Replace `INSERT OR REPLACE` with `INSERT … ON CONFLICT(fingerprint) DO UPDATE SET …` that only updates the indexer-owned columns — lifecycle columns untouched by default, no SELECT needed.
+
+Option (b) is the surgical fix; option (a) is the conservative one. Either way, the migration framework already on the persistence roadmap (P1.1) is a prerequisite for backfilling existing DBs.
+
+---
+
+## Concerns for founder attention
+
+None blocking for Wave 4B's scope. The upsertFile observation above is the one finding worth escalating — it is the reason bruno's session-start sweep is currently a no-op end-to-end despite firing correctly. Wave 4B did the right work; the bug is upstream of their seam.
+
+---
+
+## Safe for Wave 4C (SSE robustness) to build on?
+
+**Yes.** Wave 4B touched `src/core/database/persistence.js` (schema only — CHECK constraints), `src/features/lifecycle/bruno-oscar.js`, `src/core/hooks/default-subscribers.js`, and `src/core/server/app.js` (POST handler awaits). No edits in `src/core/notification-bus.js` or the `/api/mutations` SSE handler. The hook chain is now denser (bruno on INDEX_START, LIFECYCLE_TRANSITION publishers wired) but that is signal SSE consumers can subscribe to, not collision surface. Tests green at 230. 4C can land heartbeat + integration tests on top.
