@@ -346,6 +346,23 @@ class St8Server {
         this._serveStaticFile(req, res, url);
     }
     
+    /**
+     * Routing convention (Wave 5G ticket 14):
+     *
+     *   - Collection / verb routes use a flat path matched directly by the
+     *     switch below (e.g. POST /api/tickets, POST /api/index,
+     *     GET /api/tickets/count).
+     *   - Per-resource routes use a path parameter (`:id` / `:name`) and are
+     *     matched by regex in the `default` branch (e.g.
+     *     GET /api/prd-projects/<name>, POST /api/tickets/:id/claim,
+     *     POST /api/tickets/:id/resolve).
+     *
+     * Both forms coexist intentionally — see
+     * `docs/components/server-api-and-legacy-frontend.md` (Part 1 → Routing
+     * convention) for the full rationale, and
+     * `src/core/server/route-manifest.js` for the machine-readable list
+     * asserted-1:1 against this switch by the route-manifest-drift test.
+     */
     _handleApiRequest(req, res, url) {
         switch (url.pathname) {
             case '/api/connection-state.json':

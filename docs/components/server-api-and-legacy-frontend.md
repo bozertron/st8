@@ -55,6 +55,34 @@ The router in `app.js` is a single flat `switch` in `_handleApiRequest()`
 **Total: 23 routes** (24 if you count `/api/prd-projects/<name>` as separate
 from `/api/prd-projects`).
 
+### Routing convention (Wave 5G ticket 14)
+
+The router in `_handleApiRequest` is a flat `switch` over `url.pathname`
+plus a `default` branch that runs regex matchers for parameterised paths.
+The convention — codified here as the intentional design — is:
+
+- **Collection / verb routes use verb-flat path strings** matched directly
+  by the `switch`. Examples: `POST /api/tickets` (create a ticket on the
+  collection), `POST /api/index` (run an action), `GET /api/tickets/count`
+  (a derived collection view).
+- **Per-resource routes use `:id` (or `:name`) path parameters** matched
+  by regex in the `default` branch. Examples:
+  `GET /api/prd-projects/<name>`, `POST /api/tickets/:id/claim`,
+  `POST /api/tickets/:id/resolve`.
+
+This is REST-shaped without a router framework. Verbs that act on the
+**collection** stay flat (they share a single switch case); verbs that
+act on a **specific resource** carry the identifier in the path. The two
+forms coexist because adding a generic router would be more code surface
+than the dozen current routes warrant — when the count crosses ~30 or a
+fourth resource gains `:id` verbs, revisit the table-driven approach
+sketched in the roadmap (P2.5).
+
+The machine-readable contract is `src/core/server/route-manifest.js`
+(Wave 5G ticket 13) — every route in that file is asserted to exist in
+`app.js` and vice versa via the drift test
+`tests/core/server/route-manifest-drift.test.js`.
+
 ### Cross-cutting observations
 
 - Body-size caps: 17 POST handlers cap at 1KB; two (`/api/prd-projects`,

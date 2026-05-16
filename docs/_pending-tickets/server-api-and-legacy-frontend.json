@@ -186,7 +186,10 @@
       "scope": "API design",
       "file": "src/core/server/app.js",
       "summary": "/api/prd-projects/<name> uses path params via regex (line 1089) but everything else is verb-flat. /api/tickets is GET-list / POST-create, but ticket-by-id has no GET handler. /api/templates is collection-style, /api/file-intent is action-style. Conventions drift per author.",
-      "proposed": "Document an API style guide (use resource-style for entities, action-style for verbs) and reconcile over the next refactor pass."
+      "proposed": "Document an API style guide (use resource-style for entities, action-style for verbs) and reconcile over the next refactor pass.",
+      "status": "executed",
+      "executedBy": "wave-5g-executor",
+      "actionsTaken": "Documented the convention as intentional (not drift) per Wave 5G prompt option (c). Two changes: (1) added a JSDoc block above _handleApiRequest in src/core/server/app.js stating the convention — collection/verb routes use flat switch-matched paths; per-resource routes use :id/:name params matched by regex in the default branch; both forms coexist intentionally; (2) added a 'Routing convention (Wave 5G ticket 14)' subsection to docs/components/server-api-and-legacy-frontend.md (between the route table and 'Cross-cutting observations') with concrete examples for each form, the rationale (no router framework — current ~25 routes don't justify it), and a revisit-trigger (when route count crosses ~30 or a fourth resource gains :id verbs, switch to the table-driven approach in roadmap P2.5). The machine-readable source-of-truth (route-manifest.js, ticket 13) cross-references this convention in its docstring. No behaviour change — the switch + default-regex pattern already worked this way; the convention is now codified rather than implicit."
     },
     {
       "id": "BOOT-001",
