@@ -47,7 +47,10 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "4529a59",
-    "actionsTaken": "Grep-verified no live definition: `grep -rn 'unloadVoidEngine|loadVoidEngine' src/` found three call sites in app.js (lines 579, 591-592, 609) and zero definitions — confirming dead code. Removed all three guarded calls in st8WorkspaceChanged. Also removed the now-meaningless 'pretext-dev' workspace branch (its only distinct behavior was loading void-engine); the value now degrades to standard-mode via the else branch. Updated the index.html header comment that previously claimed the call sites would remain as safe no-ops — it now records the Wave 7C removal."
+    "actionsTaken": "Grep-verified no live definition: `grep -rn 'unloadVoidEngine|loadVoidEngine' src/` found three call sites in app.js (lines 579, 591-592, 609) and zero definitions — confirming dead code. Removed all three guarded calls in st8WorkspaceChanged. Also removed the now-meaningless 'pretext-dev' workspace branch (its only distinct behavior was loading void-engine); the value now degrades to standard-mode via the else branch. Updated the index.html header comment that previously claimed the call sites would remain as safe no-ops — it now records the Wave 7C removal.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified `grep -rn 'unloadVoidEngine|loadVoidEngine' src/` returns one hit only — a documentary comment in index.html:19 noting the removal. Zero live calls in src/. Dead-code removal genuine; pretext-dev branch correctly degraded to else."
   },
   {
     "filepath": "/home/user/st8/src/frontend/styles/carousel.css",
@@ -57,7 +60,10 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "dcf73c5",
-    "actionsTaken": "Grep-verified no live consumer: `grep -rn 'dock-diamond' src/` returned only the carousel.css definition itself — zero markup references in index.html or any component. Removed the .dock-diamond base + :hover + :active rules (32 lines) and replaced them with a documentary comment pointing at the frontend-experience roadmap P2 'Outer dock diamonds' entry so the future markup-wiring work re-introduces the rules alongside its consumers."
+    "actionsTaken": "Grep-verified no live consumer: `grep -rn 'dock-diamond' src/` returned only the carousel.css definition itself — zero markup references in index.html or any component. Removed the .dock-diamond base + :hover + :active rules (32 lines) and replaced them with a documentary comment pointing at the frontend-experience roadmap P2 'Outer dock diamonds' entry so the future markup-wiring work re-introduces the rules alongside its consumers.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified `grep -rn 'dock-diamond' src/` returns only documentary references inside carousel.css L200-206 explaining the removal + roadmap pointer. No live rule, no markup user. Dead-CSS removal genuine."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/particles.lib.js",
@@ -67,7 +73,10 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "91cb015",
-    "actionsTaken": "Chose option (b) — keep global + document the contract — over option (a) ESM conversion. Rationale: (1) particles.lib.js is the UNMODIFIED upstream MIT-licensed v2.0.0 vendored verbatim (1500+ LOC); patching for ESM diverges from upstream and breaks drop-in update parity. (2) Founder's strip-not-add posture argues against an ESM wrapper for a single consumer. (3) Roadmap already lists P3 'Particles.js adapter module' (mountParticles(host, config) → { particles, destroy, on(...) }) as the future migration; this is documentation until that lands. Two edits: (i) particles.lib.js gained a top-of-file documentary block declaring the global contract — the two side-effect globals (window.particlesJS function, window.pJSDom Array), constellation.js as sole consumer, existing guards, do-not-edit-below directive to preserve upstream parity, and roadmap pointer. (ii) constellation.js expanded the existing typeof-function guard with a fuller warning naming the load-order failure mode and pointing at the contract doc. The Array.isArray(window.pJSDom) guard at pickPJS already exists."
+    "actionsTaken": "Chose option (b) — keep global + document the contract — over option (a) ESM conversion. Rationale: (1) particles.lib.js is the UNMODIFIED upstream MIT-licensed v2.0.0 vendored verbatim (1500+ LOC); patching for ESM diverges from upstream and breaks drop-in update parity. (2) Founder's strip-not-add posture argues against an ESM wrapper for a single consumer. (3) Roadmap already lists P3 'Particles.js adapter module' (mountParticles(host, config) → { particles, destroy, on(...) }) as the future migration; this is documentation until that lands. Two edits: (i) particles.lib.js gained a top-of-file documentary block declaring the global contract — the two side-effect globals (window.particlesJS function, window.pJSDom Array), constellation.js as sole consumer, existing guards, do-not-edit-below directive to preserve upstream parity, and roadmap pointer. (ii) constellation.js expanded the existing typeof-function guard with a fuller warning naming the load-order failure mode and pointing at the contract doc. The Array.isArray(window.pJSDom) guard at pickPJS already exists.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Contract doc verified at particles.lib.js:10-43 — names both globals (window.particlesJS, window.pJSDom), sole consumer (constellation.js), guard pattern, do-not-edit-below directive, and roadmap pointer. constellation.js:129-136 carries the explicit load-order warning. Roadmap P3 'Particles.js adapter module' entry at docs/_pending-roadmap/frontend-experience.md:186-190 confirms ESM-wrapper future. Defer rationale (vendored verbatim, strip-not-add) sound."
   },
   {
     "filepath": "/home/user/st8/src/frontend/index.html",
@@ -120,7 +129,10 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "85218b7",
-    "actionsTaken": "Created src/frontend/components/status-colors.js as the single source of truth. Public surface (window.St8StatusColors): HEX (canonical hex strings), INT (pre-derived 0x… integers for THREE.js), RGB (pre-derived {r,g,b} 0-255 objects for particles.js), resolve(file) honoring file.locked override returning RGB, resolveInt(file) returning INT, hexToInt/hexToRgb utilities. Designed for dual consumption: browser <script> tag sets window.St8StatusColors before constellation.js + dive-in.js load; CommonJS module.exports allows Node tests to require it directly. constellation.js STATUS_COLOR is now `(window.St8StatusColors && window.St8StatusColors.RGB) || <inline-fallback>` — primary path reads the shared module, fallback preserves the historical inline map if the script tag drops, with a console.warn surfacing the contract break. dive-in.js does the same with .INT. index.html wires `<script src='components/status-colors.js'>` before particles.lib.js. Added tests/frontend/status-colors.test.js — 10 probes covering exports surface, HEX canonical values, INT/RGB pre-derivation matching the historical inline maps exactly, hexToInt/hexToRgb, resolve()/resolveInt() locked-override + unknown-status fallback, plus source-text guards on both consumer files that fail if either drops the shared-module read. Tests: 451 / 451 (441 baseline after ticket 19 added 6 tests, +10 here = 451)."
+    "actionsTaken": "Created src/frontend/components/status-colors.js as the single source of truth. Public surface (window.St8StatusColors): HEX (canonical hex strings), INT (pre-derived 0x… integers for THREE.js), RGB (pre-derived {r,g,b} 0-255 objects for particles.js), resolve(file) honoring file.locked override returning RGB, resolveInt(file) returning INT, hexToInt/hexToRgb utilities. Designed for dual consumption: browser <script> tag sets window.St8StatusColors before constellation.js + dive-in.js load; CommonJS module.exports allows Node tests to require it directly. constellation.js STATUS_COLOR is now `(window.St8StatusColors && window.St8StatusColors.RGB) || <inline-fallback>` — primary path reads the shared module, fallback preserves the historical inline map if the script tag drops, with a console.warn surfacing the contract break. dive-in.js does the same with .INT. index.html wires `<script src='components/status-colors.js'>` before particles.lib.js. Added tests/frontend/status-colors.test.js — 10 probes covering exports surface, HEX canonical values, INT/RGB pre-derivation matching the historical inline maps exactly, hexToInt/hexToRgb, resolve()/resolveInt() locked-override + unknown-status fallback, plus source-text guards on both consumer files that fail if either drops the shared-module read. Tests: 451 / 451 (441 baseline after ticket 19 added 6 tests, +10 here = 451).",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Shared module src/frontend/components/status-colors.js verified: HEX/INT/RGB/resolve/resolveInt/hexToInt/hexToRgb surface, dual browser+CJS export. Both consumers reach into SAME module — constellation.js:50 reads .RGB, dive-in.js:93 reads .INT (grep St8StatusColors confirms one shared source). Targeted suite 10/10 pass. MUTATION PROBE: swapped GREEN hex 'D4AF37' → 'FF0000' in status-colors.js → targeted suite went 10/10 → 7/10 (3 fails on HEX/INT/RGB derivation probes). File restored, suite back to 10/10. Single-source-of-truth genuine."
   },
   {
     "filepath": "/home/user/st8/src/frontend/styles/tokens.css",
@@ -130,7 +142,10 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "b55198f",
-    "actionsTaken": "Added `--purple: #9D4EDD;` and `--purple-rgb: 157, 78, 221;` to :root in tokens.css. The hex matches dive-in.js's 0x9D4EDD COMBAT entry exactly; the RGB triplet matches constellation.js's {r:157,g:78,b:221} entry exactly (157=0x9D, 78=0x4E, 221=0xDD). The JS-side dedup — both files reading the same hue via the shared status-colors.js module — landed in the companion ticket 9 commit (85218b7); together they make COMBAT a single-source hue across CSS + JS, ready for rgba() glow composition when the state goes live."
+    "actionsTaken": "Added `--purple: #9D4EDD;` and `--purple-rgb: 157, 78, 221;` to :root in tokens.css. The hex matches dive-in.js's 0x9D4EDD COMBAT entry exactly; the RGB triplet matches constellation.js's {r:157,g:78,b:221} entry exactly (157=0x9D, 78=0x4E, 221=0xDD). The JS-side dedup — both files reading the same hue via the shared status-colors.js module — landed in the companion ticket 9 commit (85218b7); together they make COMBAT a single-source hue across CSS + JS, ready for rgba() glow composition when the state goes live.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "tokens.css:14 `--purple: #9D4EDD` (COMBAT comment) + L22 `--purple-rgb: 157, 78, 221` confirmed. Hex matches status-colors.js HEX.COMBAT = '9D4EDD' (78=0x4E, 221=0xDD). CSS↔JS hue is now single-source via this token + ticket 9 module."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
@@ -168,7 +183,10 @@
     "commitSha": "b30c866",
     "deferralReason": "LOW priority + measurement baseline confirms today's cost is trivial: ~1000 files = ~0.1ms per scan on commodity hardware, well under the 16ms frame budget and dwarfed by click-event dispatch overhead. The 8x8 spatial bucket is real future work but not sprint-scope. Shipping a half-baked R*-tree was explicitly called out as a NO-CHEAT in the wave prompt.",
     "roadmapRef": "docs/_pending-roadmap/frontend-experience.md P3 'Constellation spatial index' — updated with measurement baseline + explicit re-prioritization threshold (>10ms p95 click-to-dive-in latency OR >5k files in active workspace) + residual concern that an R*-tree is overkill at this scale.",
-    "actionsTaken": "Added an inline PERF NOTE above nearestParticle in constellation.js naming the deferral, measurement baseline, threshold, and roadmap pointer. Expanded the roadmap entry with the same threshold + a do-not-ship-half-baked-R*-tree note. Defer-with-pointer per the NO CHEATS rules: the pointer names exactly when to revisit, not 'we'll get to it eventually'."
+    "actionsTaken": "Added an inline PERF NOTE above nearestParticle in constellation.js naming the deferral, measurement baseline, threshold, and roadmap pointer. Expanded the roadmap entry with the same threshold + a do-not-ship-half-baked-R*-tree note. Defer-with-pointer per the NO CHEATS rules: the pointer names exactly when to revisit, not 'we'll get to it eventually'.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "defer-confirmed",
+    "reviewNote": "Roadmap entry verified at docs/_pending-roadmap/frontend-experience.md:158-170 — measurement baseline (~0.1ms per scan at ~1000 files) + numeric thresholds (>10ms p95 OR >5k files) + R*-tree anti-pattern guard. Defer-with-pointer genuine; not 'eventually'."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -178,7 +196,10 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "a3e9aaa",
-    "actionsTaken": "Two idempotent defensive initializers for window._st8FileIndex: (1) at module top right after the escapeHtml block — `if (!window._st8FileIndex) window._st8FileIndex = {};` so any reader (the onParticleClick lookup at app.js:257, makeTicketFromNotes at :809) sees an object even pre-boot or after fetch failure; (2) inside bootConstellation() before the fetch — same idempotent init so the early-return paths (no St8Constellation, no #stage) still leave a usable object behind. bootConstellation re-assigns the index to the populated map on success; on failure the empty {} keeps reads from throwing TypeError on undefined.fingerprint. The previous read sites already used `(window._st8FileIndex && Object.values(...))` for makeTicketFromNotes, so the empty-object case yields an empty `file = {}` and the backend still receives `filepath` (passed as the makeTicketFromNotes arg) — backend will reject without fingerprint, but the failure surface is now backend-validation-error not frontend-TypeError, which is appropriate."
+    "actionsTaken": "Two idempotent defensive initializers for window._st8FileIndex: (1) at module top right after the escapeHtml block — `if (!window._st8FileIndex) window._st8FileIndex = {};` so any reader (the onParticleClick lookup at app.js:257, makeTicketFromNotes at :809) sees an object even pre-boot or after fetch failure; (2) inside bootConstellation() before the fetch — same idempotent init so the early-return paths (no St8Constellation, no #stage) still leave a usable object behind. bootConstellation re-assigns the index to the populated map on success; on failure the empty {} keeps reads from throwing TypeError on undefined.fingerprint. The previous read sites already used `(window._st8FileIndex && Object.values(...))` for makeTicketFromNotes, so the empty-object case yields an empty `file = {}` and the backend still receives `filepath` (passed as the makeTicketFromNotes arg) — backend will reject without fingerprint, but the failure surface is now backend-validation-error not frontend-TypeError, which is appropriate.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Two init points verified: app.js:32 (module-top, after escapeHtml) and app.js:244 (inside bootConstellation, pre-fetch). Both idempotent (`if (!window._st8FileIndex) window._st8FileIndex = {}`). Failure surface correctly shifted from frontend TypeError to backend validation error."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -203,7 +224,10 @@
     "commitSha": "098b0a6",
     "deferralReason": "LOW priority + status flips are rare today (debug-time bug-juice → green transitions, not a hot loop), the rebuild is bounded by a single building's particle count (typically <500), and the visible cost is invisible against the 2500ms emergence animation that follows. The in-place color update is a real optimization but not sprint-scope.",
     "roadmapRef": "docs/_pending-roadmap/frontend-experience.md P3 'Dive-in setStatus in-place color update' — new entry with measurement baseline + threshold for re-prioritization (>1Hz invocation in a LIFECYCLE_TRANSITION batch flow OR >50ms rebuild stutter on commodity hardware).",
-    "actionsTaken": "Added inline PERF NOTE above setStatus in dive-in.js naming the deferral, baseline, threshold, and roadmap pointer. Added a new roadmap entry under P3 with the same threshold language. Defer-with-pointer per the NO CHEATS rules."
+    "actionsTaken": "Added inline PERF NOTE above setStatus in dive-in.js naming the deferral, baseline, threshold, and roadmap pointer. Added a new roadmap entry under P3 with the same threshold language. Defer-with-pointer per the NO CHEATS rules.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "defer-confirmed",
+    "reviewNote": "Roadmap entry verified at docs/_pending-roadmap/frontend-experience.md:141-156 — measurement baseline (status flips rare today, <500 particles per rebuild, invisible against 2500ms emergence) + numeric thresholds (>1Hz in LIFECYCLE_TRANSITION batch OR >50ms rebuild stutter). Defer-with-pointer genuine."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
@@ -239,8 +263,11 @@
     "executedBy": "wave-7c-executor",
     "executionStatus": "executed",
     "commitSha": "422915b",
-    "actionsTaken": "Tightened the destroy() guard exactly as the ticket prescribed: `state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function'`. Added an inline comment documenting why the previous `typeof X && typeof Y &&` chain was buggy (typeof returns the string 'undefined' for undefined values, which is truthy). Created tests/frontend/constellation-destroy-guard.test.js — 6 probes: (1) a source-text guard preventing regression to the buggy `typeof state.pJS.fn &&` pattern, (2) sanity that the corrected truthy-intermediate pattern is present, (3) destroy with missing pJS is a safe no-op, (4) destroy with pJS but no .fn safe, (5) destroy with vendors.destroypJS as a string does NOT call it, (6) destroy with vendors.destroypJS as a function calls it exactly once. The body is extracted as a pure function over an injected state object via vm.runInNewContext."
-  },
+    "actionsTaken": "Tightened the destroy() guard exactly as the ticket prescribed: `state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function'`. Added an inline comment documenting why the previous `typeof X && typeof Y &&` chain was buggy (typeof returns the string 'undefined' for undefined values, which is truthy). Created tests/frontend/constellation-destroy-guard.test.js — 6 probes: (1) a source-text guard preventing regression to the buggy `typeof state.pJS.fn &&` pattern, (2) sanity that the corrected truthy-intermediate pattern is present, (3) destroy with missing pJS is a safe no-op, (4) destroy with pJS but no .fn safe, (5) destroy with vendors.destroypJS as a string does NOT call it, (6) destroy with vendors.destroypJS as a function calls it exactly once. The body is extracted as a pure function over an injected state object via vm.runInNewContext.",
+    "reviewedBy": "wave-7c-reviewer",
+    "verdict": "ack",
+    "reviewNote": "tests/frontend/constellation-destroy-guard.test.js: 6/6 pass on targeted run. Guard tightened to truthy-intermediate chain (state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof ... === 'function'). Source-text regression guard prevents revert to buggy typeof-chain pattern. Real bug fix with proper coverage."
+  }
   {
     "filepath": "/home/user/st8/src/frontend/index.html",
     "userNote": "`#shelf-content` is empty in the markup and never populated by `app.js`. The intent (per the carousel.css comment and the founder's batch-027 design) was for the lower 1/8 to host contextual content — LLM chat input, workspace nav, ticket badge. Right now it's just dead grid-center space between the two diamonds.",
