@@ -1,0 +1,157 @@
+/*
+ * ST8 Dive-In Overlay (ticket 0 + 1 — Wave 7A)
+ * ─────────────────────────────────────────────────────────────────
+ * Visual rules for the Barradeau 3D building view (full-screen
+ * overlay opened when a user clicks a particle in the constellation
+ * and the file has substantive content).
+ *
+ * Origin: extracted verbatim from the inline style="…" / cssText
+ * strings previously baked into ensureOverlay() in dive-in.js.
+ * Now the JS only assigns class names; theming + hover/active +
+ * responsive + reduced-motion all live here where the rest of the
+ * frontend's CSS conventions can reach them (tokens.css custom
+ * properties, sibling component CSS patterns).
+ *
+ * Class map (id-anchored for the overlay singletons; classes used
+ * where multiple buttons live):
+ *   #dive-in-overlay       — the full-screen fixed container
+ *   #dive-in-overlay.open  — display:block toggled by JS show/hide
+ *   .dive-in-header        — top-left filepath + meta block
+ *   #dive-in-filepath      — large gold filepath line
+ *   #dive-in-meta          — small dimmed status/exports/bytes line
+ *   #dive-in-close         — top-right diamond close button
+ *   #dive-in-notes         — bottom-right Notes / Make Ticket button
+ *   #dive-in-canvas-host   — Three.js renderer mount point
+ */
+
+/* ─── Overlay container ─────────────────────────────────────── */
+#dive-in-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 10, 11, 0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+}
+#dive-in-overlay.open {
+  display: block;
+}
+
+/* ─── Header (filepath + metadata) ──────────────────────────── */
+.dive-in-header {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  color: rgba(var(--gold-rgb), 0.85);
+  font-family: 'Poiret One', sans-serif;
+  font-size: 14px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+#dive-in-meta {
+  margin-top: 6px;
+  opacity: 0.5;
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+/* ─── Close button (top-right diamond) ──────────────────────── */
+#dive-in-close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: transparent;
+  border: none;
+  color: var(--gold);
+  font-size: 32px;
+  cursor: pointer;
+  text-shadow: 0 0 8px rgba(var(--pink-rgb), 0.5);
+  transition: text-shadow 160ms ease, transform 160ms ease;
+  padding: 0 8px;
+  line-height: 1;
+}
+#dive-in-close:hover {
+  text-shadow: 0 0 14px rgba(var(--pink-rgb), 0.9);
+  transform: scale(1.08);
+}
+#dive-in-close:active {
+  transform: scale(0.95);
+}
+
+/* ─── Notes / Make Ticket button (bottom-right) ─────────────── */
+#dive-in-notes {
+  position: absolute;
+  bottom: 32px;
+  right: 32px;
+  background: transparent;
+  border: 1px solid rgba(var(--pink-rgb), 0.5);
+  color: var(--gold);
+  padding: 10px 20px;
+  font-family: 'Poiret One', sans-serif;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 4px;
+  text-shadow: 0 0 6px rgba(var(--pink-rgb), 0.4);
+  transition: border-color 160ms ease,
+              background-color 160ms ease,
+              color 160ms ease,
+              text-shadow 160ms ease;
+}
+#dive-in-notes:hover {
+  border-color: var(--pink);
+  background: rgba(var(--pink-rgb), 0.08);
+  text-shadow: 0 0 10px rgba(var(--pink-rgb), 0.7);
+}
+#dive-in-notes:active {
+  background: rgba(var(--pink-rgb), 0.15);
+}
+
+/* ─── Three.js canvas mount ─────────────────────────────────── */
+#dive-in-canvas-host {
+  position: absolute;
+  inset: 0;
+}
+
+/* ─── Responsive: small viewports ───────────────────────────── */
+@media (max-width: 640px) {
+  .dive-in-header {
+    top: 12px;
+    left: 12px;
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+  #dive-in-meta {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+  }
+  #dive-in-close {
+    top: 12px;
+    right: 12px;
+    font-size: 26px;
+  }
+  #dive-in-notes {
+    bottom: 16px;
+    right: 16px;
+    padding: 8px 14px;
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+}
+
+/* ─── Reduced-motion respect ────────────────────────────────────
+ * The Three.js autoRotate + shader shimmer themselves need a JS-side
+ * guard (see frontend-experience roadmap); here we at least disable
+ * the CSS-level transitions so hover/close don't animate for users
+ * who opted out. */
+@media (prefers-reduced-motion: reduce) {
+  #dive-in-close,
+  #dive-in-notes {
+    transition: none;
+  }
+  #dive-in-close:hover {
+    transform: none;
+  }
+}
