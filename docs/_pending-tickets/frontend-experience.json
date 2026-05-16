@@ -173,7 +173,7 @@
     "executedBy": "wave-7b-executor",
     "executionStatus": "executed",
     "actionsTaken": "Audit first: `grep overflow src/frontend/styles/base.css` confirms `html, body { overflow: hidden; }` at base.css:16 — the global backstop the ticket asked about is already present. `.panels-viewport { overflow: hidden }` at carousel.css:39 is the per-strip containment. Together these already prevent the 300vw strip from leaking horizontal scrollbars on the document — the ticket's worst-case is already mitigated. The remaining narrow-viewport issues are layout-cramping, not scroll-leak: (1) per-column padding (var(--space-5)≈24px each side) eats too much of a phone-width 100vw, (2) shelf-side padding + 44px diamond hit-targets sum to >25% of a narrow viewport, (3) panel-titlebar text can wrap and push panel-body downward on sub-360px screens. Added two @media blocks at carousel.css:232+: (a) `@media (max-width:768px)` reduces .panel-column padding to var(--space-3), drops shelf side-padding + gap to var(--space-3), shrinks slide-diamond to 40×40 with font-size:28px so it stays at-edge — matches the founder's 'always at the edges' mental model; (b) `@media (max-width:360px)` forces the .panel-title text to single-line ellipsis (overflow:hidden + text-overflow:ellipsis + white-space:nowrap + min-width:0) as a last-resort containment for phones. Behavior on >=768px is unchanged — these are pure narrow-viewport safety margins. Inline comment block above the @media rules documents the audit decision (global backstops already present, this layer adds layout polish only).",
-    "commitSha": "PENDING"
+    "commitSha": "bc63b5f"
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -185,7 +185,13 @@
     "filepath": "/home/user/st8/src/frontend/index.html",
     "userNote": "`#shelf-content` is empty in the markup and never populated by `app.js`. The intent (per the carousel.css comment and the founder's batch-027 design) was for the lower 1/8 to host contextual content — LLM chat input, workspace nav, ticket badge. Right now it's just dead grid-center space between the two diamonds.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "YELLOW",
+    "executedBy": "wave-7b-executor",
+    "executionStatus": "deferred",
+    "deferralReason": "Wiring the shelf is not a single ticket — it's the roadmap P1 'Lower-5th shelf takeover' work. That P1 item requires building a `St8Shelf.takeover(componentName, htmlOrEl, opts)` registry with stack-based push/pop semantics, the per-context content sources (workspace picker, LLM chat strip, ticket badge), AND the SSE plumbing for live ticket-count updates. The roadmap also lists two more P1 items that consume the shelf-takeover mechanic (workspace nav buttons in the shelf, real-time ticket badge). Doing this scope inside a frontend-experience ticket would violate the 'no extras per wave' rule and silently expand to ~3 P1 features.",
+    "roadmapRef": "docs/_pending-roadmap/frontend-experience.md#priority-1 — 'Lower-5th shelf takeover' (lines 16-26), plus 'Workspace nav buttons in the shelf' (lines 28-36) and 'Real-time ticket badge in the shelf or phreak header' (lines 47-53) which depend on it",
+    "actionsTaken": "Added an inline HTML comment block above #shelf-content in src/frontend/index.html documenting (a) the founder's batch-027 'Pattern 2' design intent (lower 1/8 as takeover-capable surface), (b) the precise scope of the missing registry + content sources + SSE wiring, (c) the explicit pointer to the three P1 roadmap items that together produce this feature. The element stays in the DOM as an empty <div> so the future takeover code has a stable mount point and the CSS grid-center spacing between the two slide-diamonds stays intact. No code change in this ticket — the work is correctly sized as roadmap P1, not a sub-wave extra. This is defer-with-pointer, not 'we'll get to it eventually': the pointer names the exact roadmap section, the work-items, and the architectural surface (registry shape).",
+    "commitSha": "PENDING"
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",

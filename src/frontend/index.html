@@ -118,6 +118,29 @@
        the diamond on the side closest to st8. -->
   <footer class="shelf" id="shelf" data-active="st8">
     <button class="slide-diamond slide-left" aria-label="Slide left" title="Slide left">◇</button>
+    <!--
+      #shelf-content is intentionally empty in markup (ticket 20).
+
+      Per founder design (batch-027 "Pattern 2" from agent-C audit) the
+      lower 1/8 is meant to be TAKEOVER-CAPABLE: workspace nav buttons,
+      LLM chat strip, ticket badges — components push/pop onto a stack
+      and the default chrome re-asserts when nothing is on top.
+
+      Wiring this requires building the registry (`St8Shelf.takeover(...)`),
+      the per-context content sources (workspace picker, ticket badge,
+      chat input), and the SSE plumbing for live ticket-count updates.
+      That's roadmap-scale work, not a single ticket.
+
+      Deferred to roadmap P1:
+        docs/_pending-roadmap/frontend-experience.md
+          "Lower-5th shelf takeover" (P1, lines 16-26)
+          "Workspace nav buttons in the shelf" (P1, lines 28-36)
+          "Real-time ticket badge in the shelf or phreak header" (P1, lines 47-53)
+
+      Keeping the element in the DOM as an empty <div> so future takeover
+      code has a stable mount point and CSS grid-center spacing stays
+      intact.
+    -->
     <div class="shelf-content" id="shelf-content"></div>
     <button class="slide-diamond slide-right" aria-label="Slide right" title="Slide right">◇</button>
   </footer>
