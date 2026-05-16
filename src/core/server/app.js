@@ -345,6 +345,9 @@ class St8Server {
             case '/api/identity-risk':
                 this._handleIdentityRisk(req, res);
                 break;
+            case '/api/llm-call':
+                this._handleLlmCall(req, res);
+                break;
             default:
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'API endpoint not found' }));
@@ -2284,6 +2287,123 @@ class St8Server {
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ secret: secret }));
+    }
+
+    /**
+     * POST /api/llm-call — invoke a configured `models` entry.
+     *
+     * Body: { entryId: string, prompt: string, opts?: object }
+     * Auth: X-St8-Secret (same gate as POST /api/tickets / /api/record-commit).
+     *       Reading the auth secret over the wire would already grant
+     *       full ticket-creation + commit-recording rights, so reusing
+     *       the same shared-secret model here keeps the surface
+     *       coherent. A future refactor could split per-route secrets;
+     *       not in scope for Wave 5E.
+     *
+     * Flow:
+     *   1. Auth check → 401/503 on miss.
+     *   2. Parse JSON body, 1KB cap (matches /api/settings). 413 if exceeded.
+     *   3. Validate entryId + prompt. 400 on malformed.
+     *   4. Load the `models` _entries array via persistence
+     *      (getSettingsByCategory transparently decrypts apiKey).
+     *   5. Find the entry by id. 404 if missing.
+     *   6. Dispatch to the provider adapter. Return its shape verbatim
+     *      with HTTP status mapped from adapter.status when ok=false.
+     *
+     * Anti-cheat: the actual HTTP call lives in the provider adapter
+     * (src/features/llm/providers/*). The route does no
+     * hardcoded-response simulation. Adapter tests mock globalThis.fetch.
+     */
+    _handleLlmCall(req, res) {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+
+        // Auth gate — same shape as other write routes.
+        const authCheck = auth.checkRequest(req, this.targetDir);
+        if (!authCheck.ok) {
+            console.warn('[st8:auth] /api/llm-call rejected:', authCheck.reason);
+            res.writeHead(authCheck.status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+        }
+
+        // 8KB body cap — prompts can be larger than settings bodies but
+        // still bounded. Anything bigger should land via a future
+        // streaming/upload route, not the in-memory POST path.
+        const MAX_BODY = 8 * 1024;
+        let body = '';
+        let tooLarge = false;
+        req.on('data', (chunk) => {
+            if (tooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY) {
+                tooLarge = true;
+                body = '';
+                req.destroy();
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Request body too large. Maximum size is 8KB.' }));
+            }
+        });
+        req.on('end', async () => {
+            if (tooLarge) return;
+            try {
+                let payload;
+                try {
+                    payload = JSON.parse(body || '{}');
+                } catch (parseErr) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'invalid JSON: ' + parseErr.message }));
+                    return;
+                }
+
+                const { entryId, prompt, opts } = payload;
+                if (!entryId || typeof entryId !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'entryId required (string)' }));
+                    return;
+                }
+                if (!prompt || typeof prompt !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'prompt required (string)' }));
+                    return;
+                }
+
+                // Load models entries via persistence — getSettingsByCategory
+                // transparently decrypts apiKey via the Wave 5E ticket-2 seam.
+                const { getSharedPersistence } = require('../database/persistence');
+                const persistence = await getSharedPersistence();
+                const cat = persistence.getSettingsByCategory('models');
+                const entries = (cat && Array.isArray(cat._entries)) ? cat._entries : [];
+                const entry = entries.find((e) => e && e.id === entryId);
+                if (!entry) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'no models entry with id: ' + entryId }));
+                    return;
+                }
+
+                // Dispatch. Adapter handles the actual HTTP call and
+                // normalizes the response.
+                const { dispatch } = require('../../features/llm/dispatcher');
+                const result = await dispatch({ entry, prompt, opts });
+
+                if (result.ok) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(result));
+                } else {
+                    const status = (typeof result.status === 'number' && result.status >= 400)
+                        ? result.status
+                        : 502;
+                    res.writeHead(status, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: result.error }));
+                }
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
     }
 
     stop() {

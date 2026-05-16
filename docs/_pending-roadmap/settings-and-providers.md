@@ -23,11 +23,21 @@ This is the smallest deliverable that turns `LLM_PROVIDERS` from plumbing into a
 
 ### P1.2 Add `/api/llm-call` (or `/api/chat`)
 
-`src/core/server/app.js`. New route that takes `{ modelEntryId, prompt, ...opts }`, resolves the entry from `persistence.getSettingsByCategory('models')`, picks the right provider adapter (a new `src/core/llm/providers/{anthropic,openai,google,ollama,lmstudio,openrouter,custom}.js` directory), and returns the completion (streamed if the provider supports it).
+**Status (Wave 5E):** SHIPPED for anthropic + openai. Route lives at `src/core/server/app.js` `_handleLlmCall`. Adapters at `src/features/llm/providers/{anthropic,openai}.js`. Dispatcher at `src/features/llm/dispatcher.js`.
 
-Provider adapters should each export a single `call({ model, apiKey, baseUrl, prompt, opts })` function so the dispatch is a one-line switch on `entry.provider`. The `apiKey` fallback to `process.env[LLM_PROVIDERS[entry.provider].envKey]` lives in the dispatcher.
+Body: `{ entryId, prompt, opts? }`. Auth: `X-St8-Secret`. Response: `{ ok, response, model, usage? }` on success; `{ ok:false, error }` with adapter status on failure.
 
-This is what the founder described as "the send-to-LLM loop." Until it lands, the entire `models` category is a database exercise.
+**Deferred providers** (not yet implemented — dispatcher returns 501 with a pointer back here):
+
+- `google` — `POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent` with `?key=<apiKey>`. Response: `candidates[0].content.parts[0].text`.
+- `ollama` — `POST <baseUrl>/api/generate` with `{model, prompt, stream:false}`. Local server, no apiKey. Default `baseUrl: 'http://localhost:11434'`.
+- `lmstudio` — OpenAI-compatible. Likely a one-line adapter that delegates to the openai adapter with `baseUrl: 'http://localhost:1234'`.
+- `openrouter` — OpenAI-compatible. Delegate to openai adapter with `baseUrl: 'https://openrouter.ai/api'`.
+- `custom` — User-supplied baseUrl, schema unknown. Probably OpenAI-compatible by convention; document as such or extend the entry schema with a `format: 'openai'|'anthropic'` field.
+
+To add one: drop a file in `src/features/llm/providers/` exporting `async call({model,apiKey,baseUrl,prompt,opts})` returning `{ok:true, response, model, usage?}` or `{ok:false, status, error}`. Add the id to `SUPPORTED_PROVIDERS` in dispatcher.js. Mirror the test pattern in `tests/features/llm/providers-adapters.test.js`.
+
+This is what the founder described as "the send-to-LLM loop." For the two highest-priority providers it now exists end-to-end (settings encrypted at rest → route decrypts → adapter calls real upstream). The deferred set above is the remaining P1.2 scope.
 
 ### P1.3 Wire the shelf's middle slot to a chat input
 
@@ -49,13 +59,15 @@ P1.1 + P1.2 + P1.3 together is the first end-to-end "configure provider → send
 
 ### P2.2 Encrypted secret storage for `apiKey`
 
-Today `models[].apiKey` lands plaintext in `st8.sqlite`. Options, in order of effort:
+**Status (Wave 5E):** SHIPPED — symmetric encryption at rest. `src/shared/utils/settings-crypto.js` provides aes-256-gcm encrypt/decrypt against a 32-byte random key at `<dbDir>/.st8/encryption.key` (mode 0600, generated on first encrypt). `persistence.upsertSetting` encrypts every `models` entry's `apiKey` before INSERT; reads decrypt symmetrically.
 
-- **Easy**: env-only mode. If `LLM_PROVIDERS[provider].envKey` is non-null, refuse to persist a user-typed `apiKey`; instead store `apiKey: null` and read `process.env[envKey]` at call time. The UI shows "(using env var)" greyed in the field.
-- **Better**: symmetric encryption at rest with a key derived from a user-set passphrase (prompted on first run, cached in-memory only).
-- **Best**: OS keychain integration (`keytar` or equivalent) for the master key.
+**Future hardening** (not blocking):
 
-Pick the cheapest that the founder will accept; the plaintext status quo should not survive contact with a real `apiKey`.
+- **OS keychain integration** (`keytar` or `node-keychain`) so the 32-byte key isn't on the filesystem at all — moves the trust boundary to the OS credential store. Optional opt-in; the filesystem mode covers the immediate threat ("an attacker with read-only DB access shouldn't get your keys").
+- **Passphrase-derived key** as an alternative for users who'd rather not have an at-rest key file: PBKDF2 a passphrase prompted on first boot, cache the derived key in-memory only. Trade-off: re-prompt on every server start.
+- **Env-only mode** for users who don't want to store the key in st8 at all: if the LLM_PROVIDERS entry has an `envKey` and the user explicitly checks "use env var" in the UI, persist `apiKey: null` and let the dispatcher's env-var fallback (already wired) handle the actual call.
+
+The current implementation is already past the "plaintext status quo should not survive" bar named in the original ticket.
 
 ### P2.3 Apply theme tokens
 
