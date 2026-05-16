@@ -177,7 +177,10 @@
       "scope": "Discoverability",
       "file": "src/core/server/app.js",
       "summary": "There is no machine-readable description of the 23 routes. The inventory in this cluster doc is hand-authored. New consumers (Sonic, an LLM collaborator) have no way to introspect the surface.",
-      "proposed": "Either generate openapi.json from a route descriptor (refactor the switch into a table-driven registry) or check in a manual openapi.yaml and add a /api/openapi.json route."
+      "proposed": "Either generate openapi.json from a route descriptor (refactor the switch into a table-driven registry) or check in a manual openapi.yaml and add a /api/openapi.json route.",
+      "status": "executed",
+      "executedBy": "wave-5g-executor",
+      "actionsTaken": "Built src/core/server/route-manifest.js exporting frozen ROUTES array (33 entries: 30 flat + 3 parameterised). Each entry has {method, path, handler, auth, description}. Auth values: 'none' (read surface), 'X-St8-Secret' (write surface — record-commit, tickets POST, ticket-claim, ticket-resolve, llm-call, exec), 'loopback' (auth-token only). Drift test at tests/core/server/route-manifest-drift.test.js with 4 sub-tests: (1) every flat case label in app.js _handleApiRequest switch appears in manifest and vice versa; (2) every default-branch regex matcher in app.js (claim, resolve) appears in manifest and vice versa, with /api/prd-projects/:name excluded because it is matched inside _handlePrdProjects rather than the default branch; (3) every handler name in the manifest resolves to a method on St8Server; (4) every entry has the required shape (method ∈ {GET, POST, GET|POST}, auth ∈ {none, X-St8-Secret, loopback}, non-empty path/handler/description). Drift test parses app.js by reading source + scoping to the _handleApiRequest body via brace counting (no AST dependency). The manifest is the source of truth: when a route is added or removed in app.js, this test fails until the manifest is updated. Manifest's docstring + the cluster's component doc both cross-reference the routing convention from ticket 14. Test count 355→359 (+4)."
     },
     {
       "id": "API-009",
