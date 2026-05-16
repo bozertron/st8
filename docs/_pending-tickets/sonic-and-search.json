@@ -3,19 +3,25 @@
     "filepath": "src/features/indexing/background-indexer.js",
     "userNote": "File cannot load. Top-level requires reference three non-existent or wrong paths: (a) `./sonicClient.js` should be `../search/sonic-client` after Batch 027; (b) `./multiPassAnalyzer.js` does not exist anywhere in the repo; (c) `./precisionCapture.js` does not exist anywhere in the repo. Even though we documented the module, the first `require()` of this file from any caller will throw MODULE_NOT_FOUND. Need founder decision: delete the broken require lines, comment them out and stub the classes, port multiPassAnalyzer + precisionCapture from MAESTRO, or rewrite to skip them and write directly into InsightStore (per PM-1 Layer 2 alternative path).",
     "severity": "high",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-5a-executor",
+    "actionsTaken": "Fix path (a): point to ../search/sonic-client.js. For (b) and (c) — MAESTRO assets never ported — replaced the broken requires with inert no-op stand-ins that log a single warning on first invocation (no silent fake success). Module now loads cleanly; PM-1 Layer 2 remains dormant and the founder's port-vs-rewrite decision in the roadmap still stands. Verified: `node -e \"require('.../background-indexer')\"` returns cleanly. Commit 4fea31f."
   },
   {
     "filepath": "src/features/search/sonic-indexer.js",
     "userNote": "Line 22 requires `../../core/database/graph-persister.js`. Path resolves (the file exists at src/core/database/graph-persister.js and exports `getSharedDatabasePath` + `DatabasePersister`), so this is OK today — but worth a watcher: this trio was kebab-cased on import and any future rename of graph-persister would silently break Sonic indexing.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-5a-executor",
+    "actionsTaken": "Annotation only — no behavior change. Added a watcher comment above the require explaining that the trio (client/indexer/queries) all share this dependency and a future rename of graph-persister.js would silently break Sonic indexing without test coverage. Commit 07e3c4d."
   },
   {
     "filepath": "src/features/search/sonic-queries.js",
     "userNote": "SQLite fallback IS wired — every public method has a matching `*SQLite` private implementation (findImportsSQLite, findConsumersSQLite, searchSymbolsSQLite, fetchDirectorySubgraphSQLite, suggestFromSQLite, fetchRelatedFilesSQLite). The fallback path triggers when `trySonicQuery()` returns an empty array OR when Sonic throws. Confirmed: the code path exists and the return shape tags `source: 'sqlite' | 'sonic+sqlite'`. No fix needed; closing observation only — caller needs to actually inspect `source` to know which path served the query, and today no consumer does.",
     "severity": "info",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-5a-executor",
+    "actionsTaken": "Annotation only — no behavior change. Added a JSDoc block on the SonicQueries class documenting the fallback pattern, the public-to-SQLite method pairs, and the source-tag-but-no-consumer observation. Commit 8d4bce7."
   },
   {
     "filepath": "src/features/search/sonic-daemon.js",
@@ -27,7 +33,9 @@
     "filepath": "src/features/search/sonic-daemon.js",
     "userNote": "Line 159: `fs.chmodSync(SONIC_BINARY, 0o755)` runs on every `start()`. The binary only needs the executable bit set once (post-clone or post-CI-extract). Re-chmoding is harmless but wasteful and could mask permission issues if someone tightens perms intentionally. Worth one-shotting (check first, only chmod if not executable) or moving to a post-install hook.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-5a-executor",
+    "actionsTaken": "Moved chmod to module-load via ensureBinaryExecutable(). Idempotent: stat-checks owner +x bit and only chmods if missing; sets a module-scoped flag so re-starts skip the syscall. start() still calls the helper as a safety net for late-materialized binaries. Verified binary stays -rwxr-xr-x. Commit 76f2dca."
   },
   {
     "filepath": "docs/Sonic/sonic (upstream)",
@@ -51,13 +59,17 @@
     "filepath": "docs/Sonic/sonic.cfg",
     "userNote": "No CI / lint check that the canonical `docs/Sonic/sonic.cfg` stays in sync with what `sonic-daemon.js` expects. The daemon hardcodes: port 1491, IPv4 host, `auth_password` not read (relies on MAESTRO's `maestro_scaffolder_key`), `${SONIC_STORE_PATH}` substitution. If MAESTRO bumps the config (renames sections, changes port, removes the env-var substitution), the daemon will spawn Sonic with a config it can't query. Need either: (a) a parse-and-validate step in the daemon's start path, (b) a CI assertion that key fields exist, or (c) explicit version-pinning of the upstream sonic.cfg.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-5a-executor",
+    "actionsTaken": "Picked option (a) — added validateSonicConfig() to sonic-daemon.js that runs before spawn. Checks required sections, declared port matches SONIC_PORT, auth_password key present, ${SONIC_STORE_PATH} substitution appears at least twice (kv + fst). On failure, start() returns the specific reason and falls through to SQLite-only mode. 9 unit tests cover canonical-cfg pass + each synthesized failure mode. Commit 4154b85."
   },
   {
     "filepath": "src/features/search/sonic-client.js",
     "userNote": "auth_password in sonic.cfg is `maestro_scaffolder_key` — hardcoded and shared. Anyone with localhost access can hit Sonic. For local-dev this is fine; for any deployment that exposes Sonic beyond loopback (which the daemon doesn't do today, but a future systemd unit might) this is a credential leak. Worth either: (a) generating a per-target random password and patching both sonic.cfg and the client config at materialize-time, (b) keeping the shared key but documenting the loopback-only contract explicitly, or (c) deferring until a deployment story exists.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-5a-executor",
+    "actionsTaken": "Picked option (a), mirroring Wave 2C .st8/server.secret pattern. New ensureSonicPassword(targetDir) writes .st8/sonic.password (mode 0600, 32 random bytes hex) on first start. Runtime cfg materialization replaces auth_password in the patched copy; sonic-daemon then calls sonicClient.setPassword() (new method) so the singleton's three channels use the new key on next connect. Canonical docs/Sonic/sonic.cfg untouched. Graceful degrade to canonical key on filesystem error. 7 unit tests cover file creation, idempotency, mode 0600, regenerate-on-truncation, setPassword across channels, invalid-input rejection, runtime-cfg patching. Commit 86218e1."
   },
   {
     "filepath": "src/features/search/sonic-daemon.js",
