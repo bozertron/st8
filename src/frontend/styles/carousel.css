@@ -196,38 +196,16 @@
   pointer-events: none;
 }
 
-/* ─── OUTER DOCK DIAMONDS (always present, redundant shortcuts) ─
-   These are the dock-left and dock-right glyphs in the original
-   .dock-row. The founder asked for them to become diamonds replacing
-   the existing file-explorer icon and "phreak>" text button. They
-   serve the same slide actions as the shelf diamonds — duplicates by
-   design, since the founder's mental model is "always at the edges". */
-
-.dock-diamond {
-  background: transparent;
-  border: none;
-  color: var(--gold);
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  text-shadow:
-    0 0 3px  rgba(var(--pink-rgb), 0.45),
-    0 0 10px rgba(var(--pink-rgb), 0.25);
-  transition: text-shadow 200ms ease, transform 200ms ease;
-}
-.dock-diamond:hover {
-  transform: scale(1.08);
-  text-shadow:
-    0 0 5px  rgba(var(--pink-rgb), 0.75),
-    0 0 14px rgba(var(--pink-rgb), 0.45);
-}
-.dock-diamond:active { transform: scale(0.96); }
+/* ─── OUTER DOCK DIAMONDS ───────────────────────────────────────
+   The .dock-diamond rules used to live here (lines 199–230 pre-Wave
+   7C). They were never wired — no .dock-diamond element exists in
+   index.html or any component. The original brief (batch 027 design)
+   was outer-edge dock diamonds replacing the file-explorer icon and
+   `phreak>` text button in `.dock-row`. The markup work is tracked on
+   the frontend-experience roadmap as P2 "Outer dock diamonds" — when
+   that ticket lands it should re-introduce the .dock-diamond rules
+   alongside the markup that consumes them.
+   Removed in Wave 7C ticket 4 to drop unreferenced CSS. */
 
 /* ─── NARROW-VIEWPORT GUARDS (ticket 18) ──────────────────────
    The strip is sized at 300vw with `transform: translateX(-100vw)` for
