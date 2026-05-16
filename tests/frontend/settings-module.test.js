@@ -79,6 +79,11 @@ function makeSandbox() {
         // renderCategoryEntries, which these tests do not exercise).
         escapeHtml: (s) => String(s),
     };
+    // settings-reader.js routes through window.st8AuthFetch (defined
+    // by app.js in production). Late-bind through sandbox.fetch so
+    // tests that reassign sandbox.fetch (e.g. to inject a non-2xx
+    // response) still drive the BackendAdapter path correctly.
+    sandbox.window.st8AuthFetch = (url, opts) => sandbox.fetch(url, opts);
     sandbox.globalThis = sandbox;
     return { sandbox, fetchCalls, consoleCalls };
 }

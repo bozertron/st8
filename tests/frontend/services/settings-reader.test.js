@@ -45,7 +45,12 @@ function makeSandbox(opts) {
         });
     };
     const sandbox = {
-        window: {},
+        // BackendAdapter routes through window.st8AuthFetch (defined
+        // in app.js in production). In the sandbox we stub it as a
+        // direct pass-through to the local fetch impl — the
+        // X-St8-Secret header is irrelevant for the contract these
+        // tests exercise (URL, method, body, response handling).
+        window: { st8AuthFetch: function (url, opts) { return fetchImpl(url, opts); } },
         console: {
             warn: function () { consoleCalls.warn.push(Array.from(arguments)); },
             error: function () { consoleCalls.error.push(Array.from(arguments)); },

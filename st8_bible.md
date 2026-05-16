@@ -3192,3 +3192,138 @@ tests/frontend/settings-module.test.js  (sandbox patch)
 These become the input for the next wave's planning once the repo is clean.
 
 **Commit:** `32ac648`
+
+### Batch 030 — `insight-system-reality-check` + `indexing-dir-audit`
+
+A research-only batch. No source edits. Output: 16 per-file research reports + a synthesis doc + this entry. Captures hard-won corrections to assumptions accumulated across meta-dogfood (batch 028) and the OGB-gap work (batch 029), and produces a working map of the indexing dir + the insight subsystem that should anchor every future wave's research scope.
+
+The batch began as a "research wave" for an analysis-tools-unblock plan (6 tickets: relationship-analyzer wire-up, traversal lazy-path, insight-store reconciliation, route-manifest→docs generator, /api/file-identity, /api/generate-report audit). 16 read-only agents (2 batches of 8) produced reports in `docs/_research/2026-05-16-analysis-tools-unblock/`. A 17th synthesizer agent consolidated. Both the agent reports and the synthesis carried a forward assumption that turned out to be false. The founder caught it. This entry captures what the corrected picture is.
+
+**The dominant correction: every "insight-store is dead code" verdict has been mis-applied.**
+
+Tracking the lineage:
+
+| Round | Where | Verdict on `insight-store.js` | Action |
+|--:|---|---|---|
+| 1 | Pre-Wave-3B userNote (identity-and-analysis ticket 8) | "DEAD CODE — 361 lines. Schema is created on first construction but no live code path calls addInsight()." | Ticket opened for wire-up |
+| 2 | Wave 3B executor | Chose "WIRE-UP" — built `insight-store-populator.js` + `/api/insights` handler | Module became live |
+| 3 | Wave 3B reviewer | ACK'd — 300 insights to disk, route returns real data | Stays live |
+| 4 | Meta-dogfood (batch 028) | "Insights are not persisted — no insights table in st8.sqlite." | False alarm — wrong DB checked |
+| 5 | Batch 030 `insight-store-populator` research | Corrected meta-dogfood: insights DO persist to `scaffolder_data.sqlite` (300 rows) | Verified |
+| 6 | Batch 030 `insight-store` research | "Under Option A2, insight-store.js becomes a dead module again." | Recommends sub-ticket |
+| 7 | Batch 030 synthesis | T3 = "founder-gated Option A vs Option B." Option A re-orphans `insight-store.js`. | Re-introduces the dead-code framing |
+
+Three live "DEAD CODE" verdicts on the same module, plus a fourth recycled in the synthesizer's framing. The founder's pattern recognition: "insight has been declared dead code over and over again."
+
+**The real picture, after the founder forced the trace:**
+
+There are six distinct artefacts named `insight*` across the repo:
+
+```
+docs/Insight Store/insightStore.ts                ← canonical hand-written TS design (490 LOC)
+docs/Insight Store/insightStore.js                ← compiled JS reference copy
+st8_json/schema-cards/lib_commands_insightStore.js.json  ← pre-refactor schema card
+src/features/analysis/insight-store.js            ← current live module (compiled-from-TS)
+src/features/analysis/insight-store-populator.js  ← Wave 3B's stand-in populator
+tests/features/analysis/insight-store-populator.test.js
+```
+
+Plus 50+ snapshots in `.planning/st8_identity_system/*.txt` and `.st8/schema-cards/*.json`. None of these were in any cluster-review's required-reading list. The agents I'd deployed for research did not enumerate `docs/Insight Store/` or `st8_json/schema-cards/` because their prompts pointed at `src/`, `tests/`, `docs/_pending-tickets/`, `docs/_pending-roadmap/`, `docs/components/` — the curated review surface — not the design corpus.
+
+**The TypeScript design declares 13 InsightCategory values:**
+
+```
+structural | dependency | complexity | pattern | security | performance |
+unused_export | circular_dependency | anti_pattern | type_issue |
+api_surface | test_coverage | documentation
+```
+
+**The compiled JS strips the enum.** The runtime SQLite schema is `category TEXT NOT NULL` — accepts any string. The Wave 3B populator emits 5 ad-hoc categories that have no overlap with the canonical 13:
+
+```
+orphan | red-status | under-connected | under-imported | high-impact
+```
+
+This is the load-bearing finding: **two parallel category taxonomies coexist in the same `InsightRecords` table. Neither validator catches the drift. The TypeScript type was the contract; the compile dropped enforcement; SQLite happily accepts both.**
+
+**The "type failure" diagnostic ramifies into other places:**
+
+- `src/features/graph/builder.js:117` — `detectCircularDependencies(nodes, outgoing)` runs DFS-based cycle detection on every index pass. Returns `circularDeps` in `buildDependencyGraph`'s output (line 102).
+- `src/features/indexing/indexer.js:253-269` — "CR-02 FIX" — discards every field of `buildDependencyGraph`'s result except `nodes`. **Circular dependencies, orphaned files, dead imports, health score are computed and dropped on the floor every index pass.**
+- `src/features/analysis/relationship-analyzer.js:721/890` — `computeTarjanSCC` + `detectCyclesWithTarjan` exist. Tested-looking code. Only caller: `src/features/integr8/index.js:80` (the dormant integr8 CLI). **Never invoked in the live `INDEX_COMPLETE` chain.**
+- `src/features/indexing/background-indexer.js:527,580` — emits `category: 'unused_export'` and `category: 'api_surface'`. Plus `extractInsights()` emits `category: 'dependency'` and `generateNodeInsights()` emits `category: 'structural'`. **The canonical-13 producers are written and vendored, sitting in `src/features/indexing/` right now.** Dormant because background-indexer is unwired (blocked on missing maestro helpers `multiPassAnalyzer.js` + `precisionCapture.js` per batch 027). But the emitters themselves are inline; the dormancy is at the orchestration layer, not the emitter layer.
+
+**The indexing dir audit — 10 files, 4944 LOC:**
+
+| File | LOC | Origin | Status | Note |
+|---|--:|---|---|---|
+| `background-indexer.js` | 852 | TS-vendored from maestro `commands/backgroundIndexer.ts`. PM-1 Layer 1. | **DORMANT** | Has the canonical-13 emitters. Zero src/ callers. |
+| `command-parser.js` | 305 | Hand-written. | Live | Tauri command + frontend `invoke()` extractor. |
+| `data-ingestion.js` | 1223 | TS-vendored from maestro `commands/integr8/dataIngestion.ts`. | Live | Stage 1 of integr8. Circuit-breaker + adaptive-retry. I-01 Tier 3 SOTA Retry. I-10 Tier 3 enhanced import detection. |
+| `indexer.js` | 534 | **Hand-written, st8-native** | Live | The boot indexer. `module.exports = {indexDirectory, discoverFiles, hashFile, parseImports, buildGraph, generateManifest, writeManifest}`. **`buildGraph` is where the "CR-02 FIX" value-leak happens.** |
+| `overview.js` | 386 | TS-vendored from `orchestr8 prd/overview.ts`. | Live | Project-shape ingestion. |
+| `parser-persistence.js` | 334 | TS-vendored from maestro `commands/parserPersistence.ts`. | Live | SQLite sink for the six parsers → `scaffolder_data.sqlite`. NOT same DB as st8. |
+| `route-parser.js` | 342 | TS-vendored. | Live | **Vue Router only.** st8 has no Vue → 0 nodes. |
+| `store-parser.js` | 377 | TS-vendored. | Live | **Pinia/Vuex only.** st8 → 0 nodes. |
+| `type-parser.js` | 287 | TS-vendored from orchestr8 prd. | Live | regex-based (not full AST). Scans `<root>/src/types/`. |
+| `ui-parser.js` | 286 | TS-vendored from orchestr8 prd. | Live | Vue SFCs with NaiveUI `n-` prefix. st8 → 0 nodes. |
+
+**Calibration mismatch is real but it's not a bug.** Five of the six specialised parsers are Vue/Pinia/Tauri-calibrated. For a non-Vue codebase like st8, they return ~0 nodes — which is the "959 nodes / 1 edge" degenerate output the dataIngestion log shows on st8-on-itself. The integr8 pipeline isn't broken; it's calibrated for a different target project type. The st8-specific dependency analysis happens in `ast-parser.js` (used by `indexer.js`) and `builder.js` (which calls dataIngestion and adds DFS cycle detection on top).
+
+**The 43 schema cards in `st8_json/schema-cards/` are a separate untapped corpus.** These are pre-refactor snapshots, including modules that may not have analogues in the current `src/` tree: `graph-visualizer.js`, `void-engine.js`, `phreak-terminal.js`, `settings-ui.js`, `fake-stream.js`, plus the pre-refactor versions of `lib_commands_insightStore.js`, `lib_commands_backgroundIndexer.js`, `lib_commands_integr8_relationshipAnalyzer.js`, etc. They surface what the system USED TO LOOK LIKE — the dormant-system map. Not surveyed in this batch.
+
+**Process / discipline lessons (these belong in future executor prompts' NO CHEATS sections):**
+
+1. **"Trace before judging" anti-cheat is necessary but not sufficient.** Agents traced WITHIN the curated surface (src/ + tests/ + cluster review docs + roadmap) and missed the canonical-design corpus (docs/<Tool>/, st8_json/schema-cards/, st8_bible.md batches). The anti-cheat works only if the corpus to trace against is named.
+
+2. **"No callers in src/" ≠ "dead code."** Multiple modules in this repo have:
+   - No live callers because their counterpart producer/orchestrator is dormant
+   - Vendored TS-compiled status that explicitly prohibits hand-editing
+   - Canonical design intent documented in `docs/<Tool>/` directories
+   Future executor prompts must require a check against the design corpus before any "dead code" classification.
+
+3. **Type-failure-at-runtime is a systemic risk.** TypeScript designs declare enums + interfaces; the compile strips them; SQLite + JSON accept anything. There's no runtime gate enforcing the design contract. Future wave-level NO CHEATS bullet: "any new producer of insights/connections/cards must validate its emitted category/type/shape against the canonical TypeScript declaration in docs/<Tool>/."
+
+4. **Background tasks must clear cleanly.** The harness task panel accumulated stale entries from prior sessions. Research-wave agents launched async and the orchestrator (me) had to track 16 individual completion notifications. For research waves with >5 agents, the launch protocol should pre-commit a research-wave manifest naming the agents + budgets, so completion-tracking has a paper trail.
+
+5. **The orchestrator owes humility.** Across this conversation I confidently labeled three things as bugs that weren't bugs — the indexer's substring resolver (intentional, downstream consumers scope-mitigate), the OGB contamination (real but ~46 files, not 95% of red), the insight-store-as-dead-code framing (recycling a verdict that's been wrong twice already). Each time the founder caught it. Future orchestrator behavior: **propose nothing as a fix until the trace has reached the canonical-design corpus.** The cost of a deeper read is always less than the cost of a wave that re-orphans something the team just wired.
+
+**What the next move actually is (after this audit):**
+
+Not a wave. Not yet. The right next thing is to read four specific files end-to-end with full context, and to survey the `st8_json/schema-cards/` corpus to surface every other dormant system. The four files:
+
+- `background-indexer.js:500-600` — the `extractInsights()` body. Confirm whether `captureManager` is the missing maestro helper or an inline construct. If inline, background-indexer's insight-emit path may be partially-wirable without acquiring the missing helpers.
+- `data-ingestion.js`'s circuit-breaker config — understand the "Tier 3 resilience" pattern. May give a wedge-mitigation primitive applicable elsewhere.
+- `parser-persistence.js` end-to-end — see the actual SQLite schema for `scaffolder_data.sqlite`'s parser tables. These tables aren't in the meta-dogfood snapshot.
+- `indexer.js:253-269` — find the original CR-02 ticket. The "CR-02 FIX" comment is terse. The rationale (why the other fields were intentionally dropped, or whether the drop was an oversight) needs to surface before any wave proposes restoring those fields.
+
+After those four, plus a pass over `st8_json/schema-cards/`, the next research-or-wave decision will be informed.
+
+**Files added in this batch:**
+
+```
+docs/_research/2026-05-16-analysis-tools-unblock/
+  src_features_analysis_relationship-analyzer.md
+  src_features_analysis_signal-path-adapter.md
+  src_features_analysis_path-generator.md
+  src_features_analysis_insight-store.md
+  src_features_analysis_insight-store-populator.md
+  src_features_analysis_report-generator.md
+  src_features_graph_traversal.md
+  src_features_schema-cards_emitter.md
+  src_core_database_graph-persister.md           (Batch 2)
+  src_core_hooks_default-subscribers.md          (Batch 2)
+  src_core_server_app.md                         (Batch 2)
+  src_core_server_route-manifest.md              (Batch 2)
+  tests_core_server_route-manifest-drift-test.md (Batch 2)
+  CLAUDE-md.md                                   (Batch 2)
+  README-md.md                                   (Batch 2)
+  _synthesis.md                                  (Synthesizer pass)
+```
+
+One research agent (persistence.js) timed out at the 30-minute harness cap. Its findings were filled by the synthesizer's own scoped read of `persistence.js` for T2/T3/T5-specific method needs.
+
+**Commits:**
+
+- Research reports: `a5976d7`, `7a96dd8`, `9579cb5`, `145defa`, `3f365a5`, `0afecaf`, `7232dd3`, `06b2a0c`, `948f40b`
+- Auth-fetch fix that prefaced the research wave: `536c6aa`
