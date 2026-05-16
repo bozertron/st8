@@ -389,9 +389,10 @@ test('registerDefaultSubscribers — ticket 12: idempotent (calling twice does n
   const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
   assert.equal(idxComplete.count, 6, 'INDEX_COMPLETE should have exactly 6 default subscribers, not 12');
 
-  // INDEX_START has exactly 1 (sonic-daemon), not 2.
+  // INDEX_START has exactly 2 default subscribers post-Wave-4B:
+  //   sonic-daemon (P=10) and bruno-session-start (P=20).
   const idxStart = r.listHooks().find((h) => h.name === HOOKS.INDEX_START);
-  assert.equal(idxStart.count, 1, 'INDEX_START should have exactly 1 default subscriber');
+  assert.equal(idxStart.count, 2, 'INDEX_START should have exactly 2 default subscribers (sonic-daemon, bruno-session-start)');
 
   // Cleanup so the symbol flag does not leak (cosmetic — registry is GC'd).
   _resetDefaultSubscribersFlag(r);
@@ -464,10 +465,14 @@ test('default-subscribers — ticket 14: subscriber survives an INDEX_START fire
       threw = true;
     }
     assert.equal(threw, false, 'INDEX_START execute must not throw');
-    // The subscriber either succeeded (ok:1) or failed-internally and the
-    // registry's catch surfaced fail:1. Both are acceptable — the
-    // contract is "must not throw out of execute()".
-    assert.equal(summary.ok + summary.fail, 1);
+    // The subscribers either succeeded or failed-internally — the
+    // registry's catch surfaced fail counts. Both are acceptable — the
+    // contract is "must not throw out of execute()". Post-Wave-4B
+    // INDEX_START has TWO default subscribers: sonic-daemon (P=10) and
+    // bruno-session-start (P=20). With no ctx.persistence the bruno
+    // subscriber short-circuits to ok cleanly; sonic may ok or fail
+    // depending on the daemon being installed.
+    assert.equal(summary.ok + summary.fail, 2);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
     _resetDefaultSubscribersFlag(r);

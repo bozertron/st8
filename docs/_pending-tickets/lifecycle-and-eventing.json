@@ -69,7 +69,7 @@
       "src/core/database/persistence.js",
       "tests/core/database/lifecycle-check-constraints.test.js"
     ],
-    "commitHash": null,
+    "commitHash": "7db6f39",
     "residualConcerns": "Existing st8.sqlite files (already-bootstrapped DBs) do not gain the CHECK constraint — SQLite cannot add CHECK via ALTER TABLE. A typo against a pre-existing DB would still land silently until a migration framework runs CREATE TABLE … new + INSERT SELECT + DROP + RENAME. The migration framework is the P1.1 persistence roadmap item — out of scope for Wave 4B."
   },
   {
@@ -94,19 +94,48 @@
     "filepath": "src/features/lifecycle/bruno-oscar.js",
     "userNote": "MISSING AUTOMATION: the file-level docstring claims 'Automatic File Lifecycle Management' and 'Called on every session start' (lines 5, 23) but nothing inside st8 actually invokes runBrunoCall or runOscarHouse on a schedule. They only fire via POST /api/bruno-call and POST /api/oscar-house. Either remove the 'automatic' wording from the docstring OR wire a startup trigger (e.g. a SESSION_START hook subscriber that calls bruno) in src/core/server/main.js after persistence.initialize(). Today the feature is fully manual; the docstring is misleading.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4b-executor",
+    "actionsTaken": "Wired bruno-oscar's runBrunoCall as an INDEX_START hook subscriber at priority 20 (after sonic-daemon P=10) in src/core/hooks/default-subscribers.js. main.js already fires HOOKS.INDEX_START via hookRegistry.execute(...) at boot (line 267) with ctx={targetDir, persistence}; the new subscriber lazy-requires BrunoOscar + notificationBus inside its body (same posture as the existing FILE_AFTER_CHANGE subscribers), constructs a BrunoOscar with the ctx.persistence handle, and awaits bruno.runBrunoCall() with the default STALE_THRESHOLD=5. Side effect: every backend boot now performs the active->flagged sweep automatically; flagged-count is logged when > 0. The docstring claim 'Called on every session start' is now true rather than aspirational. Updated the runBrunoCall jsdoc to point at the subscriber site as the canonical caller. Updated the pre-existing hook-registry.test.js assertions to expect 2 INDEX_START subscribers (was 1) - sonic-daemon (P=10) + bruno-session-start (P=20). New tests in tests/features/lifecycle/bruno-oscar.test.js: (a) static-shape probe asserts bruno-session-start is registered on INDEX_START AND runs AFTER sonic-daemon via introspectExecuteOrder, (b) hermetic effect probe builds a fresh HookRegistry, registers ONLY the bruno-session-start handler body (verbatim copy, avoids sonic-daemon spawn side effect inside the unit-test process), fires INDEX_START with real ctx, asserts both stale rows in file_registry flipped to brunoStatus='flagged' while the fresh row stayed 'active'. Full suite 223->230 (+7 across all 3 wave-4B subscriber/publisher tickets).",
+    "filesChanged": [
+      "src/core/hooks/default-subscribers.js",
+      "tests/core/hook-registry.test.js",
+      "tests/features/lifecycle/bruno-oscar.test.js"
+    ],
+    "commitHash": null,
+    "residualConcerns": "runOscarHouse is NOT wired as a subscriber - Wave 4B scope is bruno (session-start flag sweep), not oscar (archive sweep). The 'when does oscar fire automatically' question lives in roadmap as Priority 2 Bruno+Oscar state-machine. Today oscar still only fires via POST /api/oscar-house."
   },
   {
     "filepath": "src/features/lifecycle/bruno-oscar.js",
     "userNote": "DEAD HOOK SITE: this is the natural firing site for HOOKS.LIFECYCLE_TRANSITION (per batch 025 narrative: 'LIFECYCLE_TRANSITION stays reserved for actual file-phase transitions — bruno+oscar territory'). runOscarHouse changes brunoStatus from 'flagged' to 'archived' and never calls hookRegistry.execute. onEventTriggered changes it back to 'active' and never fires the hook either. Wire HOOKS.LIFECYCLE_TRANSITION with payload { file, oldPhase: 'flagged', newPhase: 'archived' } in runOscarHouse, and the inverse in onEventTriggered. The hook constant exists; the publisher is missing.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4b-executor",
+    "actionsTaken": "Added a _fireLifecycleTransition(file, oldPhase, newPhase) helper on BrunoOscar that lazy-requires hook-registry (avoids constructor-time circular concerns and lets tests construct BrunoOscar without the registry singleton). Wired three publisher sites with the canonical {file:{fingerprint,filepath}, oldPhase, newPhase} payload: (1) runBrunoCall fires active->flagged per flagged file, (2) runOscarHouse fires flagged->archived per archived file, (3) onEventTriggered fires archived->active per un-archived file. The three methods are now async (await this._fireLifecycleTransition awaits subscribers in priority order per hook-registry contract). Updated POST /api/bruno-call and POST /api/oscar-house in src/core/server/app.js to await the now-async results before responding (`async () => { ... const result = await bruno.runBrunoCall(threshold); ... }`). New tests in tests/features/lifecycle/bruno-oscar.test.js register a REAL subscriber on the singleton hookRegistry (the lazy-require path bruno-oscar actually uses), trigger each of the three transition methods, and assert: (a) per-stale-file payload on active->flagged, (b) per-archived-file payload on flagged->archived, (c) per-event-match payload on archived->active. Each test unsubscribes its capture in a finally block so the singleton stays clean for the rest of the suite. Subscriber receives correct {file.fingerprint, file.filepath, oldPhase, newPhase}.",
+    "filesChanged": [
+      "src/features/lifecycle/bruno-oscar.js",
+      "src/core/server/app.js",
+      "tests/features/lifecycle/bruno-oscar.test.js"
+    ],
+    "commitHash": null,
+    "residualConcerns": "Hook payload semantics: the canonical hook-registry.js docstring for LIFECYCLE_TRANSITION says 'lifecyclePhase' transitions, but bruno-oscar's transitions are brunoStatus (active/flagged/archived), not lifecyclePhase (DEVELOPMENT/PRODUCTION/etc). Ticket 10 instructed exactly this wiring ('Wire HOOKS.LIFECYCLE_TRANSITION with payload { file, oldPhase: 'flagged', newPhase: 'archived' }'), and the hook header comment in hook-registry.js explicitly says 'bruno+oscar archive/unarchive (today only updates brunoStatus, not lifecyclePhase ... when oscar gains real phase transitions it should fire here)' - so the wiring follows the documented intent. A future roadmap item could split the hook into two (LIFECYCLE_PHASE_TRANSITION vs BRUNO_STATUS_TRANSITION) if the conflation becomes a problem; today subscribers can disambiguate on oldPhase/newPhase values."
   },
   {
     "filepath": "src/features/lifecycle/bruno-oscar.js",
     "userNote": "DEAD CODE / UNWIRED: _appendToParent (lines 162-182) reads a file, appends its content to the file referenced by associatedWith, and is declared private. Grep across src/ shows zero call sites — runOscarHouse never invokes it. The 'fold stale child into parent before archive' behavior described in the comment is implemented but not connected. Either wire it into runOscarHouse for files with associatedWith set, or remove the method.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4b-executor",
+    "actionsTaken": "Decision: WIRE-UP, not delete. _appendToParent is documented in bruno-oscar.js's per-method jsdoc as 'Called when archiving a file that has an associated parent' - the intent is preserved code, the wiring was missing. Added `this._appendToParent(file);` at the top of the per-file try-block inside runOscarHouse, BEFORE the archiveFile call so the parent receives the child's content before the brunoStatus flip. _appendToParent is itself defensive: returns false silently when file.associatedWith is unset (the common case - most flagged files have no parent), AND wraps the readFileSync/appendFileSync in try/catch so a missing parent or read error logs '[oscar] Failed to append ...' and returns false rather than aborting the archive. The archive proceeds regardless of the fold result - the fold is a courtesy, not a prerequisite. Test in tests/features/lifecycle/bruno-oscar.test.js: (a) flagged file with associatedWith pointing at an existing parent.md on disk - after runOscarHouse, parent.md contains the appended child content marked with 'APPENDED BY OSCAR' marker, (b) flagged file with associatedWith=null - runOscarHouse completes cleanly, brunoStatus flips to 'archived', no file system fault.",
+    "filesChanged": [
+      "src/features/lifecycle/bruno-oscar.js",
+      "tests/features/lifecycle/bruno-oscar.test.js"
+    ],
+    "commitHash": null,
+    "residualConcerns": "_appendToParent reads file.filepath directly with fs.readFileSync - bruno-oscar treats this as a resolvable path. The test writes both parent and child to a temp dir and uses absolute paths in file_registry, which matches how main.js's watcher records filepaths today (relative-to-targetDir). If a future caller passes a non-resolvable filepath, the inner try/catch logs and returns false - acceptable degraded behavior."
   },
   {
     "filepath": "src/core/server/main.js",

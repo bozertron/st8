@@ -98,6 +98,34 @@ function registerDefaultSubscribers(registry) {
     }
   }, { priority: 10, source: 'sonic-daemon' });
 
+  // P=20 — Bruno's Call on every session start (Wave 4B ticket 9). The
+  // bruno-oscar.js docstring claims "Called on every session start" but
+  // until this subscriber landed, runBrunoCall fired only via POST
+  // /api/bruno-call. Now an INDEX_START fire flags stale files
+  // automatically as part of the indexer's bootstrap pass.
+  //
+  // ctx shape from main.js: { targetDir, persistence }. The notification
+  // bus is required at fire time (same lazy-require posture as the
+  // FILE_AFTER_CHANGE subscribers below) to avoid pulling the bus into
+  // module load order during tests that construct fresh registries.
+  //
+  // Wrapped in try/catch per the ticket-13 default-subscribers convention
+  // — a bruno failure must not poison the rest of the INDEX_START chain.
+  registry.register(HOOKS.INDEX_START, async (ctx) => {
+    try {
+      if (!ctx || !ctx.persistence) return;  // defensive: no persistence handle, nothing to scan
+      const { BrunoOscar } = require('../../features/lifecycle/bruno-oscar');
+      const { notificationBus } = require('../notification-bus');
+      const bruno = new BrunoOscar(ctx.persistence, notificationBus);
+      const result = await bruno.runBrunoCall();
+      if (result && result.flaggedFiles > 0) {
+        console.log(`[st8] Bruno session-start scan: flagged ${result.flaggedFiles} stale file(s)`);
+      }
+    } catch (err) {
+      console.error('[st8] Bruno session-start scan failed:', err.message);
+    }
+  }, { priority: 20, source: 'bruno-session-start' });
+
   // ─── INDEX_COMPLETE chain ───────────────────────────────────
   // Runs after the bootstrap Pass-1 upsert + Pass-2 connection wiring.
   // Each subscriber sees the full graph in persistence.
