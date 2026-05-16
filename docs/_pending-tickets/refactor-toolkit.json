@@ -1,17 +1,18 @@
 [
   {
     "filepath": "/home/user/st8/lib",
-    "userNote": "Empty directory tree (lib/, lib/utils/, lib/commands/, lib/commands/integr8/) \u2014 the originals were retired to OGB in batch 019 but the dirs were never rmdir'd. Cosmetic clutter at repo root. stage-originals.js deletes files but not empty parent dirs.",
+    "userNote": "Empty directory tree (lib/, lib/utils/, lib/commands/, lib/commands/integr8/) — the originals were retired to OGB in batch 019 but the dirs were never rmdir'd. Cosmetic clutter at repo root. stage-originals.js deletes files but not empty parent dirs.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
     "executedBy": "wave-6a-executor",
-    "actionsTaken": "Resolved upstream by bbfa7cc (chore(originals): stage 46 migrated originals into OGB/ as .txt snapshots \u2014 batch 019). Verified: `ls lib/` returns 'No such file or directory'.",
+    "actionsTaken": "Resolved upstream by bbfa7cc (chore(originals): stage 46 migrated originals into OGB/ as .txt snapshots — batch 019). Verified: `ls lib/` returns 'No such file or directory'.",
     "filesChanged": [],
     "commitHash": "bbfa7cc",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/lib/utils",
@@ -24,8 +25,9 @@
     "filesChanged": [],
     "commitHash": "bbfa7cc",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/lib/commands",
@@ -38,8 +40,9 @@
     "filesChanged": [],
     "commitHash": "bbfa7cc",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/lib/commands/integr8",
@@ -52,8 +55,9 @@
     "filesChanged": [],
     "commitHash": "bbfa7cc",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/backend",
@@ -86,16 +90,17 @@
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
     "executedBy": "wave-6a-executor",
-    "actionsTaken": "Resolved upstream by 93ffd40 (chore: archive 14 outdated root .md indexes \u2014 master cleanup commit). Verified: `ls 0_MASTER_INDEX.md` returns 'No such file or directory'; commit stats show -235 lines deleted from 0_MASTER_INDEX.md.",
+    "actionsTaken": "Resolved upstream by 93ffd40 (chore: archive 14 outdated root .md indexes — master cleanup commit). Verified: `ls 0_MASTER_INDEX.md` returns 'No such file or directory'; commit stats show -235 lines deleted from 0_MASTER_INDEX.md.",
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_FRONTEND_INDEX.md",
-    "userNote": "Stale planning doc \u2014 references the original 6 root-level frontend .js files (file-explorer.js, phreak-terminal.js, etc.) that moved to src/frontend/components/ in batch 012 and were retired to OGB in batch 019.",
+    "userNote": "Stale planning doc — references the original 6 root-level frontend .js files (file-explorer.js, phreak-terminal.js, etc.) that moved to src/frontend/components/ in batch 012 and were retired to OGB in batch 019.",
     "severity": "medium",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -104,8 +109,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_LINE_COUNT_REPORT.md",
@@ -118,12 +124,13 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_BACKEND_INDEX.md",
-    "userNote": "Stale \u2014 backend/ directory contains only 3 non-code files now; the 14 .js files documented here have all moved to src/.",
+    "userNote": "Stale — backend/ directory contains only 3 non-code files now; the 14 .js files documented here have all moved to src/.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -132,12 +139,13 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_LIB_UTILS_INDEX.md",
-    "userNote": "Stale \u2014 lib/utils/ is empty; all 4 utilities moved to src/shared/utils/ in batch 001.",
+    "userNote": "Stale — lib/utils/ is empty; all 4 utilities moved to src/shared/utils/ in batch 001.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -146,12 +154,13 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_LIB_COMMANDS_INDEX.md",
-    "userNote": "Stale \u2014 lib/commands/ and lib/commands/integr8/ are empty; all 20 files moved into src/features/ across batches 002/006/007/008/017.",
+    "userNote": "Stale — lib/commands/ and lib/commands/integr8/ are empty; all 20 files moved into src/features/ across batches 002/006/007/008/017.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -160,8 +169,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_INDEX_JS_INDEX.md",
@@ -174,8 +184,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_INDEXER_JS_INDEX.md",
@@ -188,8 +199,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_PERSISTENCE_JS_INDEX.md",
@@ -202,8 +214,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_SERVER_JS_INDEX.md",
@@ -216,8 +229,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_PRESSURE_TEST.md",
@@ -230,8 +244,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_LINE_COUNT_REPORT_V2.md",
@@ -244,8 +259,9 @@
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",
@@ -255,19 +271,19 @@
   },
   {
     "filepath": "/home/user/st8/scripts/signal-tests/check-invariants.js",
-    "userNote": "Tier 1 signal tests (schema contracts at internal handoffs e.g. indexer\u2192manifestGenerator, parserPersistence\u2192graphPersister) were deferred in batch 021 because Tier 2 + Tier 6 cover most of what Tier 1 would. Re-evaluate only if a regression slips past both. Tracking this here so it isn't forgotten.",
+    "userNote": "Tier 1 signal tests (schema contracts at internal handoffs e.g. indexer→manifestGenerator, parserPersistence→graphPersister) were deferred in batch 021 because Tier 2 + Tier 6 cover most of what Tier 1 would. Re-evaluate only if a regression slips past both. Tracking this here so it isn't forgotten.",
     "severity": "low",
     "status": "open"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/check-conventions.js",
-    "userNote": "Orphan-detection (check #6) over-reports for frontend files loaded via <script src> from src/frontend/index.html. Today the script skips src/frontend/ entirely (line 336) so this is latent \u2014 but if anyone ever adds a <script src='src/features/...'> include directly to the HTML shell, it will be reported as orphan. Make the skip-list configurable, or scan index.html for <script src> tags and treat those as 'referenced'.",
+    "userNote": "Orphan-detection (check #6) over-reports for frontend files loaded via <script src> from src/frontend/index.html. Today the script skips src/frontend/ entirely (line 336) so this is latent — but if anyone ever adds a <script src='src/features/...'> include directly to the HTML shell, it will be reported as orphan. Make the skip-list configurable, or scan index.html for <script src> tags and treat those as 'referenced'.",
     "severity": "low",
     "status": "open"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/verify.js",
-    "userNote": "Browser-only detection relies on the manifest's `client: true` flag (line 163). If someone forgets to set it on a frontend file move, verify.js tries to require() the module, which throws on window/document references. The batch 017 both-broken-identically check (line 176-186) mitigates this to a WARN-pass \u2014 but it's noisy and conceals real regressions in the same file. Consider auto-detecting client modules by path prefix (anything under src/frontend/) instead of trusting the flag.",
+    "userNote": "Browser-only detection relies on the manifest's `client: true` flag (line 163). If someone forgets to set it on a frontend file move, verify.js tries to require() the module, which throws on window/document references. The batch 017 both-broken-identically check (line 176-186) mitigates this to a WARN-pass — but it's noisy and conceals real regressions in the same file. Consider auto-detecting client modules by path prefix (anything under src/frontend/) instead of trusting the flag.",
     "severity": "medium",
     "status": "open"
   },
@@ -279,13 +295,13 @@
   },
   {
     "filepath": "/home/user/st8/scripts/migration/manifest.json",
-    "userNote": "manifest.json is OVERWRITTEN each batch \u2014 there's no audit trail of what each batch's manifest contained (description, generatedAt, the specific move list at decision-time). move-history.json captures the successful from/to pairs but loses the description + per-batch metadata. Mitigation: archive each batch's manifest.json under scripts/migration/manifest-history/<batch-name>.json on successful verify.",
+    "userNote": "manifest.json is OVERWRITTEN each batch — there's no audit trail of what each batch's manifest contained (description, generatedAt, the specific move list at decision-time). move-history.json captures the successful from/to pairs but loses the description + per-batch metadata. Mitigation: archive each batch's manifest.json under scripts/migration/manifest-history/<batch-name>.json on successful verify.",
     "severity": "medium",
     "status": "open"
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",
-    "userNote": "Bible batches reference commit hashes (26 of 27 batches have a Commit: <short-hash> line \u2014 only batch 027 sonic-foundation has '(filled in below)' placeholder). There's no script to verify those hashes still exist on the branch and contain the changes the bible claims. Useful as a regression-detector if anyone ever force-pushes or rebases the branch.",
+    "userNote": "Bible batches reference commit hashes (26 of 27 batches have a Commit: <short-hash> line — only batch 027 sonic-foundation has '(filled in below)' placeholder). There's no script to verify those hashes still exist on the branch and contain the changes the bible claims. Useful as a regression-detector if anyone ever force-pushes or rebases the branch.",
     "severity": "low",
     "status": "open"
   },
@@ -297,7 +313,7 @@
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
-    "userNote": "FK-cascade gotcha worth documenting: file_registry is FK-referenced by connections, file_intent, file_mutation_log. The pruner (lines 285-294 and 319-327) correctly operates per-fingerprint inside a transaction, deleting children BEFORE the registry row. Don't try to bulk-DELETE from file_registry via filepath \u2014 you'll get FK violations because children reference the about-to-be-deleted rows. Add a guard comment at the top of persistence.js explicitly stating 'all file_registry deletes must go through delete*ForFile(fingerprint)' patterns.",
+    "userNote": "FK-cascade gotcha worth documenting: file_registry is FK-referenced by connections, file_intent, file_mutation_log. The pruner (lines 285-294 and 319-327) correctly operates per-fingerprint inside a transaction, deleting children BEFORE the registry row. Don't try to bulk-DELETE from file_registry via filepath — you'll get FK violations because children reference the about-to-be-deleted rows. Add a guard comment at the top of persistence.js explicitly stating 'all file_registry deletes must go through delete*ForFile(fingerprint)' patterns.",
     "severity": "medium",
     "status": "open"
   },
@@ -309,22 +325,23 @@
   },
   {
     "filepath": "/home/user/st8/scripts/migration/results.gap-analysis.md",
-    "userNote": "Per bible batch 021, the cumulative gap-check tally still shows 31 findings (down from 282): 25 expected boundary violations (core/server orchestrating features \u2014 correct architecture) + 6 orphan candidates needing human review (ground-plane.js, integr8/index.js, migration-executor.js, background-indexer.js, graph/builder.js, graph/traversal.js). Some of those 6 are CLI entry points (intentional orphans); some are dormant pending sonic restoration. Need a documented allowlist in check-conventions.js so the report cleanly distinguishes 'expected orphan' from 'unexpected orphan'.",
+    "userNote": "Per bible batch 021, the cumulative gap-check tally still shows 31 findings (down from 282): 25 expected boundary violations (core/server orchestrating features — correct architecture) + 6 orphan candidates needing human review (ground-plane.js, integr8/index.js, migration-executor.js, background-indexer.js, graph/builder.js, graph/traversal.js). Some of those 6 are CLI entry points (intentional orphans); some are dormant pending sonic restoration. Need a documented allowlist in check-conventions.js so the report cleanly distinguishes 'expected orphan' from 'unexpected orphan'.",
     "severity": "low",
     "status": "open"
   },
   {
     "filepath": "/home/user/st8/src/features/indexing/background-indexer.js",
-    "userNote": "Dormant file \u2014 throws Cannot find module './sonicClient.js' at module load. Three references to absent siblings (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js) were stripped during the pre-refactor stubs-cleanup. The file is currently a 812-line orphan kept around for future sonic restoration. Bible batch 027 (sonic-foundation) appears to be addressing this \u2014 verify whether sonic restoration is complete and whether background-indexer.js is now wired or still dormant.",
+    "userNote": "Dormant file — throws Cannot find module './sonicClient.js' at module load. Three references to absent siblings (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js) were stripped during the pre-refactor stubs-cleanup. The file is currently a 812-line orphan kept around for future sonic restoration. Bible batch 027 (sonic-foundation) appears to be addressing this — verify whether sonic restoration is complete and whether background-indexer.js is now wired or still dormant.",
     "severity": "medium",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
     "executedBy": "wave-6a-executor",
-    "actionsTaken": "Resolved upstream by 4fea31f (fix(sonic): repair broken require paths in background-indexer \u2014 Wave 5A executor commit). Verified: `node -e \"require('/home/user/st8/src/features/indexing/background-indexer')\"` prints 'LOAD OK'.",
+    "actionsTaken": "Resolved upstream by 4fea31f (fix(sonic): repair broken require paths in background-indexer — Wave 5A executor commit). Verified: `node -e \"require('/home/user/st8/src/features/indexing/background-indexer')\"` prints 'LOAD OK'.",
     "filesChanged": [],
     "commitHash": "4fea31f",
     "residualConcerns": null,
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Citation independently verified: upstream commit deletes/archives the referenced paths and the path no longer exists at HEAD (2c5987f). Tests 373/373.",
+    "reviewedBy": "wave-6a-reviewer"
   }
 ]
