@@ -43,25 +43,57 @@
     "filepath": "/home/user/st8/src/core/database/persistence.js",
     "userNote": "Forward-looking schema change. file_registry has 22 columns today; Phase L1 of the louis-and-locking roadmap needs one more — `locked INTEGER DEFAULT 0` — plus an idx_file_registry_locked index for the panel's listLocked() query. Decide D1 in louis-and-locking.md (column vs separate table) before adding. Default recommendation: add the column, single boolean is all the MVP carries. The LOCKED enum value already exists in the FileStatus and LifecyclePhase tables (lines 57, 60) but is never written, so adding a write-path is gated on this column existing.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L1: The locking primitive + state + routes. Scope: Add `locked INTEGER DEFAULT 0` column plus `idx_file_registry_locked` index to file_registry in src/core/database/persistence.js, with the D1 column-vs-table decision (default = column) settled before code lands. Cross-cluster dependencies: none — the EXPECTED_SCHEMA drift detector in persistence.js already accepts schema additions via the standard migration path; no Wave 1B coordination required.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L1 prerequisite for the lock-state.js (ticket 11), HOOKS.LOCK_CHANGED subscribers (ticket 5), API routes (ticket 6), and bootstrap migration (ticket 14). Must land first within Phase L1.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/core/hook-registry.js",
     "userNote": "Forward-looking — register HOOKS.LOCK_CHANGED in the canonical map. Payload: { fingerprint, filepath, locked }. Two default subscribers (per louis-and-locking.md spec): P=10 regenerate-protected-file (writes ~/.louis-control/protected-files.txt from SQLite), P=20 sse-broadcast-lock-change (pushes { type: 'lock-change', fingerprint, locked } to /api/mutations clients). Matches the existing pattern used for COMMIT_RECORDED (batch 024) and TICKET_CREATED (batch 026 area).",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L1: The locking primitive + state + routes (specifically the 'Add HOOKS.LOCK_CHANGED' bullet, lines 52-64). Scope: Register HOOKS.LOCK_CHANGED constant in src/core/hook-registry.js with payload { fingerprint, filepath, locked }, and add three default subscribers in src/core/hooks/default-subscribers.js (P=10 regenerate-protected-file, P=20 lock-mutation-log per Wave 8A ticket 15 decision, P=30 lock-activity-log) — note roadmap upgraded the spec from 2 subscribers to 3 to absorb the audit-trail decision. Cross-cluster dependencies: none — hook-registry follows the established COMMIT_RECORDED / TICKET_CREATED pattern.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L1 prerequisite for API routes (ticket 6) and SSE wiring to the lock panel (ticket 13) / file-explorer badge (ticket 9). Subscribers depend on ticket 4 (locked column) + ticket 11 (lock-state.js) landing first.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/core/server/app.js",
     "userNote": "Forward-looking — three new routes. POST /api/lock { path } → resolves filepath via file_registry, calls features/locks/lock-manager.lockFile(absPath), persists via features/locks/lock-state.setLocked(fingerprint, true), fires HOOKS.LOCK_CHANGED. POST /api/unlock symmetric. GET /api/locks → returns features/locks/lock-state.listLocked(). All three share the same path-resolution helper. Mount the routes next to /api/record-commit and /api/tickets which follow the same hook-fire-after-write pattern.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L1: The locking primitive + state + routes (specifically the 'Add three routes to src/core/server/app.js' bullet, lines 66-71). Scope: Add POST /api/lock, POST /api/unlock, GET /api/locks to src/core/server/app.js next to /api/record-commit and /api/tickets. POST routes require X-St8-Secret per the established auth pattern; all three share a path→fingerprint resolution helper; POST handlers call lockFile/unlockFile then setLocked then fire HOOKS.LOCK_CHANGED. Cross-cluster dependencies: depends on lock-manager.js (ticket 10), lock-state.js (ticket 11), HOOKS.LOCK_CHANGED (ticket 5), and the locked column (ticket 4) — all within Phase L1.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Last-to-land within Phase L1 — exit criterion 'curl -X POST /api/lock flips a file to read-only AND records in SQLite AND fires hook AND emits SSE' is gated on this ticket.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/scripts/git-hooks/install.sh",
     "userNote": "Forward-looking — extend the existing symlink installer to manage a pre-commit hook in addition to the post-commit hook batch 024 installed. The pre-commit script reads ~/.louis-control/protected-files.txt and rejects commits to listed paths (see louis-and-locking.md for the shell-script body). install.sh becomes the single entry point for both git hooks; the lock panel UI shows their install status side by side. Idempotent on re-install; refuses to overwrite a user-customized pre-commit (panel surfaces the conflict).",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L3: Git pre-commit hook + protected-files contract (specifically the 'Update scripts/git-hooks/install.sh to manage both pre-commit (new) and post-commit (existing, from batch 024). Single entry point' bullet, line 132). Scope: Extend scripts/git-hooks/install.sh to symlink both pre-commit (new) and post-commit (existing batch-024) hooks; idempotent on re-install; detects user customization and refuses overwrite (panel surfaces the conflict via git-hook-installer.js, ticket 12). Also adds scripts/git-hooks/pre-commit template body (reads ~/.louis-control/protected-files.txt, greps staged paths, rejects matches). Cross-cluster dependencies: requires Phase L1 to have landed (regenerateProtectedFile must be writing the file the hook reads).",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L3 prerequisite for git-hook-installer.js (ticket 12); both ship together as a coherent slice.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -77,37 +109,85 @@
     "filepath": "/home/user/st8/src/frontend/components/file-explorer/file-explorer.js",
     "userNote": "Forward-looking — add a lock badge next to each row's status dot. Renders a small 🔒 glyph in the LOCKED-pink token when file.locked === 1. Subscribes to the same SSE 'lock-change' event as the constellation; single subscription, two render sinks. Likely sits in the existing render loop with one new conditional CSS class. Depends on the file-explorer already exposing per-row data binding; if it currently re-renders the whole tree on every update, that may need refactoring first (separate concern, file in frontend-experience cluster).",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L2: The lock panel UI + SSE wiring (specifically the 'File-explorer badge' bullet, lines 108-110). Scope: Add a small 🔒 glyph next to the existing status dot in src/frontend/components/file-explorer/file-explorer.js, rendered in the LOCKED-pink token when file.locked === 1. Subscribes to the same SSE 'lock-change' event as the constellation (single subscription, two render sinks). Cross-cluster dependencies: depends on Phase L1 (SSE event source) landing; may also depend on file-explorer per-row data-binding refactor tracked in the frontend-experience cluster (already closed) if whole-tree re-render proves prohibitive.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L2 render-sink — coordinated with constellation update; both wire the same SSE event.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/features/locks/lock-manager.js",
     "userNote": "Forward-looking — file does not exist yet. Phase L1 of the louis-and-locking roadmap creates it. Exports lockFile / unlockFile / isWritable / lockAll / unlockAll. ~50 LOC. Pure fs.chmodSync wrapper. No SQLite, no SSE — stateless primitive. Body is given verbatim in louis-and-locking.md §'The chmod primitive'. Windows caveat documented there: fs.chmodSync only flips the read-only bit; lock is a courtesy not a security mechanism.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L1: The locking primitive + state + routes (specifically the 'Create src/features/locks/lock-manager.js with the chmod primitive' bullet, lines 36-39). Scope: Create new file src/features/locks/lock-manager.js (~50 LOC) exporting lockFile / unlockFile / isWritable / lockAll / unlockAll — pure fs.chmodSync wrapper, stateless, no SQLite, no SSE. Body given verbatim in docs/components/louis-and-locking.md §'The chmod primitive'. Includes Windows caveat doc that fs.chmodSync only flips the read-only bit. Cross-cluster dependencies: none — this is the leaf primitive everything else in Phase L1 builds on.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "First-to-land within Phase L1; lock-state.js (ticket 11) and the API routes (ticket 6) both call into this module.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/features/locks/lock-state.js",
     "userNote": "Forward-looking — file does not exist yet. Phase L1 of the louis-and-locking roadmap creates it. Owns SQLite reads/writes for the lock bit (file_registry.locked column per D1 default). Exports setLocked / getLocked / listLocked / regenerateProtectedFile. ~100 LOC. Rides existing st8.sqlite; no separate DB. regenerateProtectedFile() writes ~/.louis-control/protected-files.txt from `SELECT filepath FROM file_registry WHERE locked = 1`; called by the P=10 default subscriber on HOOKS.LOCK_CHANGED.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L1: The locking primitive + state + routes (specifically the 'Create src/features/locks/lock-state.js' bullet, lines 48-50). Scope: Create new file src/features/locks/lock-state.js (~100 LOC) exporting setLocked / getLocked / listLocked / regenerateProtectedFile — SQLite-backed via st8.sqlite (no separate DB), reads/writes the locked column on file_registry. regenerateProtectedFile() writes ~/.louis-control/protected-files.txt from SELECT filepath FROM file_registry WHERE locked = 1; called by the P=10 default subscriber on HOOKS.LOCK_CHANGED. Cross-cluster dependencies: depends on ticket 4 (locked column) landing first; consumed by the P=10 subscriber (ticket 5) and the API routes (ticket 6).",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L1 mid-tier dependency — sequencing is ticket 4 (column) → ticket 10 (chmod primitive) → ticket 11 (this) → ticket 5 (hook + subscribers) → ticket 6 (routes) → ticket 14 (bootstrap).",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/features/locks/git-hook-installer.js",
     "userNote": "Forward-looking — file does not exist yet. Phase L3 of the louis-and-locking roadmap creates it. Ports Louis's install_git_hook() into Node. Writes .git/hooks/pre-commit with a versioned header, checks for prior customization, idempotent on re-install. Co-managed with the existing post-commit hook (batch 024) via scripts/git-hooks/install.sh. ~80 LOC.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L3: Git pre-commit hook + protected-files contract (specifically the 'Create src/features/locks/git-hook-installer.js' bullet, lines 121-124). Scope: Create new file src/features/locks/git-hook-installer.js (~80 LOC) — port of Louis's install_git_hook() into Node. Writes .git/hooks/pre-commit from a template with a versioned header line, detects prior customization, surfaces the conflict to the panel UI rather than silently overwriting. Idempotent on re-install. Co-managed with the existing post-commit hook (batch 024) via scripts/git-hooks/install.sh (ticket 7). Cross-cluster dependencies: requires Phase L1 (regenerateProtectedFile writes the file the hook reads) + Phase L2 (lock-panel surface to display conflict UI).",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L3 — ships alongside ticket 7 (install.sh extension) as a coherent slice. Exit criterion: git commit on a locked file rejected with st8-branded error even if user manually chmod 644'd in between.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/lock-panel/lock-panel.js",
     "userNote": "Forward-looking — file does not exist yet. Phase L2 of the louis-and-locking roadmap creates it. Renders a toggle list of every file_registry row with lock state; search box; 'Lock all PRODUCTION' bulk button (gated by D4 policy decision). Mount target: the Settings panel slot (or a new outer-edge dock diamond per the batch-027 design memo). Subscribes to SSE 'lock-change' for live updates. ~200 LOC. Must NOT carry inline styles — pending-tickets/frontend-experience.json has multiple high-severity tickets about dive-in.js's inline-style soup; do not repeat that mistake.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L2: The lock panel UI + SSE wiring (specifically the 'Create src/frontend/components/lock-panel/lock-panel.{js,css}' bullet, lines 85-94). Scope: Create new files src/frontend/components/lock-panel/lock-panel.js + lock-panel.css (~200 LOC JS) — toggle list of every file_registry row with lock state, search box, per-row 🔒 toggle, 'Lock all PRODUCTION' bulk button (gated by D4 default = off). Mount under Settings (or 🔒 outer-edge dock diamond if the batch-027 redesign has landed by L2). Subscribes to SSE 'lock-change' for live updates. NO inline styles — use the companion .css per the frontend-experience cluster's hard-learned lesson on dive-in.js inline-style soup. Cross-cluster dependencies: requires Phase L1 (data source + SSE event) and the frontend dock-diamond redesign (batch-027 design memo, separate roadmap).",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Phase L2 — the user-visible payoff of the entire cluster. Exit criterion: lock via panel → particle pink within ~50ms → explorer badge appears → unlock reverses both; multi-tab test must pass.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
     "userNote": "Forward-looking — bootstrap migration question. When the lock column first lands, what about files already chmod 444'd on disk (pre-existing read-only files, files Louis-standalone locked)? Bootstrap should SELECT filepath FROM file_registry, isWritable()-check each, and seed locked = 1 for paths the OS reports read-only. Without this step the first-run state is inconsistent — SQLite says unlocked, OS says locked, panel UI shows lies. Bundle with the column-add migration in Phase L1.",
     "severity": "med",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-8b-executor",
+    "actionsTaken": "Forward-looking — defer to docs/_pending-roadmap/louis-and-locking.md Phase L1: The locking primitive + state + routes (specifically the 'Bootstrap migration step' clause inside the file_registry column-add bullet, lines 42-46). Scope: Bundle with the locked-column migration in src/core/database/persistence.js — on first-run after the column lands, iterate every file_registry row and seed locked = 1 for paths the OS reports read-only (via lock-manager.isWritable() check). Avoids first-run state inconsistency where SQLite says unlocked but disk says read-only (pre-existing chmod 444 files, files Louis-standalone locked). Cross-cluster dependencies: depends on ticket 4 (column landing) + ticket 10 (lock-manager.isWritable available).",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Severity 'med' (only med-severity ticket in the cluster) because first-run lies in the panel UI would damage trust early. Must ship in the same commit as the column-add migration to keep state coherent.",
+    "verdict": null,
+    "reviewNote": null
   },
   {
     "filepath": "/home/user/st8/src/core/hooks/default-subscribers.js",
