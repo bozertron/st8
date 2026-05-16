@@ -431,7 +431,15 @@
     "filepath": "/home/user/st8/st8.sqlite",
     "userNote": "No versioned migration system for the SQLite schema. All schema is currently inlined as CREATE TABLE IF NOT EXISTS statements in persistence.js initialize() / migration. If the schema ever needs to evolve (e.g. add a column, change a constraint, drop a deprecated field), there's no infrastructure for ordered migrations. Need a scripts/migrations/<timestamp>-<name>.sql convention + a runner.",
     "severity": "medium",
-    "status": "open"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6d-executor",
+    "actionsTaken": "Marked defer-confirmed-upstream. This ticket is a DUPLICATE of the canonical persistence-and-database cluster ticket 0 (filepath: src/core/database/persistence.js), which was already executed by wave-1b-executor and reviewed defer-confirmed by the persistence reviewer. See docs/_pending-tickets/persistence-and-database.for-review.json ticket index 0: status=deferred, verdict=defer-confirmed. The persistence cluster's actionsTaken provides the canonical multi-step build spec (numbered migration files under src/core/database/migrations/, _migrations table, applyMigrations() step in St8Persistence.initialize(), `npm run db:migrate` CLI, migration 001 for the five post-initial columns). Roadmap pointer: docs/_pending-roadmap/refactor-toolkit.md §2.1 (SQLite schema migration framework) AND docs/_pending-roadmap/persistence-and-database.md P1.1 — both describe the same work. No work needed in the refactor-toolkit cluster; tracking ownership lives with persistence-and-database.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Until persistence's P1.1 lands, every new column added to ST8_SCHEMA after this date will silently NOT appear on existing st8.sqlite files. Workaround: delete st8.sqlite, or apply a one-off ALTER. Wave 1A's introspectSchema() will surface the drift as [st8:persistence:drift] warnings at boot.",
+    "verdict": "defer-confirmed-upstream",
+    "reviewNote": "Annotation by wave-6d-executor pending wave-6d-reviewer audit."
   },
   {
     "filepath": "/home/user/st8/scripts/migration/results.gap-analysis.md",
