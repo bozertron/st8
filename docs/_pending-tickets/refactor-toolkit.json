@@ -333,7 +333,17 @@
     "filepath": "/home/user/st8/scripts/migration/manifest.json",
     "userNote": "manifest.json is OVERWRITTEN each batch — there's no audit trail of what each batch's manifest contained (description, generatedAt, the specific move list at decision-time). move-history.json captures the successful from/to pairs but loses the description + per-batch metadata. Mitigation: archive each batch's manifest.json under scripts/migration/manifest-history/<batch-name>.json on successful verify.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Implemented variant (a) from the wave-6b prompt: append-only manifest-history.jsonl that captures one self-contained JSON record per batch — batch, description, generatedAt, verifiedAt (write-time ISO), gitCommit (short SHA), moves[], plus optional notes and followUps. Wired appendManifestHistory() into verify.js's success path (fail === 0) so each clean batch verification writes its own audit record. Idempotency key is (batch name, moves signature) — re-running verify after later commits land cannot duplicate a batch's record. Added scripts/migration/backfill-manifest-history.js which walks `git log --diff-filter=AM scripts/migration/manifest.json --reverse`, runs `git show <sha>:scripts/migration/manifest.json` at each commit, parses, and appends. Source for backfill: all 12 batch commits in the master tree (ab4d038 shared → 9cca4b8 background-indexer). Entries added to history: 12, covering 46 file moves across shared, core-database, lifecycle-watcher, schema-cards, prd, analysis, integr8-core, indexing-parsers, indexing-engine, server-and-entry, frontend-components, background-indexer. Added tests/scripts/migration/manifest-history.test.js (8 cases): line/JSON shape, idempotency (same commit AND later commit), distinct-batches, optional fields, missing-file, malformed-line tolerance, plus an integration check that the real repo backfill contains all 12 expected batches.",
+    "filesChanged": [
+      "scripts/migration/verify.js",
+      "scripts/migration/backfill-manifest-history.js",
+      "scripts/migration/manifest-history.jsonl",
+      "tests/scripts/migration/manifest-history.test.js"
+    ],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",

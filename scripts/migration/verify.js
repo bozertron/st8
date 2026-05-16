@@ -20,7 +20,86 @@ const { execFileSync } = require('child_process');
 
 const MANIFEST_PATH = path.join(__dirname, 'manifest.json');
 const HISTORY_PATH = path.join(__dirname, 'move-history.json');
+const MANIFEST_HISTORY_PATH = path.join(__dirname, 'manifest-history.jsonl');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+/**
+ * Append one record to manifest-history.jsonl describing the manifest
+ * that was just verified. Idempotent: skips if the batch+gitCommit pair
+ * is already present.
+ *
+ * Each line is a self-contained JSON object so the file can grow
+ * indefinitely without parse cost — readers stream line-by-line.
+ *
+ * Record schema:
+ *   {
+ *     batch:        string  (from manifest.batch)
+ *     description:  string  (from manifest.description, if present)
+ *     generatedAt:  string  (from manifest.generatedAt — author-supplied)
+ *     verifiedAt:   ISO 8601 (when this verify run wrote the entry)
+ *     gitCommit:    string  (HEAD short SHA at write time, "" if not a git repo)
+ *     moves:        Array   (from manifest.moves — preserves per-batch decision)
+ *     notes:        Array?  (optional, from manifest.notes if present)
+ *     followUps:    Array?  (optional, from manifest.followUps if present)
+ *   }
+ */
+function appendManifestHistory(manifest, opts = {}) {
+  const historyPath = opts.historyPath || MANIFEST_HISTORY_PATH;
+  const gitCommit = opts.gitCommit !== undefined ? opts.gitCommit : currentGitCommit();
+  // Idempotency: a batch's audit record is by definition the batch's
+  // moves. Re-running verify after the original batch commit landed
+  // should NOT append a second record just because HEAD moved — the
+  // moves are the same. Compare on (batch name, moves signature).
+  const existing = readManifestHistory(historyPath);
+  const sig = JSON.stringify(manifest.moves || []);
+  const dup = existing.find(
+    (r) => r && r.batch === manifest.batch && JSON.stringify(r.moves || []) === sig
+  );
+  if (dup) return false;
+
+  const record = {
+    batch: manifest.batch,
+    description: manifest.description || '',
+    generatedAt: manifest.generatedAt || '',
+    verifiedAt: new Date().toISOString(),
+    gitCommit,
+    moves: manifest.moves || [],
+  };
+  if (manifest.notes) record.notes = manifest.notes;
+  if (manifest.followUps) record.followUps = manifest.followUps;
+
+  fs.appendFileSync(historyPath, JSON.stringify(record) + '\n');
+  return true;
+}
+
+function readManifestHistory(historyPath) {
+  const p = historyPath || MANIFEST_HISTORY_PATH;
+  if (!fs.existsSync(p)) return [];
+  const text = fs.readFileSync(p, 'utf8');
+  const out = [];
+  for (const line of text.split('\n')) {
+    const s = line.trim();
+    if (!s) continue;
+    try {
+      out.push(JSON.parse(s));
+    } catch (_) {
+      // Skip malformed line; the rest of the log is still readable.
+    }
+  }
+  return out;
+}
+
+function currentGitCommit() {
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+      cwd: REPO_ROOT,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000,
+    }).toString().trim();
+  } catch (_) {
+    return '';
+  }
+}
 
 /**
  * Heuristic: does this file behave like browser-only code?
@@ -313,6 +392,17 @@ function main() {
     } else {
       console.log(`Batch "${manifest.batch}" already in move-history.json — skipped`);
     }
+    // Per-batch audit trail (ticket 25). move-history.json keeps the
+    // canonical from/to pairs the rewriter uses; manifest-history.jsonl
+    // additionally captures description, generatedAt, gitCommit, notes,
+    // and followUps for each batch — fields the previous overwrite-each-
+    // batch manifest.json was losing.
+    const auditRecorded = appendManifestHistory(manifest);
+    if (auditRecorded) {
+      console.log(`Batch "${manifest.batch}" appended to manifest-history.jsonl`);
+    } else {
+      console.log(`Batch "${manifest.batch}" already in manifest-history.jsonl — skipped`);
+    }
   }
 
   process.exit(fail > 0 ? 1 : 0);
@@ -320,7 +410,12 @@ function main() {
 
 // Expose internals for unit tests. The CLI behaviour is preserved by the
 // `require.main === module` guard — main() only runs when invoked directly.
-module.exports = { detectBrowserOnly };
+module.exports = {
+  detectBrowserOnly,
+  appendManifestHistory,
+  readManifestHistory,
+  MANIFEST_HISTORY_PATH,
+};
 
 if (require.main === module) {
   main();
