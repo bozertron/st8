@@ -260,8 +260,23 @@ class St8Server {
         this.server = null;
         this.manifestCache = null;
         this.lastManifestUpdate = null;
+
+        // Wave 5G ticket 2 — in-process cache for /api/connection-state.json.
+        // _serveManifest hits disk on every request; on a busy frontend
+        // (terminal + graph-viewer + status line) that's hundreds of reads
+        // per minute of a file that only changes on INDEX_COMPLETE. The
+        // cache stores the raw JSON string keyed by the absolute manifest
+        // path, with the mtime it was read at. We bust the cache on
+        // HOOKS.INDEX_COMPLETE (registered in start()) so subsequent
+        // requests pick up the new manifest. As a defence-in-depth the
+        // cache also self-validates against the on-disk mtime — if a
+        // process outside the indexer rewrites the file the cache notices
+        // and refreshes. Invariant: a request that arrives strictly after
+        // INDEX_COMPLETE returns sees fresh data (test enforces this).
+        this._manifestCacheEntry = null; // { path, content, mtimeMs }
+        this._manifestHookUnregister = null;
     }
-    
+
     start() {
         this.server = http.createServer((req, res) => {
             this._handleRequest(req, res);
@@ -272,6 +287,24 @@ class St8Server {
             this._writePortFile();
             this._ensureAuthSecret();
         });
+
+        // Register the manifest-cache invalidator on HOOKS.INDEX_COMPLETE.
+        // Priority 200 — runs AFTER the default subscribers that WRITE the
+        // manifest (registerDefaultSubscribers wires the manifest writer at
+        // priority 50). Ordering matters: if we busted the cache before the
+        // writer ran, the next read would re-cache the stale on-disk
+        // contents. By running at 200 we bust after the new manifest hits
+        // disk. Wave 5G ticket 2.
+        try {
+            const { hookRegistry, HOOKS } = require('../hook-registry');
+            this._manifestHookUnregister = hookRegistry.register(
+                HOOKS.INDEX_COMPLETE,
+                () => { this._manifestCacheEntry = null; },
+                { priority: 200, source: 'st8-server-manifest-cache' }
+            );
+        } catch (err) {
+            console.warn('[st8:server] Could not register manifest-cache invalidator:', err.message);
+        }
 
         return true;
     }
@@ -524,15 +557,41 @@ class St8Server {
             res.end(JSON.stringify({ error: 'No target directory configured' }));
             return;
         }
-        
+
         const manifestPath = path.join(this.targetDir, 'connection-state.json');
-        
+
         try {
+            // Wave 5G ticket 2 — in-process cache. Primary invalidator is
+            // the HOOKS.INDEX_COMPLETE subscriber registered in start();
+            // we additionally check the on-disk mtime so any out-of-band
+            // writer (e.g. _handleFileIntent's in-place rewrite) is also
+            // observable.
+            const cached = this._manifestCacheEntry;
+            if (cached && cached.path === manifestPath) {
+                let stat;
+                try { stat = fs.statSync(manifestPath); } catch (_) { stat = null; }
+                if (stat && stat.mtimeMs <= cached.mtimeMs) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(cached.content);
+                    return;
+                }
+            }
+
             if (fs.existsSync(manifestPath)) {
                 const content = fs.readFileSync(manifestPath, 'utf-8');
+                const stat = fs.statSync(manifestPath);
+                this._manifestCacheEntry = {
+                    path: manifestPath,
+                    content,
+                    mtimeMs: stat.mtimeMs,
+                };
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(content);
             } else {
+                // Don't cache 404s — the manifest may appear after the
+                // first indexer pass and we don't want the negative result
+                // to persist.
+                this._manifestCacheEntry = null;
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Manifest not found. Run indexer first.' }));
             }
@@ -2559,6 +2618,14 @@ class St8Server {
             this.server.close();
             console.log('[st8:server] Server stopped');
         }
+        // Unregister the manifest-cache invalidator so the singleton hook
+        // registry doesn't accumulate leaked subscribers across test boots.
+        // Wave 5G ticket 2.
+        if (this._manifestHookUnregister) {
+            try { this._manifestHookUnregister(); } catch (_) { /* best-effort */ }
+            this._manifestHookUnregister = null;
+        }
+        this._manifestCacheEntry = null;
         // Remove the port file so stale readers don't keep hitting a dead
         // port. Best-effort — missing file is fine.
         if (this.targetDir) {
