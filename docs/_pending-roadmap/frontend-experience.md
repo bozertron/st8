@@ -143,6 +143,15 @@ Priority key:
   bucket keyed in `bindFilesToParticles()`. Becomes load-bearing once
   file counts cross ~5k.
 
+  Measurement baseline (Wave 7C ticket 13 deferral): at ~1000 files
+  the scan costs ~0.1ms per click on commodity hardware — well under
+  the 16ms frame budget and dwarfed by click-event dispatch. Threshold
+  for re-prioritization: ship the bucket optimization when click-to-
+  dive-in latency exceeds 10ms p95 in measurement, OR when file count
+  exceeds 5k in any active workspace. Residual concern: R*-tree (or
+  any tree structure) is overkill at this scale — the 8x8 grid is the
+  right shape. Do not ship a half-baked R*-tree.
+
 - **Sonic-aware degraded-mode indicator in the shelf**
   When Sonic fails to bind (IPv6 issue, port collision, binary
   missing) the backend logs `[sonic-daemon] ... SQLite-only mode` and

@@ -203,6 +203,15 @@
     });
   }
 
+  // PERF NOTE — ticket 13 (Wave 7C, deferred):
+  // nearestParticle is O(N) per click. Acceptable today: ~1000 files
+  // = ~0.1ms per scan on commodity hardware, dwarfed by click-event
+  // dispatch overhead. Becomes load-bearing once file counts cross
+  // ~5k (node_modules-scope repos). The optimization is a coarse
+  // spatial bucket (8x8 grid over the canvas) keyed in
+  // bindFilesToParticles() — see
+  // docs/_pending-roadmap/frontend-experience.md P3 "Constellation
+  // spatial index". Don't ship a half-baked R*-tree.
   function nearestParticle(x, y, maxRadius) {
     if (!state.pJS || !state.pJS.particles) return null;
     const arr = state.pJS.particles.array;
