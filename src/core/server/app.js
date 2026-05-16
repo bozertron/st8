@@ -14,6 +14,29 @@ const fs = require('fs');
 const path = require('path');
 const auth = require('./auth');
 
+// ─── SETTINGS CATEGORY ALLOWLIST (ticket 8, Wave 5C) ─────────
+//
+// Backend mirror of SETTINGS_CATEGORIES from
+// src/frontend/components/settings/settings.js (line 15). The frontend
+// is the canonical source of truth; this mirror exists so the POST
+// /api/settings handler can reject typos like `voidfloow` at write
+// time rather than persisting permanently-orphaned rows that no UI
+// category will ever read.
+//
+// If you add a category in settings.js, you MUST add it here too.
+// A drift test in tests/core/server/handle-settings-validation.test.js
+// asserts the two lists stay in sync.
+const ALLOWED_SETTINGS_CATEGORIES = Object.freeze([
+    'sirkits',
+    'models',
+    'shells',
+    'voidflow',
+    'keybindings',
+    'theme',
+    'storage',
+    'network'
+]);
+
 // ─── STATIC FILE SERVING ─────────────────────────────────────
 
 // Post-move: __dirname is src/core/server/. The repo root (where st8.html,
@@ -646,6 +669,18 @@ class St8Server {
                         if (!category || !key) {
                             res.writeHead(400, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: 'category and key are required' }));
+                            return;
+                        }
+                        // Ticket 8: reject unknown categories so typos
+                        // like `voidfloow` don't create permanently
+                        // orphaned rows.
+                        if (!ALLOWED_SETTINGS_CATEGORIES.includes(category)) {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({
+                                error: 'unknown settings category',
+                                category: category,
+                                allowed: ALLOWED_SETTINGS_CATEGORIES
+                            }));
                             return;
                         }
                         persistence.upsertSetting(category, key, value);
@@ -2274,4 +2309,7 @@ module.exports = {
     // Exposed for unit testing (ticket 28). Not part of the runtime API
     // — internal helpers documented at the top of this file.
     validateRecordCommitPayload,
+    // Ticket 8 (Wave 5C): exposed so the drift test can compare against
+    // the frontend's SETTINGS_CATEGORIES list.
+    ALLOWED_SETTINGS_CATEGORIES,
 };
