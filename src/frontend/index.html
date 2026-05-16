@@ -177,6 +177,13 @@
   <script src="components/settings/settings.js"></script>
   <script src="services/coordination.js"></script>
 
+  <!-- Status colors — single source of truth (ticket 9).
+       Loaded BEFORE constellation.js and before the dive-in ESM module
+       so both consumers see window.St8StatusColors at init. Adding a
+       new status state (e.g. COMBAT going live) is now a one-file
+       change in status-colors.js + tokens.css. -->
+  <script src="components/status-colors.js"></script>
+
   <!-- Constellation (flat file view) — Phase B
        particles.lib.js is the unmodified vendored library; constellation.js
        is our thin st8-specific wrapper that maps files to particles. -->

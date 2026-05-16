@@ -39,16 +39,24 @@
   'use strict';
 
   // ─── Status → color mapping ───────────────────────────────────
-  // Per the founder's spec: gold for healthy, blue for sad ("bug-juice").
-  // The third state from the Barradeau builder doc was "combat" (purple)
-  // for agents-active — wired here for future use.
-  const STATUS_COLOR = {
-    GREEN:   { r: 212, g: 175, b: 55  },   // --gold
-    YELLOW:  { r: 212, g: 175, b: 55  },   // gold (slightly desaturated in opacity)
-    RED:     { r: 31,  g: 189, b: 234 },   // --cyan (sad / bug-juice)
-    LOCKED:  { r: 201, g: 116, b: 143 },   // --pink (louis-protected, future)
-    COMBAT:  { r: 157, g: 78,  b: 221 },   // purple (agents-active, future)
+  // Ticket 9 (Wave 7C): the STATUS_COLOR map moved to the shared
+  // single-source-of-truth module at components/status-colors.js
+  // (loaded BEFORE this script in index.html). We keep a local
+  // `STATUS_COLOR` alias that points at the shared RGB table so the
+  // rest of this file reads unchanged. If the shared module didn't
+  // load (script tag dropped, load-order broken), we fall back to
+  // the historical inline values rather than crash — same fail-soft
+  // posture as the particles.js guard a few lines down.
+  const STATUS_COLOR = (window.St8StatusColors && window.St8StatusColors.RGB) || {
+    GREEN:   { r: 212, g: 175, b: 55  },
+    YELLOW:  { r: 212, g: 175, b: 55  },
+    RED:     { r: 31,  g: 189, b: 234 },
+    LOCKED:  { r: 201, g: 116, b: 143 },
+    COMBAT:  { r: 157, g: 78,  b: 221 },
   };
+  if (!window.St8StatusColors) {
+    console.warn('[st8:constellation] components/status-colors.js not loaded — using inline STATUS_COLOR fallback. Verify <script> load order in index.html.');
+  }
 
   function statusColor(file) {
     if (file && file.locked)            return STATUS_COLOR.LOCKED;

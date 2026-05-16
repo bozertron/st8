@@ -83,13 +83,23 @@ import { UnrealBloomPass } from './three/postprocessing/UnrealBloomPass.js';
 
 // ─── Constants ─────────────────────────────────────────────────
 
-const STATUS_COLOR = {
-  GREEN:  0xD4AF37,   // gold
-  YELLOW: 0xD4AF37,   // gold
-  RED:    0x1FBDEA,   // cyan (bug-juice)
-  COMBAT: 0x9D4EDD,   // purple
-  LOCKED: 0xC9748F,   // pink
+// Ticket 9 (Wave 7C): STATUS_COLOR lives in the shared single-source
+// module at /components/status-colors.js (loaded as a classic <script>
+// tag in index.html BEFORE the dive-in ESM module imports). We read
+// the INT table from window.St8StatusColors at module-init; falling
+// back to the historical inline hex values if the shared module is
+// missing (script tag dropped, load-order broken) so the dive-in is
+// still functional during local dev when index.html might be in flux.
+const STATUS_COLOR = (typeof window !== 'undefined' && window.St8StatusColors && window.St8StatusColors.INT) || {
+  GREEN:  0xD4AF37,
+  YELLOW: 0xD4AF37,
+  RED:    0x1FBDEA,
+  COMBAT: 0x9D4EDD,
+  LOCKED: 0xC9748F,
 };
+if (typeof window !== 'undefined' && !window.St8StatusColors) {
+  console.warn('[st8:dive-in] components/status-colors.js not loaded — using inline STATUS_COLOR fallback. Verify <script> load order in index.html.');
+}
 
 const EMERGENCE_COLOR = 0x1FBDEA;   // always emerge from cyan potential
 
