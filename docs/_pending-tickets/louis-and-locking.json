@@ -3,7 +3,9 @@
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
     "userNote": "Line 21 promises 'Locked files get a red lock indicator above the building.' but no code in dive-in.js (or anywhere in src/) actually renders such an indicator. The comment is a forward-reference to the Louis port that does not yet exist. Two-way fix: either (a) delete the line from the header comment until the sprite is built, or (b) build the 🔒 Three.js Sprite (canvas-textured glyph parented to the building group with BUILDING_CONFIG.lockBadgeOffsetY) as part of Phase L4 of the louis-and-locking roadmap. Cluster 4's frontend-experience.json already has a near-duplicate ticket on identity-and-analysis; we re-file here from the locking-feature angle because the sprite is a Phase-L4 deliverable, not a frontend cleanup.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-8a-executor",
+    "wave8aOutcome": "Comment-only fix per the NO CHEATS rule (option (a); sprite implementation is L4 and out-of-scope for 8A). The dive-in.js header already carried a 'NOT YET IMPLEMENTED' marker + a deferral note referring identity-and-analysis ticket 12 / Wave 3C. Extended the comment to also cite docs/_pending-roadmap/louis-and-locking.md and the L2 (SSE data source) + L4 (Three.js sprite) phase split, and re-tagged the deferral note as 'louis-and-locking cluster ticket 0 — Wave 8A annotation'. No behavior change; doc-only header edit. The sprite implementation remains gated on Phase L1 landing first (per the deferral note's existing two-upstream-pieces analysis)."
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",

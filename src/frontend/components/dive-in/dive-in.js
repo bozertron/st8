@@ -20,9 +20,14 @@
          COMBAT (future)   -> --purple (#9D4EDD — agents-active)
        Locked files will get a red lock indicator above the building
        (NOT YET IMPLEMENTED — see DEFERRAL NOTE below).
+       Roadmap pointer: docs/_pending-roadmap/louis-and-locking.md
+       Phase L2 ships the SSE lock-change event the dive-in subscribes
+       to; Phase L4 builds the Three.js 🔒 Sprite itself. Until L2 the
+       dive-in has no data source to ask "is this file locked?".
 
    ─── DEFERRAL NOTE: red lock indicator ──────────────────────────
-   (identity-and-analysis ticket 12, Wave 3C)
+   (louis-and-locking cluster ticket 0 — Wave 8A annotation;
+    originally identity-and-analysis ticket 12, Wave 3C)
 
    The red lock indicator referenced in
    /home/user/st8/docs/Sonic/CODE_CITY_BARRADEAU_BUILDER.md is a
