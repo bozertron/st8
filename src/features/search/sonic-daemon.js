@@ -75,6 +75,34 @@ let _state = {
 };
 
 let _exitHandlerInstalled = false;
+let _binaryEnsuredExecutable = false;
+
+// Wave 5A ticket 4: previously `fs.chmodSync(SONIC_BINARY, 0o755)` ran on every
+// start(). The binary only needs the executable bit set once (post-clone or
+// post-CI-extract); re-chmoding on every restart is wasteful and could mask
+// intentional permission tightening. We now do it at most once per process,
+// and only if the binary is not already executable for the current user.
+function ensureBinaryExecutable() {
+  if (_binaryEnsuredExecutable) return;
+  try {
+    if (!fs.existsSync(SONIC_BINARY)) return;
+    // Check before chmod: skip if owner already has +x.
+    const mode = fs.statSync(SONIC_BINARY).mode;
+    const ownerExecutable = (mode & 0o100) !== 0;
+    if (!ownerExecutable) {
+      fs.chmodSync(SONIC_BINARY, 0o755);
+    }
+    _binaryEnsuredExecutable = true;
+  } catch (err) {
+    // Non-fatal: start() will detect and report a failure to spawn.
+    console.warn(`[sonic-daemon] Could not chmod Sonic binary: ${err.message}`);
+  }
+}
+
+// Run once at module load so re-starts in the same process don't repeat
+// the syscall. If the binary appears later (post-CI extract during a long-
+// running test session), start() falls back to a second check on demand.
+ensureBinaryExecutable();
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -153,13 +181,12 @@ async function start(options = {}) {
     return { ok: false, reason: 'config_missing', available: false };
   }
 
-  // Ensure binary is executable. We do this idempotently rather than
-  // demanding a manual chmod.
-  try {
-    fs.chmodSync(SONIC_BINARY, 0o755);
-  } catch (err) {
-    console.warn(`[sonic-daemon] Could not chmod Sonic binary: ${err.message}`);
-  }
+  // Ensure binary is executable. The module-load helper already ran once,
+  // but if the binary materialized late (CI extract after this module was
+  // first required) we give it one more chance — still gated by the
+  // already-executable check so the chmod syscall does not fire on warm
+  // re-starts.
+  ensureBinaryExecutable();
 
   // Maybe Sonic is already running externally — check before spawning.
   if (await pingPort(SONIC_HOST, SONIC_PORT)) {
