@@ -67,10 +67,12 @@ If a ticket would require editing outside the EXPECTED_PATHS set, STOP and repor
 The last reviewer in a cluster must run this before renaming the JSON to `.for-review.json`:
 
 ```bash
-git log --since="2026-05-14" --name-only --pretty=format: | grep -E "^src/0_" | head
+git log master..HEAD --name-only --pretty=format: | grep -E "^src/0_" | head
 ```
 
-**Expected: empty.** If anything is printed, the cluster cannot close. Report:
+**Expected: empty.** This audits only commits introduced by the sprint (since the master baseline). The historical add/delete pair from 36d9c16 + d340af4 (May 14) is on master itself and correctly excluded.
+
+If anything is printed, the cluster cannot close. Report:
 
 > CLUSTER-CLOSE FAILED: drift commit detected in <cluster>. Halt rename.
 
