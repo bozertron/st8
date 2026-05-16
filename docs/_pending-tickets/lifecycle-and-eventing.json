@@ -25,7 +25,9 @@
       "src/frontend/app.js"
     ],
     "commitHash": "59325e8",
-    "residualConcerns": "If a future requirement needs constellation status reconciliation for files that exist in the manifest but never receive a mutation event in the current session (e.g. status changed before page load), the bootstrap fetch in bootConstellation() is the right place to extend — NOT a re-introduced poll. Today the bootstrap fetch + per-event recolor covers the common case."
+    "residualConcerns": "If a future requirement needs constellation status reconciliation for files that exist in the manifest but never receive a mutation event in the current session (e.g. status changed before page load), the bootstrap fetch in bootConstellation() is the right place to extend — NOT a re-introduced poll. Today the bootstrap fetch + per-event recolor covers the common case.",
+    "verdict": "ack",
+    "reviewNote": "Verified: `grep -n setInterval src/frontend/app.js` returns ONLY line 236 — a comment documenting the migration. Zero call sites. The 5s poll at the old L235-246 is gone. Inside mutationSource.onmessage (app.js:976), `window.dispatchEvent(new CustomEvent('st8:mutation', { detail: data }))` rebroadcasts every parsed payload (placed after the initial 'connected' handshake skip, so handshake frames do not leak through). In bootConstellation (app.js:240-257), `window.addEventListener('st8:mutation', ...)` reads `data.fingerprint` and guards `data.schemaCard.status` — DELETE events with `schemaCard=null` (intentional in P=20 emitter early-return) are correctly skipped via `if (!status) return;`. Try/catch wraps `St8Constellation.updateFileStatus(fingerprint, status)`. Bootstrap one-shot fetch in bootConstellation() retained — correct as a one-time hydration, not a poll. Same data flow as the existing toast/phreak-notify subscribers, integration-covered by tests/core/notification-bus.test.js."
   },
   {
     "filepath": "src/frontend/services/coordination.js",
@@ -39,7 +41,9 @@
       "src/frontend/services/coordination.js"
     ],
     "commitHash": "0f54a61",
-    "residualConcerns": "Function names startPolling/stopPolling are now misnomers (no polling happens). Renaming would touch three call sites in app.js and rebroadcast the API surface — out of scope for Wave 4D. Future cleanup ticket: rename to startRefresh/stopRefresh + update src/frontend/app.js:399/411/429."
+    "residualConcerns": "Function names startPolling/stopPolling are now misnomers (no polling happens). Renaming would touch three call sites in app.js and rebroadcast the API surface — out of scope for Wave 4D. Future cleanup ticket: rename to startRefresh/stopRefresh + update src/frontend/app.js:399/411/429.",
+    "verdict": "ack",
+    "reviewNote": "Verified: `grep -n setInterval src/frontend/services/coordination.js` returns ONLY two comment lines (10, 33) — zero call sites. _openMutationSource (coordination.js:83-133) builds `new EventSource('/api/mutations')`; onmessage skips the `type==='connected'` handshake then calls `loadManifest(manifestPath)` for any real frame (reload-the-source-of-truth strategy avoids duplicating compareManifests logic). onopen resets reconnectDelay to 1000ms; onerror closes the stream, clears any pending reconnectTimer, schedules `setTimeout(..., reconnectDelay)` then doubles the delay up to a 30000ms cap (`Math.min(reconnectDelay * 2, 30000)`) — bounded linear-doubling backoff, NOT unbounded. EventSource-undefined guard at line 87 (`typeof EventSource === 'undefined'`) returns null cleanly with a console.warn so Node-context loads degrade gracefully rather than throwing. stopPolling (line 152) closes the EventSource AND clears reconnectTimer (the missing-teardown gap from the old setInterval path is now closed). startPolling retains its name for call-site compat with app.js workspace-switch — correct minimal-scope posture; rename flagged as residual."
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
@@ -248,7 +252,9 @@
       "src/frontend/services/coordination.js"
     ],
     "commitHash": "0f54a61",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified coordination.js header (lines 1-22) describes CURRENT actual use: the manifest-refresh purpose, the post-4D SSE refresh model wired in ticket 2, and the addListener API as a future-friendly subscribe surface. The obsolete 'Multi-LLM Manifest Synchronization' framing is gone. `grep -n addListener src/frontend/` confirms zero call sites — the comment correctly says addListener is exposed 'for future surfaces' rather than claiming a current consumer. Decision to keep the service (not retire to OGB per state.js precedent) is right: app.js workspace-switch still calls startPolling/stopPolling, so deletion would silently break the right-hand file panel refresh. Comment-only edit, no behavior change — clean."
   },
   {
     "filepath": "src/core/notification-bus.js",

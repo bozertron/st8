@@ -348,3 +348,128 @@ None blocking. The Wave-4C residuals (subscriber-side dedup on `notification-bus
 - Tests 230 → **245** clean, 0 fail, 0 skip, 0 todo.
 
 4D can proceed.
+
+
+---
+
+# Wave 4D Review — lifecycle-and-eventing
+
+**Reviewer:** wave-4d-reviewer
+**Date:** 2026-05-16
+**Pre-flight:** OK (tests=245, head=551b735)
+**Tickets audited:** [1, 2, 15] (Wave 4D — frontend polling → SSE).
+
+---
+
+## Verdicts
+
+| Ticket | Topic | Verdict |
+|---|---|---|
+| 1  | app.js constellation poll → SSE rebroadcast | ack |
+| 2  | coordination.js startPolling → EventSource | ack |
+| 15 | coordination.js header comment reconcile | ack |
+
+**Total: 3 ack / 0 kickback / 0 defer.**
+
+---
+
+## setInterval audit (the riskiest claim)
+
+```
+$ grep -n "setInterval" src/frontend/app.js src/frontend/services/coordination.js
+src/frontend/services/coordination.js:10:   manifest on each FILE_AFTER_CHANGE event. The legacy 2s setInterval
+src/frontend/services/coordination.js:33:    // Wave 4D ticket 2: legacy `pollInterval` (setInterval handle) replaced
+src/frontend/app.js:236:    // Replaces the previous 5s setInterval poll of /api/connection-state.json:
+```
+
+**Zero call sites. Three comment mentions, all migration-documenting.** Executor's claim verified verbatim.
+
+---
+
+## Per-ticket findings
+
+### Ticket 15 — header comment reconcile (coordination.js)
+- Lines 1-22 rewritten. Obsolete "Multi-LLM Manifest Synchronization" framing is gone.
+- New header documents: (a) manifest-refresh purpose, (b) post-4D SSE refresh model, (c) addListener as a future-friendly subscribe surface.
+- `grep -rn "addListener" src/frontend/` confirms zero current call sites — the comment honestly says it's exposed "for future surfaces."
+- Decision to keep (not retire to OGB per state.js precedent) is correct: app.js workspace-switch still calls startPolling/stopPolling.
+
+### Ticket 2 — coordination.js polling → SSE
+- `coordinationState.pollInterval/pollMs` deleted; replaced with `mutationSource` (EventSource handle), `reconnectTimer`, `reconnectDelay`.
+- `_openMutationSource(manifestPath)` at line 83:
+  - EventSource URL: `/api/mutations` ✓
+  - **EventSource-undefined guard** at line 87: `if (typeof EventSource === 'undefined') { console.warn(...); return null; }` — clean degrade for Node-context loads, function returns rather than throws ✓
+  - `onmessage` (line 98): parses event.data, skips `type==='connected'` handshake, calls `loadManifest(manifestPath)` for any real frame ✓
+  - `onopen` (line 93): resets `reconnectDelay = 1000` ✓
+  - `onerror` (line 110): closes the stream, clears any pending `reconnectTimer`, schedules a setTimeout retry, doubles `reconnectDelay` with `Math.min(reconnectDelay * 2, 30000)` — **bounded linear-doubling backoff 1s→30s cap, NOT unbounded** ✓
+- `stopPolling` (line 152) closes the EventSource AND clears `reconnectTimer` (the missing-teardown gap from the old setInterval path is closed) ✓
+- `startPolling` retains name for app.js call-site compat (rename flagged as residual — correct minimal-scope posture).
+
+### Ticket 1 — app.js constellation polling → SSE
+- The old 5s setInterval poll of /api/connection-state.json (was L235-246) is GONE.
+- Inside `mutationSource.onmessage` (app.js:976): `window.dispatchEvent(new CustomEvent('st8:mutation', { detail: data }))` rebroadcasts each parsed payload — placed AFTER the `type==='connected'` handshake skip so handshake frames don't leak through.
+- In `bootConstellation` (app.js:240-257): `window.addEventListener('st8:mutation', ...)` reads `data.fingerprint`, guards `data.schemaCard.status` — **DELETE events with `schemaCard=null` (intentional in P=20 emitter early-return) are correctly skipped via `if (!status) return;`** ✓
+- Try/catch wraps `St8Constellation.updateFileStatus(fingerprint, status)`.
+- Bootstrap one-shot fetch in `bootConstellation()` retained — correct as a one-time hydration, not a poll.
+
+---
+
+## Test verification (option (b) manual smoke notes)
+
+`timeout 120 npm test` → **245 pass / 0 fail / 0 skipped / 0 todo**. Unchanged from 4C baseline — correct, because EventSource/window.dispatchEvent/window.addEventListener are browser globals with no testable Node equivalent in this repo. The executor did NOT add stub tests that would mask real frontend regressions (test count unchanged = correct option (b)). The SSE plumbing the change rides on (/api/mutations + NotificationBus) is integration-covered by tests/core/notification-bus.test.js with real HTTP probes.
+
+No mutation probe attempted for Wave 4D: the changes are pure frontend wiring, and the underlying SSE delivery contract that they consume already has a load-bearing mutation probe from Wave 4C ticket 16 (replacing `ctx.schemaCard = emittedCard;` flipped 2 tests). The frontend change adds standard EventSource wiring on top of an already-probe-verified channel.
+
+---
+
+## Cluster-close audit
+
+```
+$ git log --since="2026-05-14" --name-only --pretty=format: | grep -E "^src/0_" | head
+src/0_core/0_config/0_default.js  (and ~120 more from commit 36d9c16)
+```
+
+**Investigated.** All hits trace to a single commit pair:
+- `36d9c16` (2026-05-14) added the planning skeleton.
+- `d340af4` (2026-05-14 14:41) deleted the planning skeleton in batch 021 — "0_* cleanup."
+
+Both commits predate the wave-4 sprint. `find src -maxdepth 2 -name "0_*"` returns empty; `ls src/` returns the canonical `core features frontend shared`; no Wave 4 commit touches src/0_*. Per CLAUDE.md's explicit guidance ("If an external review tool reports 'src/0_* is empty stubs' ... it is reading from a stale clone. Ignore it. Trust `git log -1` and `ls src/`."), this is the documented historical-artifact pattern, NOT new drift introduced by the lifecycle cluster. Cluster close is safe. (Prior reviewers 4A/4B/4C reached the same conclusion implicitly by closing their sub-waves clean.)
+
+---
+
+## Concerns for founder attention
+
+None blocking. Two residuals already documented in the executor's actionsTaken:
+1. `startPolling`/`stopPolling` are now misnomers — rename + 3 call-site update flagged as future cleanup ticket.
+2. Constellation status reconciliation for files that change status before page load is covered by the bootstrap fetch in `bootConstellation()`, not by SSE — correct as designed; if a future requirement needs stronger guarantees, extend the bootstrap fetch, not re-introduce a poll.
+
+---
+
+
+# Cluster Summary — lifecycle-and-eventing
+
+**All 17 tickets across 4 sub-waves complete.**
+
+| Sub-wave | Tickets | ack | kickback | defer |
+|---|---|---|---|---|
+| 4A (watcher hardening) | [0, 3, 4, 13, 14] | 5 | 0 | 0 |
+| 4B (bruno/oscar lifecycle) | [5, 9, 10, 11, 12] | 4 | 0 | 1 (defer-confirmed) |
+| 4C (SSE robustness) | [6, 7, 8, 16] | 4 | 0 | 0 |
+| 4D (frontend polling → SSE) | [1, 2, 15] | 3 | 0 | 0 |
+| **Cluster total** | **17** | **16** | **0** | **1** |
+
+**Tests:** 207 (pre-cluster) → 218 (post-4A) → 230 (post-4B) → 245 (post-4C) → 245 (post-4D). +38 net, all green. Zero skip / zero todo throughout.
+
+**Cross-cluster findings (for founder routing):**
+- Wave 4B surfaced a pre-existing `upsertFile` clobber in `src/core/database/persistence.js:500-522` — bruno's `brunoStatus='flagged'` flip at INDEX_START P=20 is silently reset to `'active'` by the indexer's Pass-1 upsert because `INSERT OR REPLACE` omits the lifecycle columns. **Not a kickback — bug predates Wave 4B and lives in the persistence cluster.** Recommended P1 follow-up: switch to `INSERT … ON CONFLICT DO UPDATE` that only touches indexer-owned columns. Migration framework (P1.1 persistence roadmap) is a prerequisite for backfilling existing DBs.
+- Ticket 12 (multi-target FileWatcher) confirmed-deferred to the existing roadmap entry at `docs/_pending-roadmap/lifecycle-and-eventing.md` ("Priority 3 — Multiple-target-dir support in the watcher"). Single-target remains supported mode.
+- Ticket 10 hook-payload semantics: `LIFECYCLE_TRANSITION` is currently shared between brunoStatus transitions (active/flagged/archived) and lifecyclePhase transitions (DEVELOPMENT/PRODUCTION/...). Documented in `hook-registry.js` and subscriber-disambiguable today; future split into `BRUNO_STATUS_TRANSITION` is roadmap-scale.
+
+**Mutation probes performed (load-bearing wire verification):**
+- 4A: `pendingChanges.set(Symbol(), ...)` → 2 dedup/merge tests failed → restored.
+- 4B: commented out `_fireLifecycleTransition` active→flagged in `runBrunoCall` → exactly the matching test failed → restored.
+- 4C: replaced `ctx.schemaCard = emittedCard;` with no-op → EDIT printer-wire test failed (got 0, expected 1) → restored.
+- 4D: no mutation probe (frontend-only, channel already probe-verified by 4C ticket 16).
+
+**Cluster verdict: CLOSED, ready for founder review.** Renaming `lifecycle-and-eventing.json` → `lifecycle-and-eventing.for-review.json`.
+
