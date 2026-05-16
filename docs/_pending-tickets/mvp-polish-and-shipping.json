@@ -1,0 +1,100 @@
+[
+  {
+    "filepath": "tests/e2e/make-ticket.e2e.test.js",
+    "userNote": "P0.1 — End-to-end smoke for the Make Ticket flow. No coverage exists for the click-particle → notes-popup → POST /api/tickets → SQLite row + HOOKS.TICKET_CREATED SSE chain. Wave 7B's showCopyFeedback REAL BUG was caught by code review only because the manual smoke + the unit test didn't catch it. A real headless test (Puppeteer or Playwright) is the only way to assert this works after every change. Pre-req: P1.3 (headless test infrastructure).",
+    "severity": "high",
+    "status": "open"
+  },
+  {
+    "filepath": "PRE_FLIGHT.md",
+    "userNote": "P0.2 — Cluster-close audit emits a false positive. The `git log master..HEAD --name-only | grep src/0_` check still surfaces the historical 36d9c16 add + d340af4 delete pair (both on master itself). Every cluster's final reviewer had to interpret this as 'documented historical artifact' to close. Replace with `find src -maxdepth 2 -name 0_*` (working-tree state, must be empty). Simpler check, correct semantics.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "README.md",
+    "userNote": "P0.3 — README rewrite for first-time users. Current README predates the refactor and may reference pre-refactor paths. A non-developer can't install + run st8 from it. Sections needed: what st8 is (1 paragraph), quickstart (3 commands max), entry-point chain (copy from CLAUDE.md), API surface table (copy from CLAUDE.md), troubleshooting, pointer to st8-filemap.md. This is one of the MVP shipping prerequisites.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "src/core/database/persistence.js",
+    "userNote": "P1.1 — Cross-cluster duplicate. Migration framework is deferred-confirmed in persistence cluster ticket 0. This re-flag exists in mvp-polish so the dependency chain is visible from the shipping perspective: 4 clusters (persistence ticket 0, identity ticket 14, settings ticket 5, refactor-toolkit ticket 29) all block on this. See docs/_pending-roadmap/persistence-and-database.md P1.1 for the spec.",
+    "severity": "high",
+    "status": "deferred",
+    "executedBy": "mvp-polish-pre-sprint",
+    "actionsTaken": "Cross-cluster acknowledgment. Real ticket lives at persistence-and-database.for-review.json ticket 0 (defer-confirmed by Wave 1B reviewer).",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Multi-day P1 roadmap work. Unblocks 4 other defer-confirmed tickets across persistence, identity, settings, refactor-toolkit.",
+    "verdict": "defer-confirmed-upstream",
+    "reviewNote": null
+  },
+  {
+    "filepath": "src/features/watcher/file-watcher.js",
+    "userNote": "P1.2 — Cross-cluster duplicate. Multi-target watcher is deferred-confirmed in lifecycle cluster ticket 12. Re-flagged here for shipping visibility: until this lands, st8 is single-project-at-a-time. Monorepos and multi-project setups can't use st8.",
+    "severity": "medium",
+    "status": "deferred",
+    "executedBy": "mvp-polish-pre-sprint",
+    "actionsTaken": "Cross-cluster acknowledgment. Real ticket lives at lifecycle-and-eventing.for-review.json ticket 12.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Multi-day work. Requires per-target persistence partitioning, manifest routing, SSE channel separation.",
+    "verdict": "defer-confirmed-upstream",
+    "reviewNote": null
+  },
+  {
+    "filepath": "tests/e2e/",
+    "userNote": "P1.3 — Headless test infrastructure. Multiple cluster reviewers shipped 'option (b) — manual smoke notes' because frontend code can't be Node-tested. P0.1 needs this. Decide: Puppeteer vs Playwright vs Cypress. Establish tests/e2e/ convention. Migrate at least 3 manual-smoke commitments to real E2E tests (Make Ticket, slide carousel keyboard nav, dive-in emergence animation).",
+    "severity": "high",
+    "status": "open"
+  },
+  {
+    "filepath": "tests/e2e/",
+    "userNote": "P1.4 — Frontend smoke harness. Once P1.3 provides the tooling, build `npm run smoke` that boots st8 against a fixture project + opens the UI headless + walks 5-10 critical user journeys + reports pass/fail per journey.",
+    "severity": "medium",
+    "status": "open"
+  },
+  {
+    "filepath": "scripts/install.sh",
+    "userNote": "P2.1 — Install script. A real `install.sh` (or `npx st8 init`) that: checks Node 18+, installs deps, runs first-time setup (creates .st8/, configures git hooks), prints the launch command. Currently a user has to figure this out from scattered docs.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "src/features/search/sonic-daemon.js",
+    "userNote": "P2.2 — Sonic daemon error UX. Currently if Sonic fails to start, st8 silently falls back to SQLite-only and the user has no idea search is degraded. Add a visible status indicator in the UI + a log line that's obvious. The fallback itself is correct; the silent-degradation UX isn't.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "start.js",
+    "userNote": "P2.3 — `--version` flag. `node start.js --version` currently does nothing. Should print package.json version + the current commit hash. Standard quality-of-life.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "src/core/database/persistence.js",
+    "userNote": "P2.4 — Cross-platform path audit. Wave 5E reviewer observed encryption.key lands at `<dbDir>/.st8/encryption.key`, which on standard layouts doubles to `.st8/.st8/encryption.key` (since dbPath is usually under .st8/ already). Audit all `path.join(...'.st8'...)` sites for similar double-anchoring. Functional but awkward + may break on Windows.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "docs/onboarding-video.md",
+    "userNote": "P3.1 — 60-second onboarding video/GIF showing the full Make Ticket → LLM-resolves loop. Shippable to README + project homepage. Marketing surface.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "docs/performance-baseline.md",
+    "userNote": "P3.2 — Performance baseline doc. Document the perf numbers the sprint surfaced: boot time (~2-3s for 281-file project), FILE_INDEXED fire cost (0.82ms total), /api/signal-path latency (22ms median post-scoping), test runtime (~12s for 451 tests). So future regressions are detectable.",
+    "severity": "low",
+    "status": "open"
+  },
+  {
+    "filepath": "src/core/server/app.js",
+    "userNote": "P3.3 — Anonymous telemetry opt-in. Track which features are used + which fail to inform future priorities. Opt-in only; off by default. Out of scope for MVP but worth documenting for post-MVP.",
+    "severity": "low",
+    "status": "open"
+  }
+]

@@ -1,50 +1,159 @@
 You are the WAVE <N> REVIEWER for the st8 cluster `<cluster-name>`.
-The executor for this wave has finished. Your job is verification, not
-re-implementation.
 
-## Required reading
-1. /home/user/st8/docs/Agents, Welcome Home.md
-2. /home/user/st8/docs/components/<cluster-name>.md
-3. /home/user/st8/docs/_pending-tickets/<cluster-name>.for-review.json
-4. `git log --oneline -50` to find the wave's commits
-5. `git show <commit>` for each commit referenced in actionsTaken
+<NOT the cluster's final reviewer (next sub-wave's reviewer is) — don't
+rename JSON. OR — You are ALSO the cluster's FINAL reviewer; after audit,
+you own the rename to .for-review.json and the cluster closes.>
 
-DO NOT read other clusters.
+<one-paragraph wave context: what the executor claims, what tests
+baseline you should expect, what the headline outcomes are>
 
-## What to verify per ticket
+═══════════════════════════════════════════════════════════
+PRE-FLIGHT — EXECUTE /home/user/st8/PRE_FLIGHT.md FIRST
+═══════════════════════════════════════════════════════════
+Expected tests baseline: <N>. Log "PRE-FLIGHT OK".
+
+EXPECTED_PATHS for THIS wave (reviewer is read+annotate only):
+- docs/_pending-tickets/<cluster>.json (verdicts only)
+- docs/_pending-tickets/<cluster>.review.md (append or NEW first-section)
+
+READ-ONLY for source code and tests.
+
+Read NO CHEATS + REVIEWER ANTI-CHEATS sections at PRE_FLIGHT.md.
+═══════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════
+NO CHEATS — risk patterns for THIS wave (the audit)
+═══════════════════════════════════════════════════════════
+<3-6 wave-specific audit-risk bullets. The pattern is: predict the
+most-likely audit cheat for each ticket type and call it out. Examples
+that worked across the 31-wave sprint:
+
+- "Decomposed callback" — read the OLD inline body in git history
+  side-by-side with the NEW code. Every side-effect must land
+  somewhere. Enumerate them. Any missing → kickback.
+- "Mutation probe required" — pick ONE behavior change from the
+  wave. Revert briefly. Confirm at least one test fails. Restore
+  byte-perfect. Document the outcome. If you can't make a test
+  fail by reverting, the test was theater — kickback.
+- "Real-HTTP probe" — confirm tests actually open a TCP socket
+  (http.Server + http.request), not mocks of res. Mocks-of-SUT are
+  not coverage.
+- "Forward-looking deferral verification" — sample 2-3 tickets.
+  Verify the file/path they reference does NOT yet exist (e.g.
+  `ls src/features/locks/lock-manager.js 2>&1` must say "No such
+  file"). Confirms genuinely roadmap-shaped.
+- "Roadmap pointer verification" — open the cited roadmap line.
+  Does it describe what the ticket says it describes? Vague
+  "see roadmap" is kickback-worthy if no line is named.
+- "Honest premise contradiction" — sometimes an executor will
+  contradict the ticket's userNote (e.g. "the userNote claims X is
+  dead code, but I found callers Y and Z, so I documented instead
+  of removing"). If their contradiction is verifiable, ack. If they
+  ducked the actual ticket, kickback.
+═══════════════════════════════════════════════════════════
+
+## Required reading (in order)
+1. /home/user/st8/CLAUDE.md (canonical structure)
+2. /home/user/st8/PRE_FLIGHT.md (NO CHEATS + REVIEWER ANTI-CHEATS)
+3. /home/user/st8/docs/components/<cluster-name>.md
+4. /home/user/st8/docs/_pending-tickets/<cluster-name>.json
+   (focus on tickets with executedBy="wave-<N>-executor")
+5. /home/user/st8/docs/_pending-tickets/<cluster-name>.review.md
+   (prior sub-waves' reviewer reports)
+6. `git log --oneline <prev-head>..<wave-head>` — Wave <N> commits
+7. `git show <hash>` for each commit referenced in actionsTaken
+8. The source file(s) the executor edited
+
+DO NOT read other clusters' open tickets, roadmaps, or component docs.
+
+## Verification per ticket
+
 For each ticket with status="executed":
   - Does the commit actually touch the files listed in filesChanged?
-  - Does the change resolve the userNote (read the diff, trace logic)?
-  - Did the executor introduce any obvious regressions (lint smells,
-    missing FK cascade, broken hook signature, etc.)?
+  - Does the change resolve the userNote, FULLY?
+    - Re-read the original userNote
+    - Trace the diff against EVERY sub-clause
+  - Did the executor introduce regressions?
+    - Run targeted tests
+    - Check for new TODO/FIXME, silent catches, NODE_ENV bypasses,
+      empty function bodies, hardcoded responses
   - Is residualConcerns honest? Add to it if you find more.
 
-For status="deferred": is the roadmap pointer correct?
-For status="blocked": is the blockage real? If you can resolve it
-  trivially, leave a kickback so the executor can revisit.
+For status="deferred":
+  - Does the roadmap pointer resolve to a real line?
+  - Is the deferral genuinely roadmap-scale, or could it have been
+    done in-wave?
+
+For status="blocked":
+  - Is the blockage real?
+  - If you can resolve it trivially, leave a kickback so the
+    executor can revisit.
+
+## Mutation probe (MANDATORY)
+Pick at least one behavior change from this wave. Revert it briefly
+(use `/tmp/<file>.bak` for safety). Run the targeted test. Confirm
+at least one test fails. Restore byte-perfect. Document the
+mutation + outcome in your review.md.
+
+Examples of effective mutations from the 31-wave sprint:
+- Replace `a.priority - b.priority` with `0` → priority-ordering test fails
+- Stub the Escape keydown branch → graph-popup keyboard test fails
+- Add a fake route to the manifest → drift test fails
+- Comment out `ctx.schemaCard = emittedCard` → printer-wire test fails
+- Bump `MAX_PANIC_RESTARTS` to 999 → panic-cap test fails
+
+## Full suite check
+`timeout 120 npm test 2>&1 | tail -10` — must show baseline or higher.
+
+## Cluster-close audit (FINAL REVIEWER ONLY)
+If you are the cluster's last reviewer, before renaming:
+```bash
+find src -maxdepth 2 -name "0_*"   # must be empty (canonical check)
+```
+If anything is printed, the cluster cannot close. Report
+CLUSTER-CLOSE FAILED.
 
 ## How to record findings
 Update each ticket in place:
-  - verdict: "ack" | "kickback" | "defer-confirmed"
-  - reviewNote: terse — one paragraph. If kickback, explain exactly
-    what's wrong.
+  verdict: "ack" | "kickback" | "defer-confirmed" | "defer-confirmed-upstream"
+  reviewNote: <one paragraph, specific. If kickback, explain
+              exactly what must change for re-execution.>
 
-Write a per-wave review report:
-  /home/user/st8/docs/_pending-tickets/<cluster>.review.md
-  — markdown, sections: Summary / Acked / Kickbacks / Deferred-Confirmed
-  / Cross-cluster flags.
+Append (or create) /home/user/st8/docs/_pending-tickets/<cluster>.review.md:
+  ## Wave <N> Review
+  - Verdicts: <ack/kickback/defer counts>
+  - Mutation probe: <what + outcome>
+  - Per-ticket findings: <bullets>
+  - Cross-cluster flags: <any cross-cluster observations>
 
-Commit: `review(wave-<N>): <cluster> — <n> ack, <m> kickback`
-Push.
+If you are the cluster's FINAL reviewer, also add:
+  ## Cluster Summary
+  - Sub-wave totals
+  - Cluster total across all <N> tickets
+  - Confidence + next-cluster readiness
+
+Commit + push:
+  `review(wave-<N>): <cluster> — <n> ack, <m> kickback, <k> defer-confirmed`
+  (FINAL reviewer also commits the rename in a separate commit:
+   `chore(wave-<N>): <cluster> cluster closed — ready for review`)
 
 ## Hard constraints
-- Do NOT commit code changes. Reviewer is read+annotate only.
-- Do not rename the file again. It stays `.for-review.json` forever.
+- Do NOT commit source-code changes. Reviewer is read+annotate-and-
+  optionally-rename only.
+- Do not re-implement what the executor missed — that's a kickback,
+  not a self-help opportunity.
 - If you have to read a sibling cluster to answer a question, STOP and
   emit a cross-cluster flag instead — do not actually read it.
 
 ## Report back
 Under 300 words:
-  - ack / kickback / defer-confirmed counts
-  - top 3 concerns
-  - whether the cluster is safe for the next wave to build on
+  - PRE-FLIGHT result
+  - ack / kickback / defer-confirmed counts (this wave only)
+  - Cluster running total (across all reviewed sub-waves so far)
+  - Mutation probe outcome
+  - Tests final count
+  - Top concerns / cross-cluster flags for the founder
+  - Confidence: safe for next sub-wave to build on?
+  - (If final reviewer:) cluster ready to close?
+
+Budget for this wave: <N> minutes. Hard limit <2N> minutes.

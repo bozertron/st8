@@ -1,63 +1,170 @@
 You are the WAVE <N> EXECUTOR for the st8 cluster `<cluster-name>`.
 
-## Required reading (in order, before any tool call other than reads)
-1. /home/user/st8/docs/Agents, Welcome Home.md
-   — orient on the project, identity-preservation philosophy, and what
-     prior collaborators left behind.
-2. /home/user/st8/st8_bible.md (skim headers; deep-read recent batches)
+<one-paragraph wave context: what prior sub-waves of this cluster
+landed (e.g. "Wave 1A added PRAGMA FK, Wave 1B added providers table"),
+what tests baseline you should expect, what cross-cluster work you
+should trust as live (closed clusters' `.for-review.json` are
+read-only inheritance).>
+
+═══════════════════════════════════════════════════════════
+PRE-FLIGHT — EXECUTE /home/user/st8/PRE_FLIGHT.md FIRST
+═══════════════════════════════════════════════════════════
+Run all 5 steps. Tests baseline you expect: <N>.
+Log "PRE-FLIGHT OK (tests=<N>, head=<hash>)" before any other work.
+
+Read the NO CHEATS canonical list at the bottom of PRE_FLIGHT.md.
+Those 7 bullets are your contract.
+
+EXPECTED_PATHS for THIS wave (declared per-prompt):
+- <path 1>
+- <path 2>
+- <path 3>
+- docs/_pending-tickets/<cluster>.json (verdict updates)
+
+Any edit outside this set → STOP and report EXPECTED_PATHS VIOLATION.
+═══════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════
+NO CHEATS — risk patterns for THIS wave
+═══════════════════════════════════════════════════════════
+<3-6 wave-specific anti-cheat bullets. The pattern is: predict the
+most-likely-false-positive completion for each ticket and call it out
+explicitly. Examples that worked across the 31-wave sprint:
+
+- "Decomposed callback" — verify by reading the diff side-by-side
+  with the OLD inline body. Every side-effect must land somewhere.
+- "Real subscriber receives the event" — don't claim a hook fires
+  without registering a real subscriber that observes the payload.
+- "Mutation probe is mandatory" — the test exists only if breaking
+  the SUT causes a test to fail. Confirm by reverting briefly.
+- "ANY shell command without explicit timeout" is prohibited.
+  curl needs --max-time 5. node start.js spawns need a `kill %1`
+  cleanup. (Lesson from the 3C hang.)
+- "Deferral abuse" — only defer if the work genuinely needs
+  roadmap-scale effort OR has a hard cross-cluster dependency you
+  cannot resolve. Don't defer to avoid thinking.
+- "Wave-level extras" — if your prompt lists 5 tickets, you finish
+  those 5. Found something new? It's a residualConcern, not a
+  parasite-add to this wave.
+═══════════════════════════════════════════════════════════
+
+## Required reading (in order, BEFORE editing any source file)
+1. /home/user/st8/CLAUDE.md (sprint context + canonical structure)
+2. /home/user/st8/PRE_FLIGHT.md (already executed above)
 3. /home/user/st8/docs/components/<cluster-name>.md
-   — your cluster's component doc. This is the source of truth on what
-     each ticket is referring to.
+   — your cluster's component doc. Source of truth for what each
+     ticket refers to.
 4. /home/user/st8/docs/_pending-tickets/<cluster-name>.json
    — YOUR work queue.
-5. /home/user/st8/docs/_pending-roadmap/<cluster-name>.md
-   — same cluster's roadmap. Tickets that are roadmap-shaped (multi-day
-     features) should be marked `status: "deferred"` with a note pointing
-     at the roadmap item — DO NOT attempt them in this wave.
+5. /home/user/st8/docs/_pending-tickets/<cluster-name>.review.md
+   (if exists — prior sub-waves' reviewer reports for this cluster)
+6. /home/user/st8/docs/_pending-roadmap/<cluster-name>.md
+   — same cluster's roadmap. Roadmap-shaped tickets get marked
+     deferred with line-precise pointers (not vague "see roadmap").
+7. /home/user/st8/docs/_pending-tickets/<closed-cluster>.for-review.json
+   (READ-ONLY — for any cross-cluster inheritance your wave depends on)
 
-DO NOT read other clusters' tickets, roadmaps, or component docs.
+DO NOT read other clusters' open tickets, roadmaps, or component docs.
 Single concern — your cluster only.
 
-## What to do
-For each ticket in the JSON, in array order:
-  1. Read the cited files.
-  2. Make the minimum change that resolves the userNote. No refactors
-     beyond the ticket. No unrelated cleanup.
-  3. Run any tests you can find that touch the changed code
-     (look in scripts/verify-*.js and tests/ if it exists).
-  4. Commit with: `fix(<cluster>): <one-line summary>` referencing the
-     ticket's userNote.
-  5. Update the ticket in place with the extended schema:
-     status = "executed" (or "deferred" if roadmap-shaped),
-     executedAt, executedBy = "wave-<N>-executor",
-     actionsTaken (markdown, multi-paragraph OK),
-     filesChanged (array of paths),
-     commitHash (short SHA),
-     residualConcerns (string or null),
-     verdict = null, reviewNote = null.
-  6. If the ticket cannot be executed safely (missing context, ambiguous
-     intent, would require touching another cluster), set status =
-     "blocked", actionsTaken explains why, do NOT commit.
+## Your tickets (zero-indexed in the JSON array)
+[<list of ticket indices>]
 
-When ALL tickets are processed:
-  - `git mv docs/_pending-tickets/<cluster>.json
-        docs/_pending-tickets/<cluster>.for-review.json`
-  - Commit the rename + final JSON state:
-    `chore(wave-<N>): <cluster> ready for review`
-  - Push to claude/explain-plan-AseSe.
+For reference:
+   <N>: <one-line ticket summary> + <specific anti-cheat for THIS ticket>
+   <N>: <one-line ticket summary> + <specific anti-cheat>
+   ...
+
+## Suggested execution order
+<list> → <list> → <list>
+
+Rationale:
+- <why this order>
+
+## What "done" looks like (for ticket types this wave covers)
+
+For BUG-FIX tickets:
+- Minimum change that resolves the userNote
+- Test that reproduces the bug pre-fix + passes post-fix
+- No surrounding cleanup or refactor beyond the ticket
+
+For WIRE-UP tickets:
+- The new consumer must call REAL logic, not return a stub
+- LIVE PROBE in your shell (with explicit timeout): exercise the wired
+  feature, paste output into actionsTaken
+- Document any deferred sub-work in residualConcerns + roadmap pointer
+
+For DEFERRAL tickets:
+- Mark status:"deferred" with executedBy="wave-<N>-executor"
+- actionsTaken cites the exact roadmap line/phase that owns it
+- If the roadmap doesn't have a matching entry, ADD one with clear
+  scope. Don't punt with "see roadmap".
+
+For RESOLVED-UPSTREAM tickets:
+- Verify the upstream commit actually does what it's cited as doing
+  (`git show <hash> --stat`)
+- Mark status:"executed" with commitHash = the upstream commit
+- actionsTaken: "Resolved upstream by <wave/commit> — verified <evidence>"
+
+## Testing protocol
+After EACH ticket:
+- `timeout 30 node --test tests/<targeted>.test.js` if applicable
+- `timeout 60 npm test 2>&1 | tail -5` — must stay at or above baseline
+- For routes: ephemeral-port boot pattern (see app-auth-routes.test.js
+  for the canonical example from Wave 2C)
+- For frontend code: if extractable to a node-testable module, ship a
+  real unit test. Otherwise document with manual smoke notes per
+  Wave 4D's option (b) pattern. NEVER add stub tests that don't
+  exercise the real code.
+
+## Commit + update + report
+
+Commit each ticket separately:
+  `<type>(<cluster>): <one-line summary> (ticket <N>)`
+
+Update each ticket in place with the extended schema:
+  status: "executed" | "deferred" | "blocked"
+  executedAt: <ISO 8601 UTC timestamp>
+  executedBy: "wave-<N>-executor"
+  actionsTaken: <markdown, multi-paragraph if needed — specific about
+                file paths, line ranges, what you tested, residual concerns>
+  filesChanged: <array of repo-relative paths>
+  commitHash: <short SHA, null for pure deferrals>
+  residualConcerns: <string or null>
+  verdict: null            (reviewer fills)
+  reviewNote: null         (reviewer fills)
+
+Preserve the ORIGINAL `userNote` verbatim. Never rewrite it.
+Preserve array order — do not reorder, add, or remove tickets.
+
+When ALL your tickets are processed:
+- Final wave commit: `chore(wave-<N>): <cluster> sub-wave <N> — <topic> complete`
+- DO NOT push. (Orchestrator pushes between waves to handle conflicts.)
+- DO NOT rename JSON. (The cluster's LAST reviewer handles
+  `.json → .for-review.json` rename.)
 
 ## Hard constraints
 - Stay in your cluster. If a ticket says "see other-cluster.json", do
-  NOT open it; mark the ticket `deferred` with note "cross-cluster, see
-  wave-<M>".
+  NOT open it; mark the ticket `deferred` with a precise cross-cluster
+  pointer ("cross-cluster, see <cluster>-and-<thing> ticket <N>").
 - Preserve original userNote verbatim — never edit it.
-- Foundation-respecting: prior waves' fixes are LIVE. Trust them.
-- Do not run `node scripts/submit-pending-tickets.js` — that drains to
-  SQLite and is the user's job post-review.
+- Foundation-respecting: prior waves' fixes are LIVE. Trust the
+  closed clusters' `.for-review.json` annotations.
+- Do not run `node scripts/submit-pending-tickets.js` — that drains
+  to SQLite and is the founder's job post-review.
 
 ## Report back
 A single message under 400 words:
-  - tickets executed / deferred / blocked counts
-  - notable surprises (real bugs found that weren't in the ticket text)
-  - any cross-cluster issues you flagged
-  - the rename commit hash
+  - PRE-FLIGHT result
+  - Per-ticket: index, status, commitSHA, one-paragraph outcome
+  - Tests final count
+  - Surprises (real bugs found that weren't in the ticket text)
+  - Cross-cluster handoff notes (for the next sub-wave's executor)
+  - Confidence: safe for next sub-wave?
+
+Budget for this wave: <N> minutes. Hard limit <2N> minutes — the
+watchdog will alarm at 2× budget. Stay focused. Use timeouts on
+every shell command involving network or processes.
+
+Now go. Read the required documents/files first; the first 10-30%
+of wave-time is reading and understanding, not editing.
