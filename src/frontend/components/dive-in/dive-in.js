@@ -420,6 +420,11 @@ export function show(file) {
 
   // Scene init or re-use
   if (!state.scene) initScene(overlay.querySelector('#dive-in-canvas-host'));
+  // ─── Ticket 17 — restore autoRotate on show ─────────────────
+  // hide() stops controls.autoRotate to spare GPU when the overlay
+  // isn't visible; resume the rotation here so the next dive-in
+  // session starts spinning again.
+  if (state.controls) state.controls.autoRotate = true;
   buildForFile(file);
   startAnim();
 }
@@ -428,8 +433,43 @@ export function hide() {
   if (!state.overlay) return;
   state.overlay.style.display = 'none';
   stopAnim();
+  // ─── Ticket 17 — stop autoRotate while hidden ───────────────
+  // controls.autoRotate was previously left enabled; even with the
+  // anim loop stopped, a subsequent re-init would otherwise carry
+  // momentum-state forward. Disable explicitly; show() restores.
+  if (state.controls) state.controls.autoRotate = false;
   // We keep the scene alive between opens — cheap re-use, avoids
   // re-allocating Three.js resources. dispose() only on full destroy.
+}
+
+// ─── Destroy / teardown (ticket 12) ────────────────────────────
+// Full teardown path for HMR-reload or module-destroy scenarios.
+// Removes the resize listener registered in initScene(), tears down
+// the Three.js scene + DOM, and clears state. Not called in normal
+// hide()/show() cycles — those preserve the scene for cheap re-use.
+export function destroy() {
+  hide();
+  if (EMERGENCE_RESIZE_LISTENER.fn) {
+    window.removeEventListener('resize', EMERGENCE_RESIZE_LISTENER.fn);
+    EMERGENCE_RESIZE_LISTENER.fn = null;
+  }
+  if (state.points)   { state.points.geometry.dispose(); }
+  if (state.lines)    { state.lines.geometry.dispose(); }
+  if (state.particleMaterial) state.particleMaterial.dispose();
+  if (state.composer) state.composer.dispose && state.composer.dispose();
+  if (state.renderer) state.renderer.dispose();
+  if (state.overlay && state.overlay.parentNode) state.overlay.parentNode.removeChild(state.overlay);
+  state.overlay = null;
+  state.renderer = null;
+  state.scene = null;
+  state.camera = null;
+  state.controls = null;
+  state.composer = null;
+  state.points = null;
+  state.lines = null;
+  state.particleMaterial = null;
+  state.currentFile = null;
+  state.emergence = null;
 }
 
 export function isOpen() {
@@ -478,13 +518,20 @@ function initScene(host) {
   state.particleMaterial = buildParticleMaterial();
   state.clock = new THREE.Clock();
 
-  window.addEventListener('resize', function() {
+  // ─── Resize listener (ticket 12) ────────────────────────────
+  // Store the handler reference so destroy() can call
+  // removeEventListener with the same function identity. Without
+  // this, an HMR reload or module-destroy leaves the listener
+  // attached and the now-orphan camera/renderer get poked on resize.
+  const onResize = function() {
     if (!host.clientWidth) return;
     camera.aspect = host.clientWidth / host.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(host.clientWidth, host.clientHeight);
     composer.setSize(host.clientWidth, host.clientHeight);
-  });
+  };
+  window.addEventListener('resize', onResize);
+  EMERGENCE_RESIZE_LISTENER.fn = onResize;
 }
 
 function buildForFile(file) {
@@ -588,4 +635,4 @@ function stopAnim() {
 
 // ─── Expose for non-ESM callers (app.js) ───────────────────────
 
-window.St8DiveIn = { show, hide, isOpen, setStatus };
+window.St8DiveIn = { show, hide, isOpen, setStatus, destroy };
