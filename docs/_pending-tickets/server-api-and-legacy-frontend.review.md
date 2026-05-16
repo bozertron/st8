@@ -86,3 +86,79 @@
   perf), 14 (terminal phone state) remain open for later waves.
 
 **Confidence: HIGH — safe to proceed to 5G.**
+
+---
+
+## Wave 5G Review
+
+Reviewer: wave-5g-reviewer
+Scope: tickets [API-003 (#2), API-006 (#11), API-008 (#13), API-009 (#14), BOOT-001 (#15)].
+PRE-FLIGHT: OK (tests=363, head=916d9b5, no src/0_* drift, canonical
+src/{core,features,frontend,shared}).
+
+### Verdicts
+
+- **Ticket 11 (API-006) — path.relative annotation** → `ack`.
+  JSDoc at `src/core/server/app.js:860-882` documents the three foot-guns
+  (symlinks, normalization, prefix-aliasing with concrete
+  `/home/bozertron2/evil` example) and an explicit DO-NOT-REGRESS warning
+  citing the prior `startsWith()` pattern and audit CR-02. Annotation-only
+  — boundary logic byte-identical. Audit of other path-accepting routes
+  correctly preserved as roadmap follow-up.
+
+- **Ticket 14 (API-009) — convention documentation** → `ack`.
+  JSDoc at `app.js:382-398` above `_handleApiRequest` codifies both forms
+  (flat verb vs `:id`/`:name` regex) with cross-refs to
+  `route-manifest.js` and the component doc. Component doc subsection
+  (`docs/components/server-api-and-legacy-frontend.md:58-84`) covers
+  rationale and the revisit-trigger (count > ~30 OR a fourth resource
+  gains `:id` verbs → roadmap P2.5).
+
+- **Ticket 13 (API-008) — route manifest + drift** → `ack`.
+  Route count cross-check: `grep -c "method:" route-manifest.js` returns
+  34 (33 real entries + 1 JSDoc), `grep -c "case '/api/" app.js` returns
+  30 switch cases. Delta 3 matches the parameterised routes
+  (`prd-projects/:name`, `tickets/:id/claim`, `tickets/:id/resolve`) per
+  ticket 13's documented split. 4 drift sub-tests pass cleanly.
+  **MUTATION PROBE EXECUTED:** appended a fake
+  `{method:'GET', path:'/api/fake-drift', handler:'_handleFakeDrift'}`
+  entry — sub-tests 1 ("manifest covers every flat case in app.js") and
+  3 ("every handler resolves to a method on St8Server") correctly failed.
+  Restored to clean state; 4/4 pass after restoration. Drift test is
+  load-bearing, not theatre.
+
+- **Ticket 2 (API-003) — manifest cache** → `ack`.
+  Subscriber registered at `app.js:298-307` with priority 200 + source
+  `st8-server-manifest-cache` — verified runs AFTER the default-subscribers'
+  manifest writers (priority 50). `_serveManifest` (`app.js:560-602`) uses
+  `stat.mtimeMs <= cached.mtimeMs` to return cached; forward mtime triggers
+  re-read (defence-in-depth for out-of-band rewriters like
+  `_handleFileIntent`). The 404 path explicitly sets
+  `_manifestCacheEntry = null` (line 594) — no negative caching.
+  `stop()` unregisters the subscriber at `app.js:2621-2628` preventing
+  singleton-hookRegistry handler leaks across test boots. 4 cache tests
+  pass independently (each boots a real St8Server on ephemeral port).
+
+- **Ticket 15 (BOOT-001) — deferred with measurement** → `defer-confirmed`.
+  Inline comment block at `src/core/server/main.js:285-303` cites
+  Wave 2B's 0.82 ms / 281-file measurement, do-not-parallelise reasoning,
+  and the trigger condition (any subscriber blocking > 5 ms per fire →
+  add BULK_INDEXED). Roadmap P3.7 at
+  `docs/_pending-roadmap/server-api-and-legacy-frontend.md:226-243`
+  contains the BULK_INDEXED contract sketch (fired once after Pass 1
+  with `{files, targetDir, persistence}`) plus the same trigger. Priority
+  distribution footer updated 15 → 16 items. NO CODE BEHAVIOUR CHANGE
+  confirmed — defer is honest.
+
+### Counts
+
+- 4 ack / 0 kickback / 1 defer-confirmed.
+- Test count final: 363 pass / 0 fail / 0 skip / 0 todo (matches
+  pre-flight; the mutation-probe edit-and-restore left no residue).
+
+### Cluster status
+
+5G executor finished its 5 tickets cleanly. No residual concerns surfaced
+during review. Safe to proceed to **Wave 5H** (legacy-frontend cleanup
+cluster: FRONT-001..FRONT-007 remain open per the JSON's untouched
+status fields).
