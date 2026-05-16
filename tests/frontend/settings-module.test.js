@@ -203,6 +203,182 @@ test('ticket 5 — migrateCategoryKeys: renames an old key when a migration is r
     assert.equal(out.reveal_wpm, undefined, 'old key removed');
 });
 
+// ─── Ticket 0 — editEntry form (Wave 5D) ─────────────────────────
+
+test('ticket 0 — MODEL_ENTRY_SCHEMA declares the documented model fields', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const schema = sandbox.window.__test.MODEL_ENTRY_SCHEMA;
+    assert.ok(Array.isArray(schema) && schema.length >= 5);
+    const keys = schema.map((f) => f.key);
+    ['id', 'name', 'provider', 'model', 'apiKey', 'baseUrl', 'enabled']
+        .forEach((k) => assert.ok(keys.includes(k), 'schema must include ' + k));
+});
+
+test('ticket 0 — apiKey field is marked sensitive and uses type=password', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const schema = sandbox.window.__test.MODEL_ENTRY_SCHEMA;
+    const apiKeyField = schema.find((f) => f.key === 'apiKey');
+    assert.ok(apiKeyField, 'apiKey field must exist');
+    assert.equal(apiKeyField.type, 'password',
+        'apiKey MUST be type:password for masking — security invariant');
+    assert.equal(apiKeyField.sensitive, true,
+        'apiKey MUST be flagged sensitive');
+});
+
+test('ticket 0 — buildModelEntryFields resolves a full entry into typed field descriptors', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const schema = sandbox.window.__test.MODEL_ENTRY_SCHEMA;
+    const entry = {
+        id: 'claude-main',
+        name: 'Claude (primary)',
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-6',
+        apiKey: 'sk-test-abc123',
+        baseUrl: '',
+        enabled: true
+    };
+    const fields = sandbox.window.__test.buildModelEntryFields(entry, schema);
+    assert.equal(fields.length, schema.length);
+    const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
+    assert.equal(byKey.apiKey.value, 'sk-test-abc123');
+    assert.equal(byKey.apiKey.sensitive, true);
+    assert.equal(byKey.apiKey.type, 'password');
+    assert.equal(byKey.provider.value, 'anthropic');
+    assert.equal(byKey.provider.optionsFrom, 'LLM_PROVIDERS');
+    assert.equal(byKey.enabled.value, true);
+});
+
+test('ticket 0 — buildModelEntryFields supplies empty defaults for missing keys', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const schema = sandbox.window.__test.MODEL_ENTRY_SCHEMA;
+    const fields = sandbox.window.__test.buildModelEntryFields({}, schema);
+    const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
+    assert.equal(byKey.id.value, '');
+    assert.equal(byKey.apiKey.value, '');
+    assert.equal(byKey.enabled.value, false, 'boolean field defaults to false');
+});
+
+test('ticket 0 — buildModelEntryFields handles a null entry without crashing', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const schema = sandbox.window.__test.MODEL_ENTRY_SCHEMA;
+    const fields = sandbox.window.__test.buildModelEntryFields(null, schema);
+    assert.equal(fields.length, schema.length);
+    fields.forEach((f) => {
+        if (f.type === 'boolean') assert.equal(f.value, false);
+        else assert.equal(f.value, '');
+    });
+});
+
+test('ticket 0 — editEntry on unknown category warns and does not crash', () => {
+    const { sandbox, consoleCalls } = loadSettingsInSandbox();
+    sandbox.window.St8Settings.editEntry('voidflow', 0); // POJO, no schema
+    assert.ok(consoleCalls.warn.length >= 1);
+    assert.match(String(consoleCalls.warn.map((a) => a.join(' ')).join('|')), /no schema registered/);
+});
+
+test('ticket 0 — editEntry on models populates editingEntry with a deep-cloned draft', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const state = sandbox.window.__test.settingsState;
+    state.entries.models = [{ id: 'm1', name: 'M1', provider: 'anthropic', model: 'x', apiKey: 'k', baseUrl: '', enabled: true }];
+    sandbox.window.St8Settings.editEntry('models', 0);
+    assert.ok(state.editingEntry, 'editingEntry must be set');
+    assert.equal(state.editingEntry.categoryId, 'models');
+    assert.equal(state.editingEntry.index, 0);
+    assert.equal(state.editingEntry.draft.apiKey, 'k');
+    // Mutating the draft must not affect the live entry (deep clone).
+    state.editingEntry.draft.apiKey = 'mutated';
+    assert.equal(state.entries.models[0].apiKey, 'k');
+});
+
+test('ticket 0 — updateEditField mutates draft only', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    const state = sandbox.window.__test.settingsState;
+    state.entries.models = [{ id: 'm', name: 'M', provider: 'openai', model: 'gpt-4', apiKey: '', baseUrl: '', enabled: false }];
+    sandbox.window.St8Settings.editEntry('models', 0);
+    sandbox.window.St8Settings.updateEditField('apiKey', 'new-secret');
+    assert.equal(state.editingEntry.draft.apiKey, 'new-secret');
+    // Live entry unchanged until save.
+    assert.equal(state.entries.models[0].apiKey, '');
+});
+
+test('ticket 0 — cancelEdit clears editingEntry without persisting', async () => {
+    const { sandbox, fetchCalls } = loadSettingsInSandbox();
+    const state = sandbox.window.__test.settingsState;
+    state.entries.models = [{ id: 'm', name: 'M', provider: 'openai', model: 'gpt-4', apiKey: 'orig', baseUrl: '', enabled: false }];
+    sandbox.window.St8Settings.editEntry('models', 0);
+    sandbox.window.St8Settings.updateEditField('apiKey', 'new-value');
+    const fetchCallsBefore = fetchCalls.length;
+    sandbox.window.St8Settings.cancelEdit();
+    assert.equal(state.editingEntry, null);
+    assert.equal(state.entries.models[0].apiKey, 'orig', 'live entry untouched by cancel');
+    assert.equal(fetchCalls.length, fetchCallsBefore, 'cancel must NOT POST');
+});
+
+test('ticket 0 — saveEntry persists the array via _entries key and applies the draft', async () => {
+    const { sandbox, fetchCalls } = loadSettingsInSandbox();
+    const state = sandbox.window.__test.settingsState;
+    state.entries.models = [{ id: 'm', name: 'M', provider: 'openai', model: 'gpt-4', apiKey: '', baseUrl: '', enabled: false }];
+    sandbox.window.St8Settings.editEntry('models', 0);
+    sandbox.window.St8Settings.updateEditField('apiKey', 'sk-saved');
+    sandbox.window.St8Settings.updateEditField('enabled', true);
+    const ok = await sandbox.window.St8Settings.saveEntry();
+    assert.equal(ok, true);
+    assert.equal(state.entries.models[0].apiKey, 'sk-saved');
+    assert.equal(state.entries.models[0].enabled, true);
+    assert.equal(state.editingEntry, null, 'editingEntry cleared after save');
+    // Verify POST shape
+    const post = fetchCalls.find((c) => c.opts && c.opts.method === 'POST');
+    assert.ok(post, 'expected at least one POST');
+    const body = JSON.parse(post.opts.body);
+    assert.equal(body.category, 'models');
+    assert.equal(body.key, '_entries');
+    assert.ok(Array.isArray(body.value));
+    assert.equal(body.value[0].apiKey, 'sk-saved');
+});
+
+test('ticket 0 — saveEntry reverts the live entry when persist returns non-2xx', async () => {
+    const { sandbox } = loadSettingsInSandbox();
+    // Override fetch to return 400.
+    sandbox.fetch = () => Promise.resolve({
+        ok: false, status: 400,
+        json: () => Promise.resolve({ error: 'rejected' }),
+    });
+    const state = sandbox.window.__test.settingsState;
+    state.entries.models = [{ id: 'm', name: 'M', provider: 'openai', model: 'gpt-4', apiKey: 'orig', baseUrl: '', enabled: false }];
+    sandbox.window.St8Settings.editEntry('models', 0);
+    sandbox.window.St8Settings.updateEditField('apiKey', 'should-be-reverted');
+    const ok = await sandbox.window.St8Settings.saveEntry();
+    assert.equal(ok, false, 'saveEntry must return false on non-2xx');
+    assert.equal(state.entries.models[0].apiKey, 'orig',
+        'live entry must be reverted to pre-save value on persist failure');
+});
+
+test('ticket 0 — unwrapArrayCategory converts {_entries:[...]} shape back to bare array', () => {
+    const { sandbox } = loadSettingsInSandbox();
+    // unwrapArrayCategory isn't on __test directly; exercise via the
+    // public load path: synthesize a load response with the _entries
+    // shape and run loadSettings.
+    sandbox.fetch = () => Promise.resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({
+            status: 'ok',
+            data: {
+                models: { _entries: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }] },
+                voidflow: { reveal_wpm: 200 },
+            },
+        }),
+    });
+    return sandbox.window.St8Settings.loadSettings().then(() => {
+        const state = sandbox.window.__test.settingsState;
+        assert.ok(Array.isArray(state.entries.models),
+            'models must be unwrapped to an array');
+        assert.equal(state.entries.models.length, 2);
+        assert.equal(state.entries.models[0].id, 'a');
+        // voidflow (POJO) untouched.
+        assert.equal(state.entries.voidflow.reveal_wpm, 200);
+    });
+});
+
 // ─── Ticket 6 — getLLMProviders consumer / buildProviderOptions ──
 
 test('ticket 6 — buildProviderOptions emits one <option> per LLM_PROVIDERS entry', () => {

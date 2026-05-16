@@ -62,6 +62,53 @@ const settingsState = {
     llmProviders: LLM_PROVIDERS
 };
 
+// ─── MODEL ENTRY SCHEMA (ticket 0, Wave 5D) ──────────────────
+//
+// Editable shape for a `models` array entry. Declares each field's
+// type (controls input element), label (display), and whether the
+// value is sensitive (controls masking — apiKey is type:'password').
+// buildModelEntryFields(entry, schema) is the pure helper that walks
+// this schema and emits a {key, type, value, label, sensitive, options}
+// list for the renderer to consume.
+const MODEL_ENTRY_SCHEMA = [
+    { key: 'id',       type: 'text',     label: 'ID',         placeholder: 'short-slug' },
+    { key: 'name',     type: 'text',     label: 'Name',       placeholder: 'Display name' },
+    { key: 'provider', type: 'select',   label: 'Provider',   optionsFrom: 'LLM_PROVIDERS' },
+    { key: 'model',    type: 'text',     label: 'Model',      placeholder: 'e.g. claude-sonnet-4-6' },
+    { key: 'apiKey',   type: 'password', label: 'API Key',    sensitive: true, placeholder: '(leave blank to use env var)' },
+    { key: 'baseUrl',  type: 'text',     label: 'Base URL',   placeholder: '(optional, for self-hosted)' },
+    { key: 'enabled',  type: 'boolean',  label: 'Enabled' }
+];
+
+// Per-array-category schema map. New array categories (sirkits,
+// shells, keybindings) can register their own schemas here as their
+// editors land in future waves.
+const ENTRY_SCHEMAS = {
+    models: MODEL_ENTRY_SCHEMA
+};
+
+// Pure helper: given an entry object + schema, returns an array of
+// resolved fields ready for the renderer. Falls back to empty-string
+// values for missing keys (so the form renders inputs even for a
+// freshly-added entry). Exported via window.__test for node tests.
+function buildModelEntryFields(entry, schema) {
+    var safeEntry = entry || {};
+    return schema.map(function(field) {
+        var raw = Object.prototype.hasOwnProperty.call(safeEntry, field.key)
+            ? safeEntry[field.key]
+            : (field.type === 'boolean' ? false : '');
+        return {
+            key: field.key,
+            type: field.type,
+            label: field.label,
+            value: raw,
+            sensitive: !!field.sensitive,
+            placeholder: field.placeholder || '',
+            optionsFrom: field.optionsFrom || null
+        };
+    });
+}
+
 // ─── DEFAULT SETTINGS ────────────────────────────────────────
 
 const DEFAULT_SETTINGS = {
@@ -274,11 +321,13 @@ function loadSettings() {
         .then(function(result) {
             if (result && result.data) {
                 // Merge loaded settings into state — first migrate old
-                // keys (ticket 5), then type-coerce values (ticket 4).
+                // keys (ticket 5), then type-coerce values (ticket 4),
+                // then unwrap array-category entries (ticket 0, 5D).
                 Object.keys(result.data).forEach(function(category) {
                     var raw = result.data[category];
                     var migrated = migrateCategoryKeys(category, raw);
-                    settingsState.entries[category] = coerceCategoryValues(category, migrated);
+                    var coerced = coerceCategoryValues(category, migrated);
+                    settingsState.entries[category] = unwrapArrayCategory(category, coerced);
                 });
                 console.info('[st8] Settings loaded from backend:', Object.keys(result.data).length, 'categories');
             }
@@ -294,13 +343,178 @@ function addEntry(categoryId) {
     if (!settingsState.entries[categoryId]) {
         settingsState.entries[categoryId] = [];
     }
-    settingsState.entries[categoryId].push({ id: 'new-entry', name: 'New Entry' });
+    var newEntry = { id: 'new-entry', name: 'New Entry' };
+    // For categories with a registered schema, seed empty fields so
+    // the EDIT form has every input rendered immediately.
+    var schema = ENTRY_SCHEMAS[categoryId];
+    if (schema) {
+        schema.forEach(function(f) {
+            if (!Object.prototype.hasOwnProperty.call(newEntry, f.key)) {
+                newEntry[f.key] = (f.type === 'boolean') ? false : '';
+            }
+        });
+    }
+    settingsState.entries[categoryId].push(newEntry);
     renderCategoryEntries(categoryId);
+    // Persist the updated array. Best-effort: if the POST fails,
+    // _persistSetting already logs; the in-memory state is rolled
+    // back by the caller of editEntry (next save) if needed.
+    _persistArrayEntries(categoryId, settingsState.entries[categoryId]);
 }
 
 function editEntry(categoryId, index) {
-    // TODO: Show edit form
-    console.info('[st8] Edit entry:', categoryId, index);
+    // Ticket 0 (Wave 5D): real edit form for array-category entries.
+    // Currently only the `models` category has a registered schema in
+    // ENTRY_SCHEMAS; other array categories (sirkits, shells, etc.)
+    // log a not-implemented notice instead of silently doing nothing
+    // (the previous stub).
+    var schema = ENTRY_SCHEMAS[categoryId];
+    if (!schema) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[st8] editEntry: no schema registered for category ' + categoryId +
+                         ' — add one to ENTRY_SCHEMAS in settings.js');
+        }
+        return;
+    }
+
+    var entries = settingsState.entries[categoryId];
+    if (!Array.isArray(entries) || index < 0 || index >= entries.length) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[st8] editEntry: invalid entry at ' + categoryId + '[' + index + ']');
+        }
+        return;
+    }
+
+    // Snapshot the entry being edited so cancel can revert without a
+    // re-fetch. Use a deep-clone so in-form mutations don't bleed.
+    settingsState.editingEntry = {
+        categoryId: categoryId,
+        index: index,
+        snapshot: JSON.parse(JSON.stringify(entries[index])),
+        draft: JSON.parse(JSON.stringify(entries[index]))
+    };
+
+    _renderEditEntryForm();
+}
+
+function _renderEditEntryForm() {
+    var main = (typeof document !== 'undefined') ? document.getElementById('settings-main') : null;
+    if (!main) return;
+
+    var editing = settingsState.editingEntry;
+    if (!editing) return;
+    var schema = ENTRY_SCHEMAS[editing.categoryId];
+    if (!schema) return;
+
+    var fields = buildModelEntryFields(editing.draft, schema);
+    var html = '<div class="settings-category-header">' +
+        '<h2 class="settings-category-title">EDIT ENTRY</h2>' +
+        '<p class="settings-category-desc">' + escapeHtml(editing.categoryId) +
+        ' [' + editing.index + ']</p>' +
+    '</div>' +
+    '<div class="settings-form" id="settings-edit-form">';
+
+    fields.forEach(function(f) {
+        html += '<div class="settings-field">' +
+            '<label class="settings-label" for="se-' + escapeHtml(f.key) + '">' +
+            escapeHtml(f.label) + '</label>';
+
+        if (f.type === 'select' && f.optionsFrom === 'LLM_PROVIDERS') {
+            // Ticket 6 consumer: provider dropdown from LLM_PROVIDERS.
+            html += '<select id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'onchange="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value)">' +
+                '<option value="">(select provider)</option>' +
+                buildProviderOptions(f.value) +
+                '</select>';
+        } else if (f.type === 'boolean') {
+            html += '<select id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'onchange="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value === \'true\')">' +
+                '<option value="true"' + (f.value ? ' selected' : '') + '>TRUE</option>' +
+                '<option value="false"' + (!f.value ? ' selected' : '') + '>FALSE</option>' +
+                '</select>';
+        } else if (f.type === 'password') {
+            // SECURITY: apiKey MUST be masked. Even with at-rest
+            // encryption (deferred to Wave 5E backend), shoulder-surfing
+            // protection is a frontend-only concern.
+            html += '<input type="password" id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'autocomplete="new-password" spellcheck="false" ' +
+                'placeholder="' + escapeHtml(f.placeholder) + '" ' +
+                'value="' + escapeHtml(String(f.value || '')) + '" ' +
+                'oninput="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value)">';
+        } else {
+            html += '<input type="text" id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'placeholder="' + escapeHtml(f.placeholder) + '" ' +
+                'value="' + escapeHtml(String(f.value || '')) + '" ' +
+                'oninput="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value)">';
+        }
+        html += '</div>';
+    });
+
+    html += '</div>' +
+        '<div class="settings-edit-actions">' +
+            '<button class="settings-action-btn" onclick="window.St8Settings.cancelEdit()">CANCEL</button>' +
+            '<button class="settings-add-btn" onclick="window.St8Settings.saveEntry()">SAVE</button>' +
+        '</div>' +
+        '<div class="settings-edit-error" id="settings-edit-error" style="display:none;"></div>';
+
+    main.innerHTML = html;
+}
+
+function updateEditField(key, value) {
+    if (!settingsState.editingEntry) return;
+    settingsState.editingEntry.draft[key] = value;
+}
+
+function cancelEdit() {
+    var editing = settingsState.editingEntry;
+    settingsState.editingEntry = null;
+    if (editing && settingsState.activeCategory === editing.categoryId) {
+        renderCategoryEntries(editing.categoryId);
+    }
+}
+
+function saveEntry() {
+    var editing = settingsState.editingEntry;
+    if (!editing) return Promise.resolve(false);
+
+    var arr = settingsState.entries[editing.categoryId];
+    if (!Array.isArray(arr)) return Promise.resolve(false);
+
+    // Optimistic apply of the draft, then persist the full array.
+    var prev = arr[editing.index];
+    arr[editing.index] = editing.draft;
+
+    return _persistArrayEntries(editing.categoryId, arr).then(function(ok) {
+        if (!ok) {
+            // Revert on persist failure — same ticket-9 pattern as
+            // updateValue but for the whole-array shape.
+            arr[editing.index] = prev;
+            _showEditError('Save failed — server rejected the entry. Changes reverted.');
+            return false;
+        }
+        // Success: close the editor and re-render the list.
+        settingsState.editingEntry = null;
+        if (settingsState.activeCategory === editing.categoryId) {
+            renderCategoryEntries(editing.categoryId);
+        }
+        return true;
+    });
+}
+
+function _showEditError(msg) {
+    if (typeof document === 'undefined') return;
+    var box = document.getElementById('settings-edit-error');
+    if (!box) return;
+    box.textContent = msg;
+    box.style.display = 'block';
+}
+
+// Persist an entire array-shaped category under a single
+// well-known key ('_entries'). Reuses _persistSetting's
+// Promise<boolean> contract (ticket 9, Wave 5C) so failures are
+// surfaced and revertible.
+function _persistArrayEntries(categoryId, entries) {
+    return _persistSetting(categoryId, '_entries', entries);
 }
 
 function duplicateEntry(categoryId, index) {
@@ -311,6 +525,7 @@ function duplicateEntry(categoryId, index) {
         copy.name = (copy.name || copy.id || 'Entry') + ' (copy)';
         settingsState.entries[categoryId].push(copy);
         renderCategoryEntries(categoryId);
+        _persistArrayEntries(categoryId, settingsState.entries[categoryId]);
     }
 }
 
@@ -483,6 +698,26 @@ function coerceSettingValue(categoryId, key, value) {
     return defaults[key];
 }
 
+// ─── ARRAY CATEGORY UNWRAP (ticket 0, Wave 5D) ───────────────
+//
+// Array categories (`models`, `sirkits`, `shells`, `keybindings`) are
+// persisted under the single well-known key '_entries' as a JSON
+// array. `getAllSettings()` returns `{models: {_entries: [...]}}`
+// shape; unwrap to the bare array so `Array.isArray(entries)` is true
+// downstream (renderCategoryEntries branches on it). If the key is
+// missing OR the value isn't an array, fall back to the default empty
+// array for array-shaped categories.
+function unwrapArrayCategory(categoryId, raw) {
+    var defaults = DEFAULT_SETTINGS[categoryId];
+    if (!Array.isArray(defaults)) return raw;
+    if (Array.isArray(raw)) return raw; // already an array
+    if (raw && typeof raw === 'object' && Array.isArray(raw._entries)) {
+        return raw._entries;
+    }
+    // Fallback: empty array (matches the DEFAULT_SETTINGS shape).
+    return [];
+}
+
 function coerceCategoryValues(categoryId, entries) {
     var defaults = DEFAULT_SETTINGS[categoryId];
     if (!defaults || Array.isArray(defaults) || !entries || typeof entries !== 'object' || Array.isArray(entries)) {
@@ -573,6 +808,10 @@ window.St8Settings = {
     editEntry: editEntry,
     duplicateEntry: duplicateEntry,
     loadSettings: loadSettings,
+    // Ticket 0 (Wave 5D): real edit-form lifecycle.
+    updateEditField: updateEditField,
+    cancelEdit: cancelEdit,
+    saveEntry: saveEntry,
     getCategories: function() { return SETTINGS_CATEGORIES; },
     getDefaults: function() { return DEFAULT_SETTINGS; },
     getLLMProviders: function() { return LLM_PROVIDERS; }
