@@ -34,7 +34,10 @@
     "executionStatus": "resolved-upstream",
     "upstreamCluster": "lifecycle-and-eventing",
     "upstreamCommit": "59325e8",
-    "actionsTaken": "RESOLVED-UPSTREAM by Wave 4D ticket 1 (lifecycle-and-eventing cluster, commit 59325e8). The 5s setInterval poll of /api/connection-state.json was deleted; constellation recolor now subscribes to the existing /api/mutations SSE stream via a `st8:mutation` CustomEvent rebroadcast. Verified by `grep \"setInterval.*connection-state\" src/frontend/app.js` → 0 hits (only a comment at L273 documents the migration). Wave 4D's review verdict was ack with mutation probe; no further action required from this cluster."
+    "actionsTaken": "RESOLVED-UPSTREAM by Wave 4D ticket 1 (lifecycle-and-eventing cluster, commit 59325e8). The 5s setInterval poll of /api/connection-state.json was deleted; constellation recolor now subscribes to the existing /api/mutations SSE stream via a `st8:mutation` CustomEvent rebroadcast. Verified by `grep \"setInterval.*connection-state\" src/frontend/app.js` → 0 hits (only a comment at L273 documents the migration). Wave 4D's review verdict was ack with mutation probe; no further action required from this cluster.",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified commit 59325e8 (\"feat(lifecycle): replace app.js constellation polling with SSE EventSource\") touches src/frontend/app.js per upstream cluster claim. `grep setInterval src/frontend/app.js` returns exactly one hit — a comment at L285 documenting the migration. No live setInterval code remains. Resolution upstream-confirmed, marker commit 1e95a1b is bookkeeping only."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -62,7 +65,10 @@
     "executedBy": "wave-7b-executor",
     "executionStatus": "executed",
     "actionsTaken": "Chose the hard-fail option (b). Added an IIFE in index.html right after the importmap declaration that probes `HTMLScriptElement.supports('importmap')` — the standard feature-detection hook for importmap support. If the probe returns false (or the API itself is missing, indicating a very old browser), the script (1) creates a visible top-of-page banner with role='alert' explaining that dive-in is unavailable AND naming the minimum browser versions (Chrome 89+, Safari 16.4+, Firefox 108+), (2) logs a console.warn so devtools-watchers see it, (3) explicitly notes 'the rest of st8 still works' so users understand the constellation/explorer/phreak are not affected. The banner mount is deferred via DOMContentLoaded when document.body is not yet ready (we're still in <head>'s tail at this point in the parse). The whole probe is wrapped in try/catch so a future browser API change can't crash boot. Chose hard-fail over es-module-shims because (a) the founder's posture is strip-don't-add, (b) the only ESM-importing module in the project is dive-in.js, and a shim would add a vendored dependency for a code path that's already developer-tool gated, (c) roadmap P3 item 'Importmap fallback shim' explicitly leaves the shim as a future option. No source change to dive-in.js — the module is still loaded normally; the banner just explains why it won't function. Verified: HTMLScriptElement.supports('importmap') is a 2023+ standard, available in all browsers that actually support importmap, so the probe is reliable.",
-    "commitSha": "5a7ac48"
+    "commitSha": "5a7ac48",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified IIFE at index.html:208-236: probes HTMLScriptElement.supports('importmap'), creates a banner with role='alert' (L215), names Chrome 89+/Safari 16.4+/Firefox 108+ (L224), console.warns on failure (L230), defers DOM insertion until <body> ready (L226-229), entire body wrapped in try/catch (L210, 232). HTML comment above (L198-207) explains rationale. Clean hard-fail per founder strip-not-add posture."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -73,7 +79,10 @@
     "executionStatus": "executed",
     "actionsTaken": "Replaced the single ESC-only keydown listener at app.js:338 with a full carousel keymap: ESC (existing), ArrowLeft (one column left), ArrowRight (one column right), Home (jump to explorer), End (jump to phreak). Implementation factored into two pure helpers attached to window.St8Slide so tests can drive them without a DOM: (1) `nextSlideTarget(key, current)` is pure-functional logic over the static order ['explorer','st8','phreak'] — no side effects, returns the destination panel or null for no-op/unhandled. (2) `shouldSuppressCarouselKey(e)` returns true when any of: Ctrl/Meta/Alt is down (preserves browser shortcuts); the focus target is <input>/<textarea>/<select>/contenteditable; a .notes-popup-overlay is open; the PRD wizard #overlay-prd-wizard has .open; or the phreak TUI is active. The route handler reads `strip.getAttribute('data-active')` for current, calls nextSlideTarget, slideTo()s on a non-null result, and e.preventDefault()s only when we're actually handling. Post-slide focus moves to the contextually-visible back-pointing slide-diamond (so screen readers announce 'Slide right/left' and Tab order stays on the chrome) — wrapped in try/catch since focus is best-effort. EXPLICITLY OUT OF SCOPE per the 'no wave-level extras' rule: full Tab focus management between panels and PRD wizard modal focus-trap. The user note flagged both as accessibility gaps; the ticket title is 'Keyboard nav' so we delivered Left/Right/Home/End/ESC plus the focus-on-active-diamond cue. PRD wizard focus-trap is a separate ticket and would mirror the graph-popup-a11y work shipped in Wave 5I — flagged as residual. Tab between panels conflicts with the existing within-panel Tab order (PhreakTerminal has its own input tab semantics; explorer's file-tree has Tab navigation) — that's a roadmap-scale a11y pass, not a keystroke addition. Tests: tests/frontend/carousel-keyboard-nav.test.js — 12 unit tests using the same vm-extract-pure-function pattern as tests/frontend/graph-popup-a11y.test.js (regex-extracts function bodies from app.js source, vm-evaluates them in an isolated context with stub document/window, asserts pure-function behavior). Coverage: every (key × current-panel) combination for nextSlideTarget (6 tests), plus 6 tests for shouldSuppressCarouselKey (modifier keys, typeable element types, notes-popup overlay, PRD wizard overlay, phreak TUI, defaults). Full suite: 435 pass / 0 fail (baseline 423 + 12 new).",
     "residualConcerns": "PRD wizard focus-trap (Tab cycling inside the modal) and between-panel Tab focus management remain open. The former should mirror tests/frontend/graph-popup-a11y.test.js — a separate sub-wave ticket. The latter is roadmap-scale a11y work (see docs/_pending-roadmap/frontend-experience.md P3 'Frontend accessibility pass').",
-    "commitSha": "17f316c"
+    "commitSha": "17f316c",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified tests/frontend/carousel-keyboard-nav.test.js has exactly 12 test() probes — 12 pass / 0 fail on targeted run. nextSlideTarget at app.js:365-376 handles ArrowLeft/Right/Home/End/Escape over order ['explorer','st8','phreak']. shouldSuppressCarouselKey covers Ctrl/Meta/Alt, typeable elements, notes overlay, PRD wizard, phreak TUI. MUTATION PROBE: stubbed `ArrowRight return idx < order.length - 1 ? order[idx + 1] : null` to `return null` — targeted suite went 12/12 → 11/12 (1 fail) confirming probe coverage; file restored. Residuals (PRD focus-trap, between-panel Tab) correctly out-of-scope per anti-extras rule."
   },
   {
     "filepath": "/home/user/st8/src/frontend/index.html",
@@ -86,7 +95,10 @@
     "upstreamTicketId": "FRONT-006",
     "upstreamCommit": "9f6e2dd",
     "roadmapRef": "docs/_pending-roadmap/server-api-and-legacy-frontend.md#p33--migrate-prd-wizard-into-the-carousel-pattern",
-    "actionsTaken": "DUPLICATE-RESOLVED by Wave 5I (server-api-and-legacy-frontend ticket FRONT-006, commit 9f6e2dd). Decision: keep modal. Rationale documented inline at src/frontend/app.js:333-359 above window.openPRDWizard — modal isolates wizard from explorer context; founder's strip-not-add stance argues against promoting PRD to a permanent 4th carousel column. file-explorer.js:350 coupling to window.openPRDWizard() is accepted: when/if migration happens, the global becomes a slideTo('prd') shim and the call site is untouched. Carousel migration deferred to roadmap P3.3 with an 8-step scope. Wave 5I reviewer verdict was defer-confirmed."
+    "actionsTaken": "DUPLICATE-RESOLVED by Wave 5I (server-api-and-legacy-frontend ticket FRONT-006, commit 9f6e2dd). Decision: keep modal. Rationale documented inline at src/frontend/app.js:333-359 above window.openPRDWizard — modal isolates wizard from explorer context; founder's strip-not-add stance argues against promoting PRD to a permanent 4th carousel column. file-explorer.js:350 coupling to window.openPRDWizard() is accepted: when/if migration happens, the global becomes a slideTo('prd') shim and the call site is untouched. Carousel migration deferred to roadmap P3.3 with an 8-step scope. Wave 5I reviewer verdict was defer-confirmed.",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "defer-confirmed-upstream",
+    "reviewNote": "Verified commit 9f6e2dd (\"chore(frontend): defer PRD wizard carousel migration — keep modal\") in server-api-and-legacy-frontend cluster — diffstat shows roadmap update + 26 LOC inline rationale added to src/frontend/app.js. Upstream defer decision sound; cross-cluster bookkeeping commit 4bceb86 is correct."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -178,7 +190,10 @@
     "executedBy": "wave-7b-executor",
     "executionStatus": "executed",
     "actionsTaken": "Audit first: `grep overflow src/frontend/styles/base.css` confirms `html, body { overflow: hidden; }` at base.css:16 — the global backstop the ticket asked about is already present. `.panels-viewport { overflow: hidden }` at carousel.css:39 is the per-strip containment. Together these already prevent the 300vw strip from leaking horizontal scrollbars on the document — the ticket's worst-case is already mitigated. The remaining narrow-viewport issues are layout-cramping, not scroll-leak: (1) per-column padding (var(--space-5)≈24px each side) eats too much of a phone-width 100vw, (2) shelf-side padding + 44px diamond hit-targets sum to >25% of a narrow viewport, (3) panel-titlebar text can wrap and push panel-body downward on sub-360px screens. Added two @media blocks at carousel.css:232+: (a) `@media (max-width:768px)` reduces .panel-column padding to var(--space-3), drops shelf side-padding + gap to var(--space-3), shrinks slide-diamond to 40×40 with font-size:28px so it stays at-edge — matches the founder's 'always at the edges' mental model; (b) `@media (max-width:360px)` forces the .panel-title text to single-line ellipsis (overflow:hidden + text-overflow:ellipsis + white-space:nowrap + min-width:0) as a last-resort containment for phones. Behavior on >=768px is unchanged — these are pure narrow-viewport safety margins. Inline comment block above the @media rules documents the audit decision (global backstops already present, this layer adds layout polish only).",
-    "commitSha": "bc63b5f"
+    "commitSha": "bc63b5f",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified base.css:16 `html, body { overflow: hidden }` exists — executor correctly did NOT duplicate. carousel.css:258 has `@media (max-width: 768px)` and L273 has `@media (max-width: 360px)`. Documenting comment block at L232-256 explains audit + layout-polish-only intent. No regression: 435 pass."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -196,7 +211,10 @@
     "deferralReason": "Wiring the shelf is not a single ticket — it's the roadmap P1 'Lower-5th shelf takeover' work. That P1 item requires building a `St8Shelf.takeover(componentName, htmlOrEl, opts)` registry with stack-based push/pop semantics, the per-context content sources (workspace picker, LLM chat strip, ticket badge), AND the SSE plumbing for live ticket-count updates. The roadmap also lists two more P1 items that consume the shelf-takeover mechanic (workspace nav buttons in the shelf, real-time ticket badge). Doing this scope inside a frontend-experience ticket would violate the 'no extras per wave' rule and silently expand to ~3 P1 features.",
     "roadmapRef": "docs/_pending-roadmap/frontend-experience.md#priority-1 — 'Lower-5th shelf takeover' (lines 16-26), plus 'Workspace nav buttons in the shelf' (lines 28-36) and 'Real-time ticket badge in the shelf or phreak header' (lines 47-53) which depend on it",
     "actionsTaken": "Added an inline HTML comment block above #shelf-content in src/frontend/index.html documenting (a) the founder's batch-027 'Pattern 2' design intent (lower 1/8 as takeover-capable surface), (b) the precise scope of the missing registry + content sources + SSE wiring, (c) the explicit pointer to the three P1 roadmap items that together produce this feature. The element stays in the DOM as an empty <div> so the future takeover code has a stable mount point and the CSS grid-center spacing between the two slide-diamonds stays intact. No code change in this ticket — the work is correctly sized as roadmap P1, not a sub-wave extra. This is defer-with-pointer, not 'we'll get to it eventually': the pointer names the exact roadmap section, the work-items, and the architectural surface (registry shape).",
-    "commitSha": "5c447d0"
+    "commitSha": "5c447d0",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "defer-confirmed",
+    "reviewNote": "Verified roadmap pointer is real: docs/_pending-roadmap/frontend-experience.md lines 16-26 describe 'Lower-5th shelf takeover' (Pattern 2) with the exact `St8Shelf.takeover(componentName, htmlOrEl, opts)` registry signature, stack-based push/pop semantics, and default-chrome re-assertion. HTML comment at index.html:122-143 explicitly names the three P1 items and line ranges (16-26, 28-36, 47-53). Empty <div> retained as stable future mount point. Defer-with-pointer is genuine; scope correctly sized as roadmap P1."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -206,6 +224,9 @@
     "executedBy": "wave-7b-executor",
     "executionStatus": "executed",
     "actionsTaken": "Replaced the bare top-level `bootConstellation();` call (was at app.js:265) with a readyState-aware gate. The new block reads `document.readyState`: if it's still 'loading', registers `bootConstellation` as a one-shot DOMContentLoaded listener; otherwise (DOM already parsed — the case when app.js sits at the end of <body>, which is the current load order) it invokes immediately so we preserve byte-for-byte the existing boot path. This is the standard defensive idiom — same pattern used in jQuery's ready() shim. Verified by `grep -n bootConstellation src/frontend/app.js`: the bare top-level call is gone (replaced by the conditional); the function definition at L224 is unchanged; the new gate is at L273-277. Tests stable at 423. NOTE: this is purely defensive — today's load order (script tag at end of <body>) means readyState is already 'interactive' or 'complete' by the time app.js runs, so the inline branch fires and behavior is unchanged. The DOMContentLoaded branch protects future moves of the <script> tag (e.g. into <head> with defer, or any future bundler that hoists imports).",
-    "commitSha": "b58fd67"
+    "commitSha": "b58fd67",
+    "reviewedBy": "wave-7b-reviewer",
+    "verdict": "ack",
+    "reviewNote": "Verified bootConstellation function definition at L224, gate at L273-277: `if (document.readyState === 'loading') addEventListener('DOMContentLoaded', bootConstellation) else bootConstellation()`. No bare top-level invocation remains. Standard defensive idiom; byte-for-byte boot path preserved under current load order."
   }
 ]
