@@ -286,6 +286,16 @@ stored with `suppressed: true` and the visual pop-up branch is skipped
 (line 397, 409). No other component reads `getPhoneState()` — the
 titlebar status line in `app.js:103-111` is the only consumer.
 
+*Metaphor (Wave 5H ticket 16).* The phone metaphor borrows from analog
+telephony: lifting the handset off the cradle ("off-hook") prevented
+the bell from ringing on inbound calls. Translated to st8: "off-hook"
+= signal pop-ups muted; "on-hook" = signal pop-ups active. The canonical
+in-source documentation lives in the `PHONE METAPHOR` JSDoc block at
+the top of `src/frontend/components/terminal/terminal.js`. Future
+direction (FRONT-007 roadmap entry) is to route ALL SSE notifications
+through this state machine so one toggle gates every notification
+surface, not just the terminal's signal pop-ups.
+
 **Tech debt.**
 
 - `window.renderFileList` and `#void-file-list` are stale references.

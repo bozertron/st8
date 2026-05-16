@@ -233,7 +233,10 @@
       "file": "src/frontend/components/terminal/terminal.js",
       "lineHint": "36 (phoneOffHook), 1042-1045 (togglePhoneOffHook)",
       "summary": "phoneOffHook is read only by app.js:103-111 (status line update). It suppresses signal pop-ups inside the terminal but is otherwise pure UI. The 'phone' metaphor is whimsical but undocumented for new contributors.",
-      "proposed": "Either lean into it (route SSE notifications through the phone state machine globally — close the loop with the founder's signal/provisioned concept) or simplify to a 'mute notifications' toggle."
+      "proposed": "Either lean into it (route SSE notifications through the phone state machine globally — close the loop with the founder's signal/provisioned concept) or simplify to a 'mute notifications' toggle.",
+      "status": "executed",
+      "executedBy": "wave-5h-executor",
+      "actionsTaken": "Documentation-only — no behaviour change. (1) Added a multi-line PHONE METAPHOR JSDoc block above the `phreakState` declaration in src/frontend/components/terminal/terminal.js explaining the analog-telephony metaphor (off-hook = signals muted; on-hook = signals active), enumerating the signal flow (persisted on phreakState.phoneOffHook → toggled by togglePhoneOffHook via data-action='phone-toggle' button → read internally by _pushSignal at ~line 397 to gate popup rendering → read externally by app.js ~lines 137-146 via PhreakTerminal.getPhoneState() to drive the status-line text + .phone-on/.phone-off CSS class), and pointing forward to FRONT-007's roadmap direction (route ALL SSE notifications through this state machine globally). (2) Updated the inline comment on the phoneOffHook field itself to cross-reference the PHONE METAPHOR block. (3) Added a 'Metaphor (Wave 5H ticket 16)' paragraph in docs/components/server-api-and-legacy-frontend.md section 3.2 immediately after the existing 'Phone on-hook / off-hook state machine' paragraph, pointing readers at the canonical in-source JSDoc. Future contributors now have a complete signal-flow trace + the analog-telephony rationale without needing to grep across files."
     }
   ]
 }
