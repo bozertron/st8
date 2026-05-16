@@ -290,6 +290,43 @@
       bootConstellation();
     }
 
+    // ─── VOIDFLOW → CSS CUSTOM PROPERTIES BRIDGE ──────────────
+    // Mirror voidflow.* settings onto document.documentElement as
+    // `--st8-voidflow-<key>` CSS custom properties. The bridge runs
+    // once on init (initial hydrate from /api/settings) and once per
+    // subsequent change (St8SettingsReader subscriber). Future surfaces
+    // that want to honor a live tunable can read the CSS var rather
+    // than wire their own settings consumer.
+    //
+    // Why CSS vars: they're the most generic broadcast channel the
+    // browser already provides. Both CSS and JS consumers see them,
+    // they cost nothing if unread, and they thread through shadow
+    // DOM. The bridge does not validate values — settings.js already
+    // type-coerced them at load time.
+    function wireVoidflowToCSSVars() {
+      if (!window.St8SettingsReader) return;
+      var root = document.documentElement;
+      function apply(voidflow) {
+        if (!voidflow || typeof voidflow !== 'object') return;
+        Object.keys(voidflow).forEach(function(k) {
+          root.style.setProperty('--st8-voidflow-' + k.replace(/_/g, '-'), String(voidflow[k]));
+        });
+      }
+      window.St8SettingsReader.loadAll().then(function(result) {
+        if (result && result.data && result.data.voidflow) apply(result.data.voidflow);
+      }).catch(function() { /* settings.js logs the load failure already */ });
+      window.St8SettingsReader.addListener(function(ev) {
+        if (ev.category !== 'voidflow') return;
+        var prop = '--st8-voidflow-' + String(ev.key).replace(/_/g, '-');
+        root.style.setProperty(prop, String(ev.value));
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wireVoidflowToCSSVars);
+    } else {
+      wireVoidflowToCSSVars();
+    }
+
     // Live updates (post Wave 4D ticket 1): the constellation listens on
     // the SAME /api/mutations stream the mutation toast handler uses. The
     // window event 'st8:mutation' is dispatched from that handler below

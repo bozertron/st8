@@ -295,29 +295,31 @@ function updateValue(categoryId, key, value) {
     });
 }
 
+// Persistence + initial load delegate to window.St8SettingsReader
+// (src/frontend/services/settings-reader.js). That service owns the
+// storage adapter (BackendAdapter in prod, MemoryAdapter in tests)
+// and the change-event broadcast — settings.js stays focused on
+// schema, migration, coercion, and rendering.
 function _persistSetting(categoryId, key, value) {
-    return fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: categoryId, key: key, value: value })
-    }).then(function(res) {
-        if (!res.ok) {
-            console.warn('[st8] Failed to persist setting:', categoryId, key, res.status);
-            return false;
+    if (!window.St8SettingsReader) {
+        // The service script is loaded BEFORE this one in index.html.
+        // If it's missing we're in a malformed runtime — fail loud
+        // rather than silently dropping writes.
+        throw new Error('St8SettingsReader not loaded — check script order in index.html');
+    }
+    return window.St8SettingsReader.persist(categoryId, key, value).then(function(ok) {
+        if (!ok) {
+            console.warn('[st8] Failed to persist setting:', categoryId, key);
         }
-        return true;
-    }).catch(function(err) {
-        console.warn('[st8] Settings persistence error:', err.message);
-        return false;
+        return ok;
     });
 }
 
 function loadSettings() {
-    return fetch('/api/settings')
-        .then(function(res) {
-            if (!res.ok) throw new Error('Failed to load settings: ' + res.status);
-            return res.json();
-        })
+    if (!window.St8SettingsReader) {
+        throw new Error('St8SettingsReader not loaded — check script order in index.html');
+    }
+    return window.St8SettingsReader.loadAll()
         .then(function(result) {
             if (result && result.data) {
                 // Merge loaded settings into state — first migrate old

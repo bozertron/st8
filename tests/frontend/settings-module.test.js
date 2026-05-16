@@ -22,6 +22,14 @@ const SETTINGS_PATH = path.join(__dirname, '..', '..',
     'src', 'frontend', 'components', 'settings', 'settings.js');
 const SRC = fs.readFileSync(SETTINGS_PATH, 'utf8');
 
+// settings.js now delegates persistence + initial load to
+// window.St8SettingsReader (src/frontend/services/settings-reader.js).
+// Load that script into every sandbox before settings.js, mirroring
+// the script-tag order in index.html.
+const READER_PATH = path.join(__dirname, '..', '..',
+    'src', 'frontend', 'services', 'settings-reader.js');
+const READER_SRC = fs.readFileSync(READER_PATH, 'utf8');
+
 // Build a sandbox with minimum browser-like globals + capture the
 // internal helpers we want to test (coerceSettingValue,
 // migrateCategoryKeys) by appending a tiny instrumentation tail. The
@@ -78,6 +86,8 @@ function makeSandbox() {
 function loadSettingsInSandbox(srcOverride) {
     const { sandbox, fetchCalls, consoleCalls } = makeSandbox();
     const ctx = vm.createContext(sandbox);
+    // Mirror index.html script order: settings-reader BEFORE settings.
+    vm.runInContext(READER_SRC, ctx, { filename: 'settings-reader.js' });
     const src = (srcOverride || SRC) + INSTRUMENT_TAIL;
     vm.runInContext(src, ctx, { filename: 'settings.js' });
     return { sandbox, fetchCalls, consoleCalls };

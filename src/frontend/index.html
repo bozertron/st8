@@ -19,10 +19,11 @@
      per founder direction). The window.loadVoidEngine / unloadVoidEngine
      call sites in app.js were also removed in Wave 7C (ticket 3); the
      legacy 'pretext-dev' workspace value now degrades to standard mode.
-   - settings-reader.js (formerly src/frontend/services/state.js) was
-     dead code — never script-loaded by the original st8.html, had its
-     own hardcoded DEFAULT_VOIDFLOW that duplicated settings.js's defaults
-     (silent divergence risk). Retired to OGB/src/frontend/services/state.js.txt.
+   - settings-reader.js was reinstated as a thin data + reactivity
+     layer atop /api/settings — see src/frontend/services/settings-reader.js.
+     It does NOT own defaults (settings.js holds DEFAULT_SETTINGS as the
+     single source of truth), so the silent-divergence risk that retired
+     the original (hardcoded DEFAULT_VOIDFLOW) does not recur.
 
  Load order (preserved from original):
    1. Component scripts (file-explorer, terminal, graph-viewer, settings,
@@ -174,6 +175,10 @@
   <script src="components/file-explorer/file-explorer.js"></script>
   <script src="components/terminal/terminal.js"></script>
   <script src="components/graph-viewer/graph-viewer.js"></script>
+  <!-- settings-reader is the data + reactivity layer for settings.
+       MUST load BEFORE settings.js, which delegates persistence
+       and the change-event broadcast to window.St8SettingsReader. -->
+  <script src="services/settings-reader.js"></script>
   <script src="components/settings/settings.js"></script>
   <script src="services/coordination.js"></script>
 
