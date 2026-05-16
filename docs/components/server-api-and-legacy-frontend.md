@@ -298,9 +298,14 @@ surface, not just the terminal's signal pop-ups.
 
 **Tech debt.**
 
-- `window.renderFileList` and `#void-file-list` are stale references.
-  Either delete the `_isolateFiles` / `_clearVoid` paths or wire them
-  into the new carousel.
+- `window.renderFileList` and `#void-file-list` are conditional —
+  defined only when the workspace type is `logic-analyzer` (app.js:405,
+  448). `_isolateFiles` (terminal.js:631) and `_clearVoid` (line 673)
+  both null-guard their references, so they no-op safely on other
+  workspaces. They ARE wired — to TUI overlay buttons rendered at
+  lines 541-548 — so this is a workspace-gated feature, not dead
+  code (Wave 5H ticket 5 audit; supersedes earlier FRONT-002
+  read of "stale references — neither exists").
 - `PHREAK_API = '/api/v1/exec'` is dead code.
 - `_isolateFiles` includes Make-Topic / Export-Report / Create-Sprint
   hints but only the `make-topic` action wiring is hinted; nothing is

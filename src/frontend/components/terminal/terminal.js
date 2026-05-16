@@ -627,6 +627,37 @@ function _enterTUI() {
 }
 
 // ─── TUI ISOLATION AND CLEAR FUNCTIONS ───────────────────────
+//
+// CROSS-COMPONENT COUPLING (Wave 5H ticket 5):
+//   _isolateFiles() calls `window.renderFileList()` (defined in
+//   src/frontend/app.js:448) and _clearVoid() targets the DOM node
+//   `#void-file-list` (created in app.js:405). BOTH dependencies are
+//   conditional: they only exist when the workspace type is
+//   'logic-analyzer' (app.js:398-407 — the .void-right-panel + the
+//   #void-file-list child are appended only on that workspace, and
+//   the right panel is removed on every other workspace switch).
+//
+//   Callers (live, NOT dead):
+//     - _isolateFiles is invoked by the TUI overlay click handler at
+//       lines 585-596 for data-action="isolate-green|yellow|red"
+//       AND "show-all" buttons rendered at lines 541-544.
+//     - _clearVoid is invoked by the TUI overlay click handler at
+//       line 601 for data-action="clear-void" button rendered at
+//       line 548. _clearAll (line 688) also calls _clearVoid.
+//
+//   Behaviour on non-logic-analyzer workspaces:
+//     - _isolateFiles still updates badges + writes a system line to
+//       the terminal, but the renderFileList() call is null-guarded
+//       (line 656 `if (window.renderFileList)`) so it silently no-ops
+//       on workspaces where app.js hasn't installed the global.
+//     - _clearVoid is null-guarded by `if (container)` (line 675) so
+//       it silently no-ops when #void-file-list is absent.
+//
+//   The earlier cluster doc (FRONT-002) flagged these as "dead
+//   coupling — globals never defined" — that read was incorrect. The
+//   globals ARE defined, just only on the logic-analyzer workspace.
+//   The null-guards make the code safe to leave wired on other
+//   workspaces. Keeping rather than removing.
 
 function _isolateFiles(status) {
     var manifest = window.VoidFileExplorer && window.VoidFileExplorer.getIndexedFingerprints
