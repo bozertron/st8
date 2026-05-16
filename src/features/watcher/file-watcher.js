@@ -48,6 +48,34 @@ class FileWatcher {
         // preserves the (path, type) distinction so a CREATE followed
         // by an EDIT in the same window still produces two entries.
         this.pendingChanges = new Map();
+        // Lightweight observability counters (ticket 14, wave 4A).
+        // No external instrumentation library; expose via getMetrics().
+        //   eventsReceived       — every chokidar add/change/unlink that
+        //                          reaches _onFileChange (post-ignore-list)
+        //   debounceMergeCount   — count of events that collapsed onto an
+        //                          existing pendingChanges key (i.e. the
+        //                          dedup actually fired)
+        //   flushCalls           — number of times _flush() has run
+        //   lastFlushAt          — ISO timestamp of the most recent flush
+        //                          (null until the first flush)
+        //   lastFlushSize        — number of change entries in the most
+        //                          recent flush array (post-dedup)
+        this._metrics = {
+            eventsReceived: 0,
+            debounceMergeCount: 0,
+            flushCalls: 0,
+            lastFlushAt: null,
+            lastFlushSize: 0
+        };
+    }
+
+    /**
+     * Returns a snapshot of the watcher's observability counters.
+     * Returned object is a shallow copy — mutating it does not affect
+     * internal state.
+     */
+    getMetrics() {
+        return { ...this._metrics };
     }
     
     start() {
@@ -119,6 +147,10 @@ class FileWatcher {
     
     _onFileChange(filePath, eventType) {
         const key = `${filePath}::${eventType}`;
+        this._metrics.eventsReceived++;
+        if (this.pendingChanges.has(key)) {
+            this._metrics.debounceMergeCount++;
+        }
         this.pendingChanges.set(key, { path: filePath, type: eventType });
 
         if (this.debounceTimer) {
@@ -135,7 +167,11 @@ class FileWatcher {
     async _flush() {
         const changes = Array.from(this.pendingChanges.values());
         this.pendingChanges.clear();
-        
+
+        this._metrics.flushCalls++;
+        this._metrics.lastFlushAt = new Date().toISOString();
+        this._metrics.lastFlushSize = changes.length;
+
         console.log(`[st8:watcher] Flushing ${changes.length} changes`);
         
         if (this.onFileChange) {

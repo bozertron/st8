@@ -102,14 +102,22 @@
     "filesChanged": [
       "src/features/watcher/file-watcher.js"
     ],
-    "commitHash": "PENDING",
+    "commitHash": "3b7ae97",
     "residualConcerns": null
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
     "userNote": "NO METRICS: the watcher has no observability — no count of events received, no debounce-merge ratio (input events / flush calls), no last-flush latency. For a long-running --watch session this is the first signal that something is wrong (chokidar event storm, debounce too short, callback blocking too long). Add a lightweight stats object: { eventsReceived, flushes, lastFlushDuration, lastFlushChanges } exposed via a GET /api/watcher/stats endpoint OR logged every N flushes.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4a-executor",
+    "actionsTaken": "Added a `_metrics` counter object initialised in the constructor with five fields: eventsReceived (every event reaching _onFileChange post-ignore-list), debounceMergeCount (events that collapsed onto an existing pendingChanges key — proves the ticket-4 dedup is firing), flushCalls (number of _flush() invocations), lastFlushAt (ISO timestamp of the most recent flush; null pre-first-flush), lastFlushSize (size of the change array at the most recent flush). _onFileChange increments eventsReceived and conditionally debounceMergeCount before set(). _flush() increments flushCalls + sets lastFlushAt + lastFlushSize. Exposed via a new public getMetrics() method that returns a shallow snapshot ({ ..._metrics }) so callers cannot mutate internal state. Smoke probe: 3 events on 2 distinct (path,type) keys, debounceMergeCount==1, post-flush flushCalls==1, lastFlushSize==2, lastFlushAt is an ISO string. No /api wiring per ticket guidance (frontend cluster's concern). Test coverage in ticket 3.",
+    "filesChanged": [
+      "src/features/watcher/file-watcher.js"
+    ],
+    "commitHash": "PENDING",
+    "residualConcerns": null
   },
   {
     "filepath": "src/frontend/services/coordination.js",
