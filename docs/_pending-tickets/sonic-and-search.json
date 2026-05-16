@@ -5,7 +5,10 @@
     "severity": "high",
     "status": "executed",
     "executedBy": "wave-5a-executor",
-    "actionsTaken": "Fix path (a): point to ../search/sonic-client.js. For (b) and (c) — MAESTRO assets never ported — replaced the broken requires with inert no-op stand-ins that log a single warning on first invocation (no silent fake success). Module now loads cleanly; PM-1 Layer 2 remains dormant and the founder's port-vs-rewrite decision in the roadmap still stands. Verified: `node -e \"require('.../background-indexer')\"` returns cleanly. Commit 4fea31f."
+    "actionsTaken": "Fix path (a): point to ../search/sonic-client.js. For (b) and (c) — MAESTRO assets never ported — replaced the broken requires with inert no-op stand-ins that log a single warning on first invocation (no silent fake success). Module now loads cleanly; PM-1 Layer 2 remains dormant and the founder's port-vs-rewrite decision in the roadmap still stands. Verified: `node -e \"require('.../background-indexer')\"` returns cleanly. Commit 4fea31f.",
+    "reviewVerdict": "ack",
+    "reviewedBy": "wave-5a-reviewer",
+    "reviewNote": "Independent LOAD OK probe passed. Stub factories are inline IIFEs returning warn-once-on-first-invoke wrappers — multiPassAnalyzer.getMultiPassAnalyzer() and precisionCapture.createCaptureManager() each set a closure-scoped `warned` flag, console.warn once, then return safe shapes (`{passes:[], insightsAdded:0, ported:false}` / `{beginSession,endSession}` no-ops). No throw on require, no silent success. Comments explicitly reference ticket 0 + roadmap. Honest dormancy confirmed."
   },
   {
     "filepath": "src/features/search/sonic-indexer.js",
@@ -13,7 +16,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-5a-executor",
-    "actionsTaken": "Annotation only — no behavior change. Added a watcher comment above the require explaining that the trio (client/indexer/queries) all share this dependency and a future rename of graph-persister.js would silently break Sonic indexing without test coverage. Commit 07e3c4d."
+    "actionsTaken": "Annotation only — no behavior change. Added a watcher comment above the require explaining that the trio (client/indexer/queries) all share this dependency and a future rename of graph-persister.js would silently break Sonic indexing without test coverage. Commit 07e3c4d.",
+    "reviewVerdict": "ack",
+    "reviewedBy": "wave-5a-reviewer",
+    "reviewNote": "Comment is informative (not 'TODO'); names the trio + co-location guidance. No code change, no risk."
   },
   {
     "filepath": "src/features/search/sonic-queries.js",
@@ -21,7 +27,10 @@
     "severity": "info",
     "status": "executed",
     "executedBy": "wave-5a-executor",
-    "actionsTaken": "Annotation only — no behavior change. Added a JSDoc block on the SonicQueries class documenting the fallback pattern, the public-to-SQLite method pairs, and the source-tag-but-no-consumer observation. Commit 8d4bce7."
+    "actionsTaken": "Annotation only — no behavior change. Added a JSDoc block on the SonicQueries class documenting the fallback pattern, the public-to-SQLite method pairs, and the source-tag-but-no-consumer observation. Commit 8d4bce7.",
+    "reviewVerdict": "ack",
+    "reviewedBy": "wave-5a-reviewer",
+    "reviewNote": "JSDoc lists all six public→SQLite method pairs and the source-tag-unconsumed observation. Useful future-telemetry pointer; zero code change."
   },
   {
     "filepath": "src/features/search/sonic-daemon.js",
@@ -35,7 +44,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-5a-executor",
-    "actionsTaken": "Moved chmod to module-load via ensureBinaryExecutable(). Idempotent: stat-checks owner +x bit and only chmods if missing; sets a module-scoped flag so re-starts skip the syscall. start() still calls the helper as a safety net for late-materialized binaries. Verified binary stays -rwxr-xr-x. Commit 76f2dca."
+    "actionsTaken": "Moved chmod to module-load via ensureBinaryExecutable(). Idempotent: stat-checks owner +x bit and only chmods if missing; sets a module-scoped flag so re-starts skip the syscall. start() still calls the helper as a safety net for late-materialized binaries. Verified binary stays -rwxr-xr-x. Commit 76f2dca.",
+    "reviewVerdict": "ack",
+    "reviewedBy": "wave-5a-reviewer",
+    "reviewNote": "ensureBinaryExecutable() runs once at module load, gated by _binaryEnsuredExecutable flag + owner-+x bit check (mode & 0o100). start() calls it again as a late-materialization safety net but the flag still short-circuits. Errors caught non-fatal. `ls -la docs/Sonic/sonic` confirms -rwxr-xr-x preserved."
   },
   {
     "filepath": "docs/Sonic/sonic (upstream)",
@@ -61,7 +73,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-5a-executor",
-    "actionsTaken": "Picked option (a) — added validateSonicConfig() to sonic-daemon.js that runs before spawn. Checks required sections, declared port matches SONIC_PORT, auth_password key present, ${SONIC_STORE_PATH} substitution appears at least twice (kv + fst). On failure, start() returns the specific reason and falls through to SQLite-only mode. 9 unit tests cover canonical-cfg pass + each synthesized failure mode. Commit 4154b85."
+    "actionsTaken": "Picked option (a) — added validateSonicConfig() to sonic-daemon.js that runs before spawn. Checks required sections, declared port matches SONIC_PORT, auth_password key present, ${SONIC_STORE_PATH} substitution appears at least twice (kv + fst). On failure, start() returns the specific reason and falls through to SQLite-only mode. 9 unit tests cover canonical-cfg pass + each synthesized failure mode. Commit 4154b85.",
+    "reviewVerdict": "ack",
+    "reviewedBy": "wave-5a-reviewer",
+    "reviewNote": "validateSonicConfig() inspects the five required sections, parses inet host:port and compares to SONIC_PORT (1491), confirms auth_password presence, and counts ${SONIC_STORE_PATH} substitutions (≥2). Distinct reason codes (config_read_failed/missing_sections/missing_inet/inet_unparseable/port_mismatch/missing_auth_password/missing_store_path_subst) bubble through start()'s graceful-degrade. Targeted run: 9 pass / 0 fail."
   },
   {
     "filepath": "src/features/search/sonic-client.js",
@@ -69,7 +84,10 @@
     "severity": "low",
     "status": "executed",
     "executedBy": "wave-5a-executor",
-    "actionsTaken": "Picked option (a), mirroring Wave 2C .st8/server.secret pattern. New ensureSonicPassword(targetDir) writes .st8/sonic.password (mode 0600, 32 random bytes hex) on first start. Runtime cfg materialization replaces auth_password in the patched copy; sonic-daemon then calls sonicClient.setPassword() (new method) so the singleton's three channels use the new key on next connect. Canonical docs/Sonic/sonic.cfg untouched. Graceful degrade to canonical key on filesystem error. 7 unit tests cover file creation, idempotency, mode 0600, regenerate-on-truncation, setPassword across channels, invalid-input rejection, runtime-cfg patching. Commit 86218e1."
+    "actionsTaken": "Picked option (a), mirroring Wave 2C .st8/server.secret pattern. New ensureSonicPassword(targetDir) writes .st8/sonic.password (mode 0600, 32 random bytes hex) on first start. Runtime cfg materialization replaces auth_password in the patched copy; sonic-daemon then calls sonicClient.setPassword() (new method) so the singleton's three channels use the new key on next connect. Canonical docs/Sonic/sonic.cfg untouched. Graceful degrade to canonical key on filesystem error. 7 unit tests cover file creation, idempotency, mode 0600, regenerate-on-truncation, setPassword across channels, invalid-input rejection, runtime-cfg patching. Commit 86218e1.",
+    "reviewVerdict": "ack",
+    "reviewedBy": "wave-5a-reviewer",
+    "reviewNote": "Independent probe (ensureSonicPassword on a fresh /tmp dir): 64 hex chars, file mode 600. setPassword updates this.password + searchChannel/ingestChannel/controlChannel option fields atomically; invalid input early-return preserves existing pw. start() requires sonic-client and invokes setPassword inside try/catch — graceful degrade preserved. Targeted run: 7 pass / 0 fail. MUTATION PROBE: stubbed setPassword body with early-return → 'updates all three channels' test failed (6/7). Restored cleanly. Tests have real teeth."
   },
   {
     "filepath": "src/features/search/sonic-daemon.js",
