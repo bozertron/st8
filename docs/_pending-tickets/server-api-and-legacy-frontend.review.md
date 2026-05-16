@@ -162,3 +162,88 @@ src/{core,features,frontend,shared}).
 during review. Safe to proceed to **Wave 5H** (legacy-frontend cleanup
 cluster: FRONT-001..FRONT-007 remain open per the JSON's untouched
 status fields).
+
+## Wave 5H Review
+
+Reviewer: `wave-5h-reviewer`
+Tickets in scope: 4, 5, 7, 16 (executor `wave-5h-executor`).
+Commits audited: `8150845`, `e8b0248`, `cb40905`, `128d8c6` (range
+`916d9b5..c2924f6`).
+Pre-flight: tests 363/0/0/0 at HEAD `c2924f6`. PRE-FLIGHT OK.
+
+### Per-ticket findings
+
+- **Ticket 16 — phoneOffHook docs.** ACK.
+  PHONE METAPHOR JSDoc block at `src/frontend/components/terminal/terminal.js:27-57`
+  enumerates the signal flow accurately: `phreakState.phoneOffHook`
+  default `false` at L68 → `togglePhoneOffHook` at L860 → click handlers
+  for `data-action="phone-toggle"` at L582, L1057, and the titlebar
+  hoist at `src/frontend/app.js:136-149` → `suppressed: phreakState.phoneOffHook`
+  recorded at terminal.js:429 → popup gated by `entry.provisioned &&
+  !entry.suppressed` at L442 → `getPhoneState()` exported at L1107 and
+  consumed by app.js L138-148 for status text + CSS class. Minor
+  naming/line-number drift (the doc names the internal reader
+  `_pushSignal()` at ~L397; the actual function is `receiveSignal` at
+  L419) — functionally equivalent, recorded as a note rather than a
+  kickback. Cluster doc section 3.2 metaphor paragraph at L289-297
+  matches.
+
+- **Ticket 7 — `_toggleHidden` + `LS_SHOW_HIDDEN` removal.** ACK.
+  Post-removal grep `_toggleHidden|LS_SHOW_HIDDEN|showHidden` across
+  `src/` + `tests/` returns ZERO hits — clean. Diff `e8b0248` removes
+  3 sites: (a) `showHidden: true` field from `explorerState`,
+  (b) function body + section header, (c) public export. Net
+  source-line delta matches the claim. `_filterEntries` at
+  file-explorer.js:110 is unchanged (still the `return entries`
+  no-op) which confirms the dead-function audit. Tests 363/0/0/0.
+
+- **Ticket 5 — `_isolateFiles` / `_clearVoid` documentation.** ACK.
+  Executor's premise rebuttal verified independently:
+  `grep _isolateFiles` in `terminal.js` shows callers at L586/589/592/595
+  (`isolate-{green,yellow,red,all}`) + definition L662; `_clearVoid`
+  called at L601 (`clear-void` button) + L720 (inside `_clearAll`).
+  Targets exist: `window.renderFileList = function` at `app.js:448`;
+  `'#void-file-list'` referenced at app.js:405 (innerHTML create) and
+  L449 (`getElementById` lookup). Both gated on
+  `workspace==='logic-analyzer'` exactly as the cluster doc states.
+  CROSS-COMPONENT COUPLING JSDoc block at terminal.js:629-660 is
+  factually correct. Cluster doc section 3.2 updated to supersede the
+  earlier FRONT-002 "stale references" read. NOT-REMOVING was the
+  correct call per NO-CHEATS.
+
+- **Ticket 4 — D3 vendored locally.** ACK.
+  `src/frontend/vendor/d3/d3.v7.min.js` present, **279,706 bytes**,
+  banner `// https://d3js.org v7.9.0 Copyright 2010-2023 Mike Bostock`.
+  `D3_VENDOR_URL = '/src/frontend/vendor/d3/d3.v7.min.js'` at
+  graph-viewer.js:29; `script.src = D3_VENDOR_URL` at L43 — no CDN
+  reference at any `script.src` site in `src/frontend/`. `onerror`
+  handler at L48-50 rejects with an actionable message containing the
+  refresh `curl` command. `grep d3js.org src/frontend/` returns 4
+  lines: the vendored file's own version banner, two comment-block
+  references (rationale + refresh procedure), and the error-message
+  hint — ZERO runtime references. Same-origin load relies on
+  `STATIC_DIR` being repo root (correct given app.js routing).
+
+### NO-CHEATS audit results
+
+- `ls -la src/frontend/vendor/d3/d3.v7.min.js` → file exists, 279,706 bytes (> 250 KB threshold). PASS.
+- `grep -rn 'd3js.org' src/frontend/` → 4 hits, all comment/banner/error-text. ZERO `script.src` references to CDN. PASS.
+- `grep -rn '_toggleHidden\|LS_SHOW_HIDDEN\|showHidden' src/ tests/` → ZERO hits post-removal. PASS.
+- `grep -n '_isolateFiles\|_clearVoid' src/frontend/components/terminal/*.js` → 4 callers (L586,589,592,595) + 1 (L601) + 1 (L720); definitions at L662 + L704. PASS.
+- `grep -n 'renderFileList' src/frontend/app.js` → defined at L448. PASS.
+- `grep -n 'void-file-list' src/frontend/app.js` → created at L405, consumed at L449. PASS.
+- phoneOffHook JSDoc: signal flow matches code with minor naming drift (noted, not blocking).
+
+### Counts
+
+- 4 ack / 0 kickback / 0 defer.
+- Test count final: 363 pass / 0 fail / 0 skip / 0 todo (matches pre-flight; reviewer made no source edits).
+
+### Cluster status
+
+Wave 5H executor delivered 4 frontend quick fixes cleanly. One real
+behaviour change (D3 vendoring) plus three documentation/removal
+fixes. The minor JSDoc naming drift (`_pushSignal` vs `receiveSignal`)
+in terminal.js:38 is a candidate for a polish pass during a later
+wave but does not block 5I. Safe to proceed to **Wave 5I** (UI/a11y
+cleanup: FRONT-003, FRONT-005, FRONT-006 remain open per the JSON).
