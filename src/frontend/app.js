@@ -23,6 +23,14 @@
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     };
 
+    // Ticket 14: pre-initialize window._st8FileIndex so downstream
+    // readers (onParticleClick lookup, makeTicketFromNotes) always see
+    // an object — even if bootConstellation()'s /api/connection-state
+    // fetch fails (offline, backend down) or runs after a Make-Ticket
+    // click. bootConstellation re-assigns this to the populated map on
+    // success; on failure the empty {} keeps reads from throwing.
+    if (!window._st8FileIndex) window._st8FileIndex = {};
+
     // ──────────────────────────────────────────────────────────
     // AUTH (ticket 27)
     //
@@ -228,6 +236,12 @@
       }
       const stage = document.getElementById('stage');
       if (!stage) return;
+      // Ticket 14: initialize the file-index up front so downstream
+      // readers (the onParticleClick lookup, makeTicketFromNotes) see
+      // an empty object rather than `undefined` if the manifest fetch
+      // fails (offline, backend down, boot race). Populated inside the
+      // success branch below.
+      if (!window._st8FileIndex) window._st8FileIndex = {};
       fetch('/api/connection-state.json')
         .then(function(r) { return r.ok ? r.json() : { files: [] }; })
         .then(function(data) {
