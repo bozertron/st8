@@ -299,7 +299,15 @@
     "filepath": "/home/user/st8/scripts/migration/check-conventions.js",
     "userNote": "Orphan-detection (check #6) over-reports for frontend files loaded via <script src> from src/frontend/index.html. Today the script skips src/frontend/ entirely (line 336) so this is latent — but if anyone ever adds a <script src='src/features/...'> include directly to the HTML shell, it will be reported as orphan. Make the skip-list configurable, or scan index.html for <script src> tags and treat those as 'referenced'.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Added collectHtmlScriptRefs() that parses src/frontend/index.html (and any future HTML shells) for <script src='...'> tags and resolves them to absolute paths, seeding the 'referenced' set in checkOrphans. Removed the blanket src/frontend/ skip — now a frontend file is only suppressed if it's actually referenced (from HTML or from a require()), or it's in the expectedOrphans allowlist, or it lives under src/frontend/vendor/. Exported collectHtmlScriptRefs + checkOrphans for unit tests and gated main() behind require.main === module. Added tests/scripts/migration/check-conventions.test.js (5 cases): script-tag parsing, CDN/absolute-URL skip, missing-file no-throw, ref-vs-non-ref classification, and an integration check that real components in index.html aren't orphans. Verified: `node check-conventions.js` reports 11 orphans (the known-residual non-frontend cases), DOWN from 16 — the 5 file-explorer/terminal/graph-viewer/settings/coordination files previously masked by the blanket skip are now correctly seen as referenced.",
+    "filesChanged": [
+      "scripts/migration/check-conventions.js",
+      "tests/scripts/migration/check-conventions.test.js"
+    ],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/scripts/migration/verify.js",

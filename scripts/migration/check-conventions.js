@@ -281,9 +281,51 @@ function checkBoundaryViolations(files) {
 
 // ─── CHECK 6 — ORPHAN MODULES ─────────────────────────────────────
 
+/**
+ * Scan an HTML file for <script src="..."> tags and resolve each src to an
+ * absolute path on disk. Used so the orphan detector counts files referenced
+ * by the frontend's index.html as "referenced", rather than blanket-skipping
+ * src/frontend/.
+ *
+ * Returns a Set of absolute paths. Non-existent targets are dropped.
+ */
+function collectHtmlScriptRefs(htmlAbsPath) {
+  const refs = new Set();
+  if (!fs.existsSync(htmlAbsPath)) return refs;
+  let text;
+  try {
+    text = fs.readFileSync(htmlAbsPath, 'utf8');
+  } catch (_) {
+    return refs;
+  }
+  const dir = path.dirname(htmlAbsPath);
+  // Tolerant of single/double quotes and extra attrs in any order.
+  const re = /<script\b[^>]*\bsrc\s*=\s*['"]([^'"]+)['"][^>]*>/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const spec = m[1];
+    if (/^https?:\/\//i.test(spec)) continue; // CDN/external
+    if (spec.startsWith('/')) continue; // absolute URL, can't map
+    const abs = path.resolve(dir, spec);
+    if (fs.existsSync(abs) && fs.statSync(abs).isFile()) refs.add(abs);
+  }
+  return refs;
+}
+
 function checkOrphans(files) {
   const jsFiles = files.filter((f) => /\.js$/.test(f) && !/\.css$/.test(f));
   const referenced = new Set();
+
+  // Seed with explicit HTML <script src> references — frontend files loaded
+  // by the browser are not require()'d from anywhere, but they are NOT
+  // orphans. Previously the orphan check blanket-skipped src/frontend/,
+  // which masked genuinely-unused frontend files. Treat HTML script tags
+  // as a first-class reference source.
+  const htmlShells = [path.join(SRC_ROOT, 'frontend', 'index.html')];
+  for (const html of htmlShells) {
+    for (const ref of collectHtmlScriptRefs(html)) referenced.add(ref);
+  }
+
   for (const f of jsFiles) {
     const text = fs.readFileSync(f, 'utf8');
     let ast;
@@ -332,12 +374,18 @@ function checkOrphans(files) {
   for (const f of jsFiles) {
     if (referenced.has(f)) continue;
     if (expectedOrphans.has(f)) continue;
-    // Skip frontend — those are loaded via <script src> not require()
-    if (/^src\/frontend\//.test(rel(f))) continue;
+    // Vendor bundles are referenced by HTML or bundled into other vendors
+    // and aren't structural orphans; suppress to keep signal-to-noise high.
+    if (/^src\/frontend\/vendor\//.test(rel(f))) continue;
     orphans.push(rel(f));
   }
   return orphans;
 }
+
+// Export internals for unit tests (no-op when run as CLI — main() still
+// fires below). Keeping the export under module.exports preserves the
+// shebang-driven `node scripts/migration/check-conventions.js` invocation.
+module.exports = { collectHtmlScriptRefs, checkOrphans };
 
 // ─── REPORT ──────────────────────────────────────────────────────
 
@@ -421,4 +469,8 @@ function main() {
   console.log(`\nFull report: ${rel(outPath)}`);
 }
 
-main();
+// Only run main() when invoked directly via `node scripts/migration/...`.
+// `require()` from a unit test should NOT trigger the report writer.
+if (require.main === module) {
+  main();
+}
