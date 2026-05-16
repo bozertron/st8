@@ -37,15 +37,23 @@
     // to the SQLite st8_settings table. The 8KB cap + enum/type
     // validation is enforced server-side; this adapter just reports
     // success/failure as a boolean (callers handle revert).
+    //
+    // Auth: routes through window.st8AuthFetch (defined in app.js)
+    // so the X-St8-Secret header is attached when present. The
+    // /api/settings handler does not currently enforce the header,
+    // but routing through the wrapper keeps this adapter aligned
+    // with the rest of the write-route convention (cf. /api/tickets
+    // POST). If /api/settings is gated later, no callsite change
+    // is needed.
     function BackendAdapter() {}
     BackendAdapter.prototype.loadAll = function () {
-        return fetch('/api/settings').then(function (res) {
+        return window.st8AuthFetch('/api/settings').then(function (res) {
             if (!res.ok) throw new Error('Failed to load settings: ' + res.status);
             return res.json();
         });
     };
     BackendAdapter.prototype.persist = function (category, key, value) {
-        return fetch('/api/settings', {
+        return window.st8AuthFetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ category: category, key: key, value: value })
