@@ -50,8 +50,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L1 prerequisite for the lock-state.js (ticket 11), HOOKS.LOCK_CHANGED subscribers (ticket 5), API routes (ticket 6), and bootstrap migration (ticket 14). Must land first within Phase L1.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L1 pointer verified at roadmap lines 41-46 (locked column + idx_file_registry_locked + bootstrap migration). D1 default = column is stated at roadmap line 73. Cross-cluster dependency claim (none, schema-additions via EXPECTED_SCHEMA migration path) is correct. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/core/hook-registry.js",
@@ -64,8 +64,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L1 prerequisite for API routes (ticket 6) and SSE wiring to the lock panel (ticket 13) / file-explorer badge (ticket 9). Subscribers depend on ticket 4 (locked column) + ticket 11 (lock-state.js) landing first.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L1 pointer verified at roadmap lines 52-64 — three subscribers (P=10 regenerate-protected-file, P=20 lock-mutation-log, P=30 lock-activity-log) match the Wave 8A ticket-15 audit-trail decision. Pattern follows COMMIT_RECORDED / TICKET_CREATED precedent. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/core/server/app.js",
@@ -78,8 +78,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Last-to-land within Phase L1 — exit criterion 'curl -X POST /api/lock flips a file to read-only AND records in SQLite AND fires hook AND emits SSE' is gated on this ticket.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L1 pointer verified at roadmap lines 66-71 — three routes (POST /api/lock, POST /api/unlock, GET /api/locks). X-St8-Secret auth pattern claim consistent with the API table in CLAUDE.md. Exit criterion at lines 77-79. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/scripts/git-hooks/install.sh",
@@ -92,8 +92,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L3 prerequisite for git-hook-installer.js (ticket 12); both ship together as a coherent slice.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L3 pointer verified at roadmap lines 117-146 (entire Phase L3 section); install.sh bullet specifically at line 132. Co-managed pre-commit + post-commit symlink approach correct. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -116,8 +116,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L2 render-sink — coordinated with constellation update; both wire the same SSE event.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L2 pointer verified at roadmap lines 108-110 (file-explorer badge bullet inside L2 81-115). Single-subscription / two-render-sinks pattern matches the constellation wiring at lines 101-106. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/features/locks/lock-manager.js",
@@ -130,8 +130,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "First-to-land within Phase L1; lock-state.js (ticket 11) and the API routes (ticket 6) both call into this module.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L1 pointer verified at roadmap lines 36-39 (lock-manager.js bullet). Confirmed forward-looking: ls src/features/locks/lock-manager.js returns 'No such file or directory'. Pure fs.chmodSync wrapper / no SQLite / no SSE classification matches the L1 design. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/features/locks/lock-state.js",
@@ -144,8 +144,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L1 mid-tier dependency — sequencing is ticket 4 (column) → ticket 10 (chmod primitive) → ticket 11 (this) → ticket 5 (hook + subscribers) → ticket 6 (routes) → ticket 14 (bootstrap).",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L1 pointer verified at roadmap lines 48-50 (lock-state.js bullet). Confirmed forward-looking: ls src/features/locks/lock-state.js returns 'No such file or directory'. Rides st8.sqlite (no separate DB) matches the L1 design. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/features/locks/git-hook-installer.js",
@@ -158,8 +158,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L3 — ships alongside ticket 7 (install.sh extension) as a coherent slice. Exit criterion: git commit on a locked file rejected with st8-branded error even if user manually chmod 644'd in between.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L3 pointer verified at roadmap lines 121-124 (git-hook-installer.js bullet). Confirmed forward-looking: ls src/features/locks/git-hook-installer.js returns 'No such file or directory'. Versioned-header + prior-customization-detection + idempotent design matches roadmap. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/lock-panel/lock-panel.js",
@@ -172,8 +172,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Phase L2 — the user-visible payoff of the entire cluster. Exit criterion: lock via panel → particle pink within ~50ms → explorer badge appears → unlock reverses both; multi-tab test must pass.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L2 pointer verified at roadmap lines 85-94 (lock-panel.{js,css} bullet). Confirmed forward-looking: ls src/frontend/components/lock-panel/lock-panel.js returns 'No such file or directory'. NO-inline-styles constraint (lesson from dive-in.js soup) properly carried into scope. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
@@ -186,8 +186,8 @@
     "filesChanged": [],
     "commitHash": null,
     "residualConcerns": "Severity 'med' (only med-severity ticket in the cluster) because first-run lies in the panel UI would damage trust early. Must ship in the same commit as the column-add migration to keep state coherent.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Phase L1 pointer verified at roadmap lines 41-46 (bootstrap migration clause inside the file_registry column-add bullet). Correctly identified as same-commit-as-column-add to avoid SQLite-vs-disk state divergence. Defer accepted."
   },
   {
     "filepath": "/home/user/st8/src/core/hooks/default-subscribers.js",
