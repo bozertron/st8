@@ -9,7 +9,9 @@
     "actionsTaken": "Resolved upstream by Wave 2B — see hooks ticket 6. The new onFileChange wrapper is 69 lines (40 LOC of real code) with two FILE_AFTER_CHANGE subscribers (schema-card-emitter P=20, sse-broadcaster P=30). Confirmed via `git log --oneline --grep='decompose 215-line'` → commit 13ec011 'refactor(hooks): decompose 215-line onFileChange into FILE_BEFORE/AFTER hooks'. The onFileChange callback in src/core/server/main.js now fires HOOKS.FILE_BEFORE_CHANGE (line 411) and HOOKS.FILE_AFTER_CHANGE (line 431), with the add/change/unlink dispatch reduced to a thin orchestrator. The named hook constants now have real publishers and Louis lock checks / real-time UI mirrors / audit listeners can subscribe without patching main.js. No Wave 4A code change required.",
     "filesChanged": [],
     "commitHash": "13ec011",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified. `git log --grep='decompose 215-line'` returns commit 13ec011; `git show 13ec011` confirms _applyFileChange helper + FILE_BEFORE_CHANGE / FILE_AFTER_CHANGE publishers with two subscribers (schema-card-emitter P=20, sse-broadcaster P=30) registered upstream. 4A commit 1bf216f is JSON-only (1 file, 7 insertions) — correct posture for resolved-upstream."
   },
   {
     "filepath": "src/frontend/app.js",
@@ -35,7 +37,9 @@
       "tests/features/watcher/file-watcher.test.js"
     ],
     "commitHash": "8b21c52",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified 11 real probes drive the actual _onFileChange/_flush/stop with real setTimeout (debounceMs=30, no fake clocks, no SUT mocks, no assert.ok(true) cheats). Targeted run: 11 pass / 0 fail in 1217 ms. Probes cover dedup, CREATE+EDIT preservation, Array-not-Map handler arg, debounce-reset (drip every DEBOUNCE-10 ms × 3 = exactly 1 flush), stop() timer cancellation, handler-rejection recovery, and all 5 metrics counters including snapshot isolation."
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
@@ -49,7 +53,9 @@
       "src/features/watcher/file-watcher.js"
     ],
     "commitHash": "d780c31",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified file-watcher.js:50 is `new Map()`; _onFileChange:149 builds composite key `${filePath}::${eventType}` and set()s the change object. Mutation probe: replacing the key with Symbol() flipped the dedup test (25→25 entries instead of 1) AND the merge-count test (0 instead of 3) — exactly the right two failures. CREATE+EDIT preservation probe confirms composite key avoids the Map<path>-last-write-wins trap so main.js's per-type dispatch remains correct."
   },
   {
     "filepath": "src/core/database/persistence.js",
@@ -111,7 +117,9 @@
       "src/features/watcher/file-watcher.js"
     ],
     "commitHash": "3b7ae97",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified `**/*.json` and `**/*.toml` removed; replaced by absolute root-only paths `path.join(targetDir,'connection-state.json')` and `path.join(targetDir,'ai-signal.toml')`. node_modules/.git/.st8/dist/build/__pycache__/.venv/venv/snapshots/.archive/.sqlite globs all intact — no accidental re-enabling of node_modules/**/*.json or .git/**. Inline comment block documents the audit decision plus downstream safety nets (CODE_EXTENSIONS + SELF_WRITTEN_BASENAMES). Subdir-manifest residual is bounded and acceptable."
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
@@ -125,7 +133,9 @@
       "src/features/watcher/file-watcher.js"
     ],
     "commitHash": "367d0d1",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified _metrics initialised in constructor with the 5 required counters (eventsReceived, debounceMergeCount, flushCalls, lastFlushAt:null, lastFlushSize:0). getMetrics() returns `{ ..._metrics }` shallow copy. Out-of-band isolation probe: `a.eventsReceived = 99999; b = getMetrics()` → mutated a=99999, fresh b=0. Internal state untouched. Counters increment at the right call sites (eventsReceived pre-check, debounceMergeCount on has(key), flushCalls/lastFlushAt/lastFlushSize in _flush). Shallow copy is safe for the current flat-primitive shape."
   },
   {
     "filepath": "src/frontend/services/coordination.js",
