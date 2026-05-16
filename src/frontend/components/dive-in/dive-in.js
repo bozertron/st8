@@ -372,22 +372,23 @@ const LINE_MATERIAL = new THREE.LineBasicMaterial({
 
 function ensureOverlay() {
   if (state.overlay) return state.overlay;
+  // ─── Ticket 0 — overlay DOM built with class names only ──────
+  // All visual rules (positioning, colors, hover/active, responsive,
+  // prefers-reduced-motion) live in components/dive-in/dive-in.css.
+  // This builder only assigns identifiers and class names — the CSS
+  // file owns the look. Display toggling uses the .open class
+  // (see show/hide) instead of inline style.display.
   const overlay = document.createElement('div');
   overlay.id = 'dive-in-overlay';
   overlay.className = 'dive-in-overlay';
-  overlay.style.cssText = [
-    'position:fixed', 'inset:0', 'z-index:80',
-    'background:rgba(10,10,11,0.96)', 'backdrop-filter:blur(8px)',
-    '-webkit-backdrop-filter:blur(8px)', 'display:none',
-  ].join(';');
   overlay.innerHTML = [
-    '<div class="dive-in-header" style="position:absolute;top:24px;left:24px;color:rgba(212,175,55,0.85);font-family:\'Poiret One\',sans-serif;font-size:14px;letter-spacing:3px;text-transform:uppercase;">',
+    '<div class="dive-in-header">',
     '  <div id="dive-in-filepath"></div>',
-    '  <div id="dive-in-meta" style="margin-top:6px;opacity:0.5;font-size:11px;letter-spacing:2px;"></div>',
+    '  <div id="dive-in-meta"></div>',
     '</div>',
-    '<button id="dive-in-close" aria-label="Close dive-in" style="position:absolute;top:24px;right:24px;background:transparent;border:none;color:#D4AF37;font-size:32px;cursor:pointer;text-shadow:0 0 8px rgba(201,116,143,0.5);">◇</button>',
-    '<button id="dive-in-notes" style="position:absolute;bottom:32px;right:32px;background:transparent;border:1px solid rgba(201,116,143,0.5);color:#D4AF37;padding:10px 20px;font-family:\'Poiret One\',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:4px;text-shadow:0 0 6px rgba(201,116,143,0.4);">Notes / Make Ticket</button>',
-    '<div id="dive-in-canvas-host" style="position:absolute;inset:0;"></div>',
+    '<button id="dive-in-close" aria-label="Close dive-in">◇</button>',
+    '<button id="dive-in-notes">Notes / Make Ticket</button>',
+    '<div id="dive-in-canvas-host"></div>',
   ].join('');
   document.body.appendChild(overlay);
   overlay.querySelector('#dive-in-close').addEventListener('click', hide);
@@ -397,7 +398,8 @@ function ensureOverlay() {
     }
   });
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && state.overlay && state.overlay.style.display !== 'none') hide();
+    // Ticket 0 — display state lives in the .open class now, not inline style.
+    if (e.key === 'Escape' && state.overlay && state.overlay.classList.contains('open')) hide();
   });
   state.overlay = overlay;
   return overlay;
@@ -409,7 +411,7 @@ export function show(file) {
   if (!file) return;
   state.currentFile = file;
   const overlay = ensureOverlay();
-  overlay.style.display = 'block';
+  overlay.classList.add('open');
 
   // Header
   overlay.querySelector('#dive-in-filepath').textContent = file.filepath || file.filename || '';
@@ -431,7 +433,7 @@ export function show(file) {
 
 export function hide() {
   if (!state.overlay) return;
-  state.overlay.style.display = 'none';
+  state.overlay.classList.remove('open');
   stopAnim();
   // ─── Ticket 17 — stop autoRotate while hidden ───────────────
   // controls.autoRotate was previously left enabled; even with the
@@ -473,7 +475,8 @@ export function destroy() {
 }
 
 export function isOpen() {
-  return !!(state.overlay && state.overlay.style.display !== 'none');
+  // Ticket 0 — overlay open-state is driven by the .open class.
+  return !!(state.overlay && state.overlay.classList.contains('open'));
 }
 
 export function setStatus(file, status) {
