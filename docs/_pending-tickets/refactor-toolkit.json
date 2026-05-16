@@ -67,9 +67,16 @@
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
     "actionsTaken": "Deleted backend/ entirely via `git rm -r backend/`. Pre-check: grepped src/, tests/, scripts/ for `backend/SCHEMA-CARD`, `backend/SECURITY-AUDIT`, `backend/package.json` — only documentary references in st8_bible.md L2390, docs/components/refactor-toolkit.md (history), docs/_pending-roadmap/refactor-toolkit.md L16 (which explicitly says 'Delete backend/package.json'). No source/script/test code imports backend/. Git history retains all 3 files. Tests stay 373/373.",
-    "filesChanged": ["backend/SCHEMA-CARD-EMITTER-REPORT.md", "backend/SECURITY-AUDIT-H1.md", "backend/package.json"],
+    "filesChanged": [
+      "backend/SCHEMA-CARD-EMITTER-REPORT.md",
+      "backend/SECURITY-AUDIT-H1.md",
+      "backend/package.json"
+    ],
     "commitHash": "7f66a1a",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: `ls backend/` returns \"No such file or directory\". `grep -rE \"require\\([\\'\"](\\.{1,2}/)*backend/|from [\\'\"](\\.{1,2}/)*backend/\" src/ scripts/ tests/` returns zero live refs. Remaining \"backend/\" mentions in src/ are comments/documentary only. Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/backend/SCHEMA-CARD-EMITTER-REPORT.md",
@@ -79,9 +86,14 @@
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
     "actionsTaken": "Deleted as part of backend/ cleanup. Git retains full history; this is a stale report against backend/schemaCardEmitter.js (now src/features/schema-cards/emitter.js). The current emitter has its own Wave 2C/3B docs.",
-    "filesChanged": ["backend/SCHEMA-CARD-EMITTER-REPORT.md"],
+    "filesChanged": [
+      "backend/SCHEMA-CARD-EMITTER-REPORT.md"
+    ],
     "commitHash": "7f66a1a",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: file removed in commit 7f66a1a. Git retains full history. No live import refs to backend/. Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/backend/SECURITY-AUDIT-H1.md",
@@ -91,9 +103,14 @@
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
     "actionsTaken": "Deleted as part of backend/ cleanup. Git retains full history; the audit was against pre-refactor backend/ code that no longer exists at those paths. Wave 1/2 hardening (FK pragma, schema drift detector, X-St8-Secret auth) supersede the audit's findings.",
-    "filesChanged": ["backend/SECURITY-AUDIT-H1.md"],
+    "filesChanged": [
+      "backend/SECURITY-AUDIT-H1.md"
+    ],
     "commitHash": "7f66a1a",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: file removed in commit 7f66a1a. Findings superseded by Wave 1/2 hardening (FK pragma, schema drift detector, X-St8-Secret auth). Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/backend/package.json",
@@ -103,9 +120,14 @@
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
     "actionsTaken": "Deleted as part of backend/ cleanup. Verified no scripts cd into backend/ — repo-root package.json has been authoritative since batch 010. Roadmap doc explicitly authorized deletion.",
-    "filesChanged": ["backend/package.json"],
+    "filesChanged": [
+      "backend/package.json"
+    ],
     "commitHash": "7f66a1a",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: file removed in commit 7f66a1a. Root package.json remains authoritative; no scripts cd into backend/. Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/0_MASTER_INDEX.md",
@@ -312,7 +334,10 @@
       "tests/scripts/migration/check-conventions.test.js"
     ],
     "commitHash": "0fd0e2f",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: read collectHtmlScriptRefs() + checkOrphans(), confirmed HTML-aware reference seeding replaces blanket src/frontend/ skip. Ran `node scripts/migration/check-conventions.js` — Orphan modules: 11 (matches claim, down from 16). Targeted tests pass 5/5. main() correctly gated by require.main === module. Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/verify.js",
@@ -327,7 +352,10 @@
       "tests/scripts/migration/verify.test.js"
     ],
     "commitHash": "76f108b",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: detectBrowserOnly() contains 10 patterns (window, document, navigator, location, localStorage, sessionStorage, history.pushState/etc, typeof window/document/navigator, customElements, HTMLElement) with non-word-char anchoring. Comment-stripping (block then line) runs BEFORE pattern match. Targeted tests pass 12/12. Mutation probe: removed the window pattern -> \"detects window.X member access as browser-only\" failed as expected; restored cleanly. Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/OGB",
@@ -350,7 +378,10 @@
       "tests/scripts/migration/manifest-history.test.js"
     ],
     "commitHash": "2c39a28",
-    "residualConcerns": null
+    "residualConcerns": null,
+    "verdict": "ack",
+    "reviewNote": "Verified: scripts/migration/manifest-history.jsonl has exactly 12 entries (one per batch). Inspected entries shared/analysis/background-indexer — each carries batch, description, generatedAt, verifiedAt, gitCommit, moves[]. Idempotency: re-ran backfill-manifest-history.js -> \"Done: 0 appended, 12 skipped.\" Line count stays 12. Targeted tests pass 8/8. Tests 398/398.",
+    "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",
