@@ -228,3 +228,53 @@
     0 0 14px rgba(var(--pink-rgb), 0.45);
 }
 .dock-diamond:active { transform: scale(0.96); }
+
+/* ─── NARROW-VIEWPORT GUARDS (ticket 18) ──────────────────────
+   The strip is sized at 300vw with `transform: translateX(-100vw)` for
+   the centered st8 panel. The .panels-viewport (overflow:hidden) is the
+   primary containment; html/body `overflow:hidden` in base.css is the
+   global backstop. Together these prevent the 300vw strip from leaking
+   a horizontal scrollbar onto the document. So far so good.
+
+   What this @media block adds:
+   - On viewports narrower than 768px the per-column padding
+     (var(--space-5) ≈ 24px each side) eats too much of the visible
+     100vw, leaving the panel-frame visibly cramped and pushing the
+     titlebar text into the close-diamond. Reduce to var(--space-3).
+   - The shelf grid `auto 1fr auto` already collapses cleanly when the
+     center grows/shrinks, but the slide-diamond hit targets (44×44)
+     plus the shelf padding (var(--space-5)) can sum to >25% of a
+     narrow viewport. Drop the shelf side-padding on narrow screens
+     so the diamonds stay closer to the screen edge — which is also
+     the founder's "always at the edges" mental model.
+   - sub-360px (phones in portrait): the panel-titlebar text size from
+     panels.css can wrap and push the panel-body downward; force a
+     single-line ellipsis on .panel-title via overflow:hidden +
+     text-overflow:ellipsis as a containment of last resort.
+
+   None of these change behavior on desktop (>=768px); they are pure
+   safety margins for users who narrow the window or load on a phone. */
+
+@media (max-width: 768px) {
+  .panel-column {
+    padding: var(--space-3, 12px);
+  }
+  .shelf {
+    padding: 0 var(--space-3, 12px);
+    gap: var(--space-3, 12px);
+  }
+  .slide-diamond {
+    width: 40px;
+    height: 40px;
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 360px) {
+  .panel-titlebar .panel-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+}
