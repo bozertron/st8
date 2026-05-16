@@ -81,6 +81,20 @@ const DEFAULT_SETTINGS = {
     models: [],
     shells: [],
     keybindings: [],
+    // ─── theme (DORMANT BUT PLANNED — ticket 7 audit, Wave 5C) ──
+    // The UI renders + persists edits to these keys but nothing
+    // consumes them today (grep src/ for `palette_overrides`,
+    // `font_sizes`, `spacing_scale` — only this object matches).
+    //
+    // Outcome (b) from the ticket: dormant but planned. The wiring is
+    // already on the roadmap as P2.3 in
+    // docs/_pending-roadmap/settings-and-providers.md ("Apply theme
+    // tokens"), which describes the applyTheme(theme) pass that walks
+    // these objects and writes CSS custom properties on
+    // document.documentElement after loadSettings() resolves.
+    //
+    // Do NOT remove these keys without first deleting the P2.3 entry —
+    // the category is intentionally write-only until P2.3 lands.
     theme: {
         palette_overrides: {},
         font_sizes: {},
@@ -158,9 +172,13 @@ function renderCategoryEntries(categoryId) {
         // Key-value pairs (e.g., voidflow, theme)
         html += '<div class="settings-form">';
         Object.keys(entries).forEach(function(key) {
-            var value = entries[key];
+            // Ticket 4: coerce against DEFAULT_SETTINGS' expected type
+            // so a SQLite round-trip that turned `200` into `"200"`
+            // doesn't collapse a number input into a text input.
+            var value = coerceSettingValue(categoryId, key, entries[key]);
+            entries[key] = value;
             var type = typeof value;
-            
+
             html += '<div class="settings-field">' +
                 '<label class="settings-label">' + key.replace(/_/g, ' ').toUpperCase() + '</label>';
             
@@ -197,24 +215,53 @@ function updateValue(categoryId, key, value) {
     if (!settingsState.entries[categoryId]) {
         settingsState.entries[categoryId] = {};
     }
+    // Capture the previous value so we can revert on persist failure
+    // (ticket 9). `undefined` means "the key did not exist" — the
+    // revert deletes it back out instead of writing `undefined`.
+    var hadKey = Object.prototype.hasOwnProperty.call(settingsState.entries[categoryId], key);
+    var prevValue = hadKey ? settingsState.entries[categoryId][key] : undefined;
     settingsState.entries[categoryId][key] = value;
-    
-    // Persist to backend
-    _persistSetting(categoryId, key, value);
-    console.info('[st8] Settings updated:', categoryId, key, value);
+
+    // Persist to backend. Ticket 9: read the response and revert UI
+    // state on non-2xx so we don't silently retain bad data after a
+    // ticket-8 enum rejection (or any other 4xx/5xx).
+    return _persistSetting(categoryId, key, value).then(function(ok) {
+        if (!ok) {
+            if (hadKey) {
+                settingsState.entries[categoryId][key] = prevValue;
+            } else {
+                delete settingsState.entries[categoryId][key];
+            }
+            // Re-render so the form reflects the rolled-back state.
+            if (settingsState.activeCategory === categoryId &&
+                typeof document !== 'undefined') {
+                renderCategoryEntries(categoryId);
+            }
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn('[st8] Settings rejected by server; reverted',
+                             categoryId, key);
+            }
+        } else {
+            console.info('[st8] Settings updated:', categoryId, key, value);
+        }
+        return ok;
+    });
 }
 
 function _persistSetting(categoryId, key, value) {
-    fetch('/api/settings', {
+    return fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category: categoryId, key: key, value: value })
     }).then(function(res) {
         if (!res.ok) {
             console.warn('[st8] Failed to persist setting:', categoryId, key, res.status);
+            return false;
         }
+        return true;
     }).catch(function(err) {
         console.warn('[st8] Settings persistence error:', err.message);
+        return false;
     });
 }
 
@@ -226,9 +273,12 @@ function loadSettings() {
         })
         .then(function(result) {
             if (result && result.data) {
-                // Merge loaded settings into state
+                // Merge loaded settings into state — first migrate old
+                // keys (ticket 5), then type-coerce values (ticket 4).
                 Object.keys(result.data).forEach(function(category) {
-                    settingsState.entries[category] = result.data[category];
+                    var raw = result.data[category];
+                    var migrated = migrateCategoryKeys(category, raw);
+                    settingsState.entries[category] = coerceCategoryValues(category, migrated);
                 });
                 console.info('[st8] Settings loaded from backend:', Object.keys(result.data).length, 'categories');
             }
@@ -355,6 +405,143 @@ function showSettingsInExplorer() {
 
     // Load persisted settings
     loadSettings();
+}
+
+// ─── MODULE-LOAD ASSERTIONS ──────────────────────────────────
+//
+// Ticket 3 (Wave 5C): SETTINGS_CATEGORIES and DEFAULT_SETTINGS must
+// stay in lock-step. A typo on one side (e.g. `void_flow` vs
+// `voidflow`) silently produces an empty form because
+// renderCategoryEntries falls through to `{}`. Assert at module load
+// that the two sets of keys are identical.
+//
+// We *throw* in non-browser environments (test harness) so that the
+// drift is caught loudly during CI. In a real browser we still throw
+// — but settings.js loads early enough that the error surfaces in the
+// console long before any user interaction.
+(function _assertCategoriesMatchDefaults() {
+    var catIds = SETTINGS_CATEGORIES.map(function(c) { return c.id; }).sort();
+    var defKeys = Object.keys(DEFAULT_SETTINGS).sort();
+    if (catIds.join(',') !== defKeys.join(',')) {
+        var msg = '[st8] SETTINGS_CATEGORIES / DEFAULT_SETTINGS mismatch: ' +
+                  'categories=[' + catIds.join(',') + '] defaults=[' + defKeys.join(',') + ']';
+        // Surface on console for browser visibility, then throw so
+        // tests + CI catch drift.
+        if (typeof console !== 'undefined' && console.error) console.error(msg);
+        throw new Error(msg);
+    }
+})();
+
+// ─── TYPE VALIDATION (ticket 4) ──────────────────────────────
+//
+// Ticket 4 (Wave 5C): SQLite round-trips can return strings where
+// DEFAULT_SETTINGS declares numbers/booleans (e.g. reveal_wpm stored
+// as "200" instead of 200). renderCategoryEntries previously inferred
+// input type from `typeof value` only, so a string-typed number
+// collapsed to a text input. coerceSettingValue() compares the loaded
+// value against DEFAULT_SETTINGS' type and coerces or warns.
+//
+// Returns the coerced value. If coercion is impossible (e.g. "hello"
+// where a number is expected), returns the DEFAULT_SETTINGS value and
+// logs a warning — never throws, never silently corrupts state.
+function coerceSettingValue(categoryId, key, value) {
+    var defaults = DEFAULT_SETTINGS[categoryId];
+    // Arrays + missing categories: pass through (array categories
+    // have per-entry shapes, not scalar key types).
+    if (!defaults || Array.isArray(defaults)) return value;
+    if (!Object.prototype.hasOwnProperty.call(defaults, key)) return value;
+
+    var expected = typeof defaults[key];
+    var actual = typeof value;
+    if (expected === actual) return value;
+
+    // Cross-type coercion attempts.
+    if (expected === 'number' && actual === 'string') {
+        var n = parseFloat(value);
+        if (!Number.isNaN(n) && Number.isFinite(n)) return n;
+    }
+    if (expected === 'boolean' && actual === 'string') {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+    }
+    if (expected === 'string' && (actual === 'number' || actual === 'boolean')) {
+        return String(value);
+    }
+    if (expected === 'object' && actual === 'string') {
+        try {
+            var parsed = JSON.parse(value);
+            if (typeof parsed === 'object' && parsed !== null) return parsed;
+        } catch (_) { /* fall through to default below */ }
+    }
+
+    // Coercion impossible — fall back to default + warn.
+    if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[st8] settings type mismatch ' + categoryId + '.' + key +
+                     ': expected ' + expected + ', got ' + actual +
+                     ' (' + JSON.stringify(value) + ') — using default');
+    }
+    return defaults[key];
+}
+
+function coerceCategoryValues(categoryId, entries) {
+    var defaults = DEFAULT_SETTINGS[categoryId];
+    if (!defaults || Array.isArray(defaults) || !entries || typeof entries !== 'object' || Array.isArray(entries)) {
+        return entries;
+    }
+    var out = {};
+    Object.keys(entries).forEach(function(k) {
+        out[k] = coerceSettingValue(categoryId, k, entries[k]);
+    });
+    return out;
+}
+
+// ─── SETTINGS KEY MIGRATIONS (ticket 5) ──────────────────────
+//
+// Ticket 5 (Wave 5C): st8_settings has no schema migration story.
+// The full migration framework is deferred to P1.1 (see
+// docs/_pending-roadmap/persistence-and-database.md). For settings
+// SPECIFICALLY, we maintain a tiny per-key rename map: when
+// loadSettings() reads from the backend, any row whose (category,key)
+// matches an entry in SETTINGS_KEY_MIGRATIONS is rewritten to the new
+// key client-side AND re-persisted under the new name so subsequent
+// reads no longer trigger migration.
+//
+// Structure: { 'categoryId.oldKey': 'newKey' }
+// Entries should be idempotent and added when DEFAULT_SETTINGS keys
+// are renamed. Currently empty — the map is a placeholder ready to
+// receive renames without requiring a schema-level framework.
+var SETTINGS_KEY_MIGRATIONS = {
+    // Example for future use:
+    // 'voidflow.reveal_wpm': 'reveal_words_per_minute'
+};
+
+function migrateCategoryKeys(categoryId, entries) {
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return entries;
+    var migrated = {};
+    var renames = []; // [{oldKey, newKey}] — for re-persist
+    Object.keys(entries).forEach(function(oldKey) {
+        var newKey = SETTINGS_KEY_MIGRATIONS[categoryId + '.' + oldKey];
+        if (newKey && !Object.prototype.hasOwnProperty.call(entries, newKey)) {
+            migrated[newKey] = entries[oldKey];
+            renames.push({ oldKey: oldKey, newKey: newKey, value: entries[oldKey] });
+        } else {
+            migrated[oldKey] = entries[oldKey];
+        }
+    });
+    // Re-persist renames so the migration is idempotent + permanent.
+    if (renames.length && typeof fetch !== 'undefined') {
+        renames.forEach(function(r) {
+            _persistSetting(categoryId, r.newKey, r.value);
+            // Best-effort delete of the old key — not critical if the
+            // backend doesn't support it; the new key will shadow it
+            // on subsequent reads anyway because we don't read old
+            // keys back.
+            fetch('/api/settings?category=' + encodeURIComponent(categoryId) +
+                  '&key=' + encodeURIComponent(r.oldKey), { method: 'DELETE' })
+                  .catch(function() {});
+        });
+    }
+    return migrated;
 }
 
 // ─── PUBLIC API ───────────────────────────────────────────────
