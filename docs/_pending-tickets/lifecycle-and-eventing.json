@@ -224,7 +224,14 @@
     "filepath": "src/frontend/services/coordination.js",
     "userNote": "STALE COMMENT: header comment (lines 1-10) describes 'multi-LLM manifest synchronization' as the use case — two LLMs reading the same manifest, watcher fires, manifest updates, second LLM sees truth. The actual call site (src/frontend/app.js:363) just starts polling with no addListener consumer anywhere in src/frontend/. Either the multi-LLM design has been quietly deprecated (in which case retire to OGB per the batch-025 state.js precedent), or there's a missing call site to surface listener output. Reconcile the comment with reality.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4d-executor",
+    "actionsTaken": "Rewrote the file's header docstring (lines 1-22) to reflect what the service ACTUALLY does today. Removed the 'Multi-LLM Manifest Synchronization' framing — there is no second LLM in the loop today; the workspace-switch code in app.js is the only consumer and it just wants a fresh manifest on the right-hand file panel. New header describes (a) the manifest-refresh purpose, (b) the post-4D SSE refresh model wired in ticket 2, (c) the addListener API as a future-friendly subscribe surface that runs even with zero listeners (so adding one later is a pure subscribe op). NO behavior change in this ticket — comment-only edit. Reconciliation: the 'multi-LLM' design surface was never built (grep confirms zero addListener call sites across src/frontend/) and the batch-025 state.js precedent of moving dormant services to OGB does not apply here because the service still has an active consumer (app.js workspace-switch). The right move is to keep the service and update the docs — done.",
+    "filesChanged": [
+      "src/frontend/services/coordination.js"
+    ],
+    "residualConcerns": null
   },
   {
     "filepath": "src/core/notification-bus.js",
