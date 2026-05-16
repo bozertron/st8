@@ -23,7 +23,10 @@
     "severity": "med",
     "status": "GREEN",
     "executedBy": "wave-5c-executor",
-    "actionsTaken": "Added IIFE `_assertCategoriesMatchDefaults` immediately before the public-API block in settings.js. It compares `SETTINGS_CATEGORIES.map(c=>c.id).sort()` against `Object.keys(DEFAULT_SETTINGS).sort()`, console.errors the mismatch, then throws so the failure surfaces in CI + node-vm tests. Backed by tests/frontend/settings-module.test.js which loads the module in a vm sandbox and asserts (a) clean load on the canonical source, (b) throw when SETTINGS_CATEGORIES has an unmatched id, (c) throw when DEFAULT_SETTINGS has an unmatched key."
+    "actionsTaken": "Added IIFE `_assertCategoriesMatchDefaults` immediately before the public-API block in settings.js. It compares `SETTINGS_CATEGORIES.map(c=>c.id).sort()` against `Object.keys(DEFAULT_SETTINGS).sort()`, console.errors the mismatch, then throws so the failure surfaces in CI + node-vm tests. Backed by tests/frontend/settings-module.test.js which loads the module in a vm sandbox and asserts (a) clean load on the canonical source, (b) throw when SETTINGS_CATEGORIES has an unmatched id, (c) throw when DEFAULT_SETTINGS has an unmatched key.",
+    "reviewedBy": "wave-5c-reviewer",
+    "verdict": "ACK",
+    "reviewNote": "IIFE at settings.js:422 runs at module load (not lazy), sorts both key sets, console.errors then throws on mismatch. Vm-sandbox tests inject a real source mutation (extra category id, then extra default key) and assert.throws against the matcher — both are genuine probes."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
@@ -31,7 +34,10 @@
     "severity": "med",
     "status": "GREEN",
     "executedBy": "wave-5c-executor",
-    "actionsTaken": "Added `coerceSettingValue(categoryId, key, value)` + `coerceCategoryValues(categoryId, entries)` to settings.js. Coerces string→number, string→boolean, primitive→string, JSON-string→object against DEFAULT_SETTINGS' expected type for the same key. Garbage values (e.g. 'nope' where a number is expected) fall back to the default and emit a console.warn — no silent corruption. Wired into `loadSettings()` (after migration step) and `renderCategoryEntries()` (right before the typeof branch). 6 tests in tests/frontend/settings-module.test.js cover happy path + pass-through + fallback + array categories + unknown keys."
+    "actionsTaken": "Added `coerceSettingValue(categoryId, key, value)` + `coerceCategoryValues(categoryId, entries)` to settings.js. Coerces string→number, string→boolean, primitive→string, JSON-string→object against DEFAULT_SETTINGS' expected type for the same key. Garbage values (e.g. 'nope' where a number is expected) fall back to the default and emit a console.warn — no silent corruption. Wired into `loadSettings()` (after migration step) and `renderCategoryEntries()` (right before the typeof branch). 6 tests in tests/frontend/settings-module.test.js cover happy path + pass-through + fallback + array categories + unknown keys.",
+    "reviewedBy": "wave-5c-reviewer",
+    "verdict": "ACK",
+    "reviewNote": "coerceSettingValue at settings.js:447 handles all primitive cross-type paths and falls back to defaults[key] + console.warn on impossible coercions ('definitely not a number' → 200 default, verified by test). Wired into both loadSettings() post-migration AND renderCategoryEntries() pre-typeof. All 6 tests are real probes."
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
@@ -39,7 +45,10 @@
     "severity": "med",
     "status": "GREEN",
     "executedBy": "wave-5c-executor",
-    "actionsTaken": "Implemented PRE_FLIGHT option (a) — lightweight per-key migration map. Added `SETTINGS_KEY_MIGRATIONS` ({'categoryId.oldKey':'newKey'}) and `migrateCategoryKeys()` to settings.js. The map runs at loadSettings() time before type coercion; renamed keys are re-persisted under the new name and the old key is best-effort DELETEd (fetch failure is non-fatal because the next load won't surface the old key once the new one shadows it). The map is currently empty (no renames pending) — the registration site is ready for the first rename. Full schema-level migration framework (schemaVersion column, _migrations table, version-keyed migration functions) is correctly deferred to persistence roadmap P1.1. 4 tests in tests/frontend/settings-module.test.js cover empty-map no-op, rename-on-load, new-key-wins-on-collision, and map-exists shape check."
+    "actionsTaken": "Implemented PRE_FLIGHT option (a) — lightweight per-key migration map. Added `SETTINGS_KEY_MIGRATIONS` ({'categoryId.oldKey':'newKey'}) and `migrateCategoryKeys()` to settings.js. The map runs at loadSettings() time before type coercion; renamed keys are re-persisted under the new name and the old key is best-effort DELETEd (fetch failure is non-fatal because the next load won't surface the old key once the new one shadows it). The map is currently empty (no renames pending) — the registration site is ready for the first rename. Full schema-level migration framework (schemaVersion column, _migrations table, version-keyed migration functions) is correctly deferred to persistence roadmap P1.1. 4 tests in tests/frontend/settings-module.test.js cover empty-map no-op, rename-on-load, new-key-wins-on-collision, and map-exists shape check.",
+    "reviewedBy": "wave-5c-reviewer",
+    "verdict": "ACK",
+    "reviewNote": "SETTINGS_KEY_MIGRATIONS at settings.js:513 is a plain map (currently empty placeholder). migrateCategoryKeys runs at load before coercion; collision handling preserves the new key. Tests patch the SRC to seed a migration and verify rename + no-clobber. Schema-level framework deferral to P1.1 is appropriate."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
@@ -53,7 +62,10 @@
     "severity": "med",
     "status": "GREEN",
     "executedBy": "wave-5c-executor",
-    "actionsTaken": "Audit decision: outcome (b) — dormant but planned. Confirmed via `grep -rn 'palette_overrides|font_sizes|spacing_scale|applyTheme' /home/user/st8/src/` that the only matches are the declaration site itself. The full applyTheme() wiring is already on the cluster roadmap as P2.3 (docs/_pending-roadmap/settings-and-providers.md line 60). Added an inline block comment above `theme:` in DEFAULT_SETTINGS that (1) documents the dormant state, (2) names the consumers grep proved are absent, (3) points to the P2.3 roadmap entry, (4) warns future maintainers not to delete the keys without first deleting the roadmap entry. Choice rationale: removing the keys would orphan persisted user values; option (a) wire-now is out of scope for this sub-wave (frontend CSS work, not settings work)."
+    "actionsTaken": "Audit decision: outcome (b) — dormant but planned. Confirmed via `grep -rn 'palette_overrides|font_sizes|spacing_scale|applyTheme' /home/user/st8/src/` that the only matches are the declaration site itself. The full applyTheme() wiring is already on the cluster roadmap as P2.3 (docs/_pending-roadmap/settings-and-providers.md line 60). Added an inline block comment above `theme:` in DEFAULT_SETTINGS that (1) documents the dormant state, (2) names the consumers grep proved are absent, (3) points to the P2.3 roadmap entry, (4) warns future maintainers not to delete the keys without first deleting the roadmap entry. Choice rationale: removing the keys would orphan persisted user values; option (a) wire-now is out of scope for this sub-wave (frontend CSS work, not settings work).",
+    "reviewedBy": "wave-5c-reviewer",
+    "verdict": "ACK",
+    "reviewNote": "Outcome (b) comment block at settings.js:84-97 cites roadmap P2.3 specifically; verified docs/_pending-roadmap/settings-and-providers.md line 60 contains '### P2.3 Apply theme tokens'. Pointer is live, deletion-warning is present."
   },
   {
     "filepath": "/home/user/st8/src/core/server/app.js",
@@ -61,7 +73,10 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-5c-executor",
-    "actionsTaken": "Added `ALLOWED_SETTINGS_CATEGORIES` (Object.frozen array of the 8 canonical ids) near the top of app.js with a comment that the frontend SETTINGS_CATEGORIES is canonical and this is a mirror. Updated `_handleSettings` POST branch to reject categories not in the allowlist with HTTP 400 + a JSON body `{error:'unknown settings category', category, allowed}`. Exported the constant so the drift test can verify mirror-fidelity. 7 tests in tests/core/server/handle-settings-validation.test.js: drift test (parses the frontend literal and deepEquals against the export), 400 on missing category, 400 on missing key, 400 + allowed-list on unknown category, 200 on known category, and a GET round-trip proving rejected categories do NOT create DB rows."
+    "actionsTaken": "Added `ALLOWED_SETTINGS_CATEGORIES` (Object.frozen array of the 8 canonical ids) near the top of app.js with a comment that the frontend SETTINGS_CATEGORIES is canonical and this is a mirror. Updated `_handleSettings` POST branch to reject categories not in the allowlist with HTTP 400 + a JSON body `{error:'unknown settings category', category, allowed}`. Exported the constant so the drift test can verify mirror-fidelity. 7 tests in tests/core/server/handle-settings-validation.test.js: drift test (parses the frontend literal and deepEquals against the export), 400 on missing category, 400 on missing key, 400 + allowed-list on unknown category, 200 on known category, and a GET round-trip proving rejected categories do NOT create DB rows.",
+    "reviewedBy": "wave-5c-reviewer",
+    "verdict": "ACK",
+    "reviewNote": "ALLOWED_SETTINGS_CATEGORIES is Object.frozen, 8 ids. Route returns 400 with {error,category,allowed}. Drift test regex first matches the SETTINGS_CATEGORIES block then extracts id: '<name>' only from within — tight. MUTATION PROBE PASSED: removing 'network' from the backend allowlist made the drift test fail (and the count assertion). Restored. Verified via real HTTP boot on ephemeral port."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
@@ -69,6 +84,9 @@
     "severity": "low",
     "status": "GREEN",
     "executedBy": "wave-5c-executor",
-    "actionsTaken": "Refactored `_persistSetting()` to return a Promise<boolean> (true on 2xx, false on non-2xx or network error). Rewrote `updateValue()` to (1) snapshot the previous value + whether the key existed, (2) optimistically apply the new value, (3) await the persist Promise, (4) on `false` revert state (delete the key if it didn't exist before, restore prev otherwise) and call `renderCategoryEntries()` so the UI reflects the rollback. Returns the Promise so callers/tests can await. Pairs with ticket 8: a POST to an unknown category now both fails the persist AND rolls the UI back instead of leaving divergent state. Manual smoke path documented; the behavior is browser-side DOM-coupled (renderCategoryEntries depends on `document`), so integration is covered indirectly via ticket-8 backend rejection tests + the type-coercion sandbox tests."
+    "actionsTaken": "Refactored `_persistSetting()` to return a Promise<boolean> (true on 2xx, false on non-2xx or network error). Rewrote `updateValue()` to (1) snapshot the previous value + whether the key existed, (2) optimistically apply the new value, (3) await the persist Promise, (4) on `false` revert state (delete the key if it didn't exist before, restore prev otherwise) and call `renderCategoryEntries()` so the UI reflects the rollback. Returns the Promise so callers/tests can await. Pairs with ticket 8: a POST to an unknown category now both fails the persist AND rolls the UI back instead of leaving divergent state. Manual smoke path documented; the behavior is browser-side DOM-coupled (renderCategoryEntries depends on `document`), so integration is covered indirectly via ticket-8 backend rejection tests + the type-coercion sandbox tests.",
+    "reviewedBy": "wave-5c-reviewer",
+    "verdict": "ACK",
+    "reviewNote": "_persistSetting returns Promise<boolean> (true/false on res.ok/non-2xx/network-error). updateValue snapshots hadKey + prevValue, applies optimistically, awaits, reverts state (delete-if-new or restore prev) and re-renders. The revert wiring is real. Direct DOM-coupled e2e test is acceptably indirect since the backend ticket-8 rejection path is fully covered with real HTTP."
   }
 ]
