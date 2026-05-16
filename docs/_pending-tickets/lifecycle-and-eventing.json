@@ -103,8 +103,8 @@
       "tests/core/hook-registry.test.js",
       "tests/features/lifecycle/bruno-oscar.test.js"
     ],
-    "commitHash": null,
-    "residualConcerns": "runOscarHouse is NOT wired as a subscriber - Wave 4B scope is bruno (session-start flag sweep), not oscar (archive sweep). The 'when does oscar fire automatically' question lives in roadmap as Priority 2 Bruno+Oscar state-machine. Today oscar still only fires via POST /api/oscar-house."
+    "commitHash": "7af7411",
+    "residualConcerns": "Two residuals, neither blocking: (1) runOscarHouse is NOT wired as a subscriber - Wave 4B scope is bruno (session-start flag sweep), not oscar (archive sweep). Today oscar still only fires via POST /api/oscar-house. Roadmap Priority 2 (Bruno+Oscar state-machine) is the right home for an automatic oscar trigger. (2) Pre-existing upsertFile bug surfaced by live boot probe: bruno fires at INDEX_START (P=20) and correctly flips brunoStatus='flagged' for stale rows; the indexer's subsequent Pass-1 upsert loop (main.js:288-318) calls persistence.upsertFile which does INSERT OR REPLACE WITHOUT brunoStatus in the column list - SQLite then defaults brunoStatus back to 'active' on every replace. Net effect: bruno's flag is visible during INDEX_START but reset before INDEX_COMPLETE writes the manifest. The bug is in upsertFile (persistence cluster), not the subscriber wiring - it predates Wave 4B and was not introduced by this wave. Live boot probe evidence: '[bruno] Flagged 1 stale files for review' AND '[st8] Bruno session-start scan: flagged 1 stale file(s)' both printed before the upsert pass overwrote the row. Recommend follow-up persistence ticket to make upsertFile preserve brunoStatus + sessionsSinceAccess + lastAccessed across replaces."
   },
   {
     "filepath": "src/features/lifecycle/bruno-oscar.js",
@@ -119,7 +119,7 @@
       "src/core/server/app.js",
       "tests/features/lifecycle/bruno-oscar.test.js"
     ],
-    "commitHash": null,
+    "commitHash": "7c4b673",
     "residualConcerns": "Hook payload semantics: the canonical hook-registry.js docstring for LIFECYCLE_TRANSITION says 'lifecyclePhase' transitions, but bruno-oscar's transitions are brunoStatus (active/flagged/archived), not lifecyclePhase (DEVELOPMENT/PRODUCTION/etc). Ticket 10 instructed exactly this wiring ('Wire HOOKS.LIFECYCLE_TRANSITION with payload { file, oldPhase: 'flagged', newPhase: 'archived' }'), and the hook header comment in hook-registry.js explicitly says 'bruno+oscar archive/unarchive (today only updates brunoStatus, not lifecyclePhase ... when oscar gains real phase transitions it should fire here)' - so the wiring follows the documented intent. A future roadmap item could split the hook into two (LIFECYCLE_PHASE_TRANSITION vs BRUNO_STATUS_TRANSITION) if the conflation becomes a problem; today subscribers can disambiguate on oldPhase/newPhase values."
   },
   {
@@ -134,7 +134,7 @@
       "src/features/lifecycle/bruno-oscar.js",
       "tests/features/lifecycle/bruno-oscar.test.js"
     ],
-    "commitHash": null,
+    "commitHash": "7c4b673",
     "residualConcerns": "_appendToParent reads file.filepath directly with fs.readFileSync - bruno-oscar treats this as a resolvable path. The test writes both parent and child to a temp dir and uses absolute paths in file_registry, which matches how main.js's watcher records filepaths today (relative-to-targetDir). If a future caller passes a non-resolvable filepath, the inner try/catch logs and returns false - acceptable degraded behavior."
   },
   {
