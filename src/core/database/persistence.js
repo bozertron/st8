@@ -1171,20 +1171,99 @@ class St8Persistence {
     }
     
     // ─── SETTINGS ────────────────────────────────────────────
+    //
+    // Wave 5E ticket 2: the `models` category's entry arrays contain a
+    // user-typed `apiKey` field. Without encryption that field lands
+    // plaintext in `st8.sqlite`. The settings-crypto module gives us a
+    // transparent encrypt-on-write / decrypt-on-read seam:
+    //
+    //   - upsertSetting() detects models[*].apiKey and encrypts each
+    //     before JSON.stringify + INSERT. Non-models categories are
+    //     unaffected. Values already in ciphertext form pass through.
+    //   - getSetting / getSettingsByCategory / getAllSettings detect
+    //     the ciphertext shape and decrypt symmetrically.
+    //
+    // The encryption key lives at `<dbDir>/.st8/encryption.key` and is
+    // generated on first encrypt (see settings-crypto.ensureKey).
+
+    /**
+     * If `value` looks like a 5D `_entries` array for the `models`
+     * category, encrypt each entry's `apiKey` in-place and return a
+     * NEW array. Other categories pass through untouched.
+     *
+     * Idempotent: an entry whose apiKey is already in ciphertext form
+     * is left as-is (the shape recognizer is conservative — see
+     * settings-crypto.isCiphertext).
+     */
+    _encryptModelEntries(category, value) {
+        if (category !== 'models') return value;
+        if (!Array.isArray(value)) return value;
+        const crypto = require('../../shared/utils/settings-crypto');
+        return value.map((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+            if (typeof entry.apiKey !== 'string' || entry.apiKey.length === 0) return entry;
+            if (crypto.isCiphertext(entry.apiKey)) return entry;
+            const copy = Object.assign({}, entry);
+            copy.apiKey = crypto.encrypt(entry.apiKey, this.dbPath);
+            return copy;
+        });
+    }
+
+    /**
+     * Inverse of _encryptModelEntries. Walks a models `_entries` array
+     * (or any array shape returned for the models category) and
+     * decrypts every recognized ciphertext apiKey in-place. Non-models
+     * categories pass through. Legacy plaintext rows (pre-5E) pass
+     * through too — isCiphertext() returns false on plaintext.
+     *
+     * Decryption failure on a single entry surfaces as a console.error
+     * and the apiKey is replaced with the literal '[decrypt-failed]'
+     * marker — we do NOT silently fall back to ciphertext (that would
+     * leak the encoded form to UI / downstream callers) and we do NOT
+     * throw (one corrupt row should not break the whole settings GET).
+     */
+    _decryptModelEntries(category, value) {
+        if (category !== 'models') return value;
+        if (!Array.isArray(value)) return value;
+        const crypto = require('../../shared/utils/settings-crypto');
+        return value.map((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+            if (typeof entry.apiKey !== 'string' || entry.apiKey.length === 0) return entry;
+            if (!crypto.isCiphertext(entry.apiKey)) return entry;
+            try {
+                const copy = Object.assign({}, entry);
+                copy.apiKey = crypto.decrypt(entry.apiKey, this.dbPath);
+                return copy;
+            } catch (err) {
+                console.error('[st8:persistence] models apiKey decrypt failed for entry', entry.id || '<no-id>', ':', err.message);
+                const copy = Object.assign({}, entry);
+                copy.apiKey = '[decrypt-failed]';
+                return copy;
+            }
+        });
+    }
 
     upsertSetting(category, key, value) {
         const stmt = this.db.prepare(`
             INSERT OR REPLACE INTO st8_settings (category, key, value, updatedAt)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         `);
-        return stmt.run(category, key, typeof value === 'string' ? value : JSON.stringify(value));
+        // Encrypt sensitive fields in models entries before persisting.
+        const persistedValue = this._encryptModelEntries(category, value);
+        return stmt.run(
+            category,
+            key,
+            typeof persistedValue === 'string' ? persistedValue : JSON.stringify(persistedValue)
+        );
     }
 
     getSetting(category, key) {
         const stmt = this.db.prepare('SELECT value FROM st8_settings WHERE category = ? AND key = ?');
         const row = stmt.get(category, key);
         if (!row) return null;
-        try { return JSON.parse(row.value); } catch { return row.value; }
+        let parsed;
+        try { parsed = JSON.parse(row.value); } catch { parsed = row.value; }
+        return this._decryptModelEntries(category, parsed);
     }
 
     getSettingsByCategory(category) {
@@ -1192,7 +1271,9 @@ class St8Persistence {
         const rows = stmt.all(category);
         const result = {};
         for (const row of rows) {
-            try { result[row.key] = JSON.parse(row.value); } catch { result[row.key] = row.value; }
+            let parsed;
+            try { parsed = JSON.parse(row.value); } catch { parsed = row.value; }
+            result[row.key] = this._decryptModelEntries(category, parsed);
         }
         return result;
     }
@@ -1203,9 +1284,24 @@ class St8Persistence {
         const result = {};
         for (const row of rows) {
             if (!result[row.category]) result[row.category] = {};
-            try { result[row.category][row.key] = JSON.parse(row.value); } catch { result[row.category][row.key] = row.value; }
+            let parsed;
+            try { parsed = JSON.parse(row.value); } catch { parsed = row.value; }
+            result[row.category][row.key] = this._decryptModelEntries(row.category, parsed);
         }
         return result;
+    }
+
+    /**
+     * Read a raw row WITHOUT decryption. Test-only — used by the
+     * encryption probe to verify that the at-rest representation is
+     * ciphertext. NEVER call this from production paths (the UI must
+     * see decrypted apiKeys; the indirection exists precisely so the
+     * raw form never leaks to non-test consumers).
+     */
+    _getRawSetting(category, key) {
+        const stmt = this.db.prepare('SELECT value FROM st8_settings WHERE category = ? AND key = ?');
+        const row = stmt.get(category, key);
+        return row ? row.value : null;
     }
 
     deleteSetting(category, key) {

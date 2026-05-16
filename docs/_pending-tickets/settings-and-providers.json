@@ -17,7 +17,9 @@
     "filepath": "/home/user/st8/src/core/database/persistence.js",
     "userNote": "`upsertSetting()` (line 622) stores `value` as plain TEXT in `st8_settings`. A `models` entry's `apiKey` is therefore persisted plaintext into SQLite (`st8.sqlite`). The LLM_PROVIDERS registry has an `envKey` fallback documented in the schema comment but the persistence path has no opt-out — once `editEntry()` ships, every typed-in key lands on disk in cleartext. Needs either env-only mode (refuse to store, read from `process.env[envKey]` at call time) or symmetric encryption at rest.",
     "severity": "high",
-    "status": "RED"
+    "status": "GREEN",
+    "executedBy": "wave-5e-executor",
+    "actionsTaken": "Added src/shared/utils/settings-crypto.js — aes-256-gcm encrypt/decrypt with a 32-byte key stored at <dbDir>/.st8/encryption.key (mode 0600). Format: base64(iv):base64(authTag):base64(ciphertext). Wired into persistence.js via _encryptModelEntries / _decryptModelEntries: upsertSetting intercepts category='models' Array values and encrypts each entry.apiKey before INSERT; getSetting / getSettingsByCategory / getAllSettings symmetrically decrypt on read. Idempotent via isCiphertext() shape recognizer (verifies 3 base64 segments + IV=12 bytes + tag=16 bytes + canonical base64 round-trip). Non-models categories pass through. Corrupt ciphertext surfaces a '[decrypt-failed]' marker rather than throwing (one bad row mustn't break /api/settings). Test hook _getRawSetting() exposes pre-decryption row for the kickback-worthy probe. 9 tests in tests/core/database/settings-encryption.test.js cover crypto round-trip, isCiphertext recognizer, key file generation + mode 0600, persistence round-trip, RAW row contains ciphertext (NOT plaintext) — the apiKey literal does not appear in the raw row, non-models pass-through, idempotency under re-write, corrupt ciphertext sentinel, and getAllSettings/getSettingsByCategory decrypt paths. Live probe (sqlite3 against a fresh DB) confirms the on-disk apiKey field is the three-segment ciphertext form, not the plaintext input."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/settings/settings.js",
