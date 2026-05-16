@@ -290,3 +290,97 @@ test('ticket 8 — heartbeatMs=0 disables the heartbeat entirely', async (t) => 
     const heartbeats = (received.match(/^: heartbeat$/gm) || []).length;
     assert.equal(heartbeats, 0, 'disabled heartbeat must not emit');
 });
+
+// ─── TICKET 6 — CREATE + EDIT double-fire posture ───────────
+// Decision: outcome (a) — KEEP BOTH FIRES.
+//
+// Rationale: the Wave 4A composite-key dedup (`${path}::${type}`)
+// explicitly preserves CREATE vs EDIT as distinct entries within a
+// single debounce window. Each branch in main.js's onFileChange loop
+// has different downstream semantics:
+//
+//   CREATE — file_registry INSERT, fingerprint generation, initial
+//            schema-card emission (no prior card to diff against),
+//            mutation_log CREATE row
+//   EDIT   — hash-change diff, sha256Hash update, mutation_log EDIT
+//            row with changedFields, re-emit of the schema card
+//
+// Merging CREATE+EDIT into a single EDIT publish would silently drop
+// the CREATE branch's downstream consumers (persistence INSERT,
+// fingerprint registration, initial card emission). The printer
+// chain newly activated by ticket 16 also has per-fingerprint
+// timestamp-prefixed filenames, so two near-simultaneous printCard
+// calls produce two distinct .txt files — exactly the audit trail
+// the printer fallback is designed to capture.
+//
+// Verifying the publish count is exactly 2 (not 1) is the
+// anti-cheat probe for this decision.
+
+test('ticket 6 — CREATE and EDIT for same path produce two distinct publishes', async (t) => {
+    const bus = new NotificationBus();
+    const seen = [];
+    bus.on('mutation', (ev) => seen.push({ type: ev.mutationType, fp: ev.fingerprint, fp_path: ev.filepath }));
+
+    // Simulate main.js's per-change loop firing both branches on the
+    // same path inside one debounce window.
+    bus.publish({
+        mutationType: 'CREATE',
+        filepath: 'new.js',
+        fingerprint: 'fp-new',
+        actor: 'WATCHER',
+    });
+    bus.publish({
+        mutationType: 'EDIT',
+        filepath: 'new.js',
+        fingerprint: 'fp-new',
+        actor: 'WATCHER',
+    });
+
+    assert.equal(seen.length, 2, `CREATE+EDIT must produce 2 publishes (decision a, preserve both); got ${seen.length}`);
+    assert.equal(seen[0].type, 'CREATE', 'first event is CREATE');
+    assert.equal(seen[1].type, 'EDIT', 'second event is EDIT');
+    // Both reference the same file; the duplication is intentional.
+    assert.equal(seen[0].fp, seen[1].fp);
+    assert.equal(seen[0].fp_path, seen[1].fp_path);
+});
+
+test('ticket 6 — typed listeners also see both fires (mutation:CREATE + mutation:EDIT)', async (t) => {
+    // Subscribers listening on a typed channel (mutation:CREATE) must
+    // also fire — not just the catch-all 'mutation' listener. Proves
+    // the EventEmitter typed-emit isn't accidentally short-circuited.
+    const bus = new NotificationBus();
+    const createSeen = [];
+    const editSeen = [];
+    bus.on('mutation:CREATE', (ev) => createSeen.push(ev));
+    bus.on('mutation:EDIT', (ev) => editSeen.push(ev));
+
+    bus.publish({ mutationType: 'CREATE', filepath: 'a.js', fingerprint: 'fp-a', actor: 'WATCHER' });
+    bus.publish({ mutationType: 'EDIT', filepath: 'a.js', fingerprint: 'fp-a', actor: 'WATCHER' });
+
+    assert.equal(createSeen.length, 1);
+    assert.equal(editSeen.length, 1);
+});
+
+test('ticket 6 — SSE clients receive both frames on CREATE+EDIT', async (t) => {
+    // Heartbeat off so we see only mutation frames.
+    const ctx = await bootBusServer({ heartbeatMs: 0 });
+    t.after(() => ctx.teardown());
+
+    const client = await openSSEClient(ctx.port);
+    t.after(() => { try { client.req.destroy(); } catch (_) {} });
+
+    let received = '';
+    client.res.on('data', (chunk) => { received += chunk; });
+    await sleep(40);
+
+    ctx.bus.publish({ mutationType: 'CREATE', filepath: 'x.js', fingerprint: 'fp-x', actor: 'WATCHER' });
+    ctx.bus.publish({ mutationType: 'EDIT', filepath: 'x.js', fingerprint: 'fp-x', actor: 'WATCHER' });
+    await sleep(80);
+
+    // Count CREATE and EDIT data frames separately.
+    const dataFrames = received.split('\n\n').filter(f => f.startsWith('data:'));
+    const types = dataFrames
+        .map(f => { try { return JSON.parse(f.slice(5).trim()).mutationType; } catch (_) { return null; } })
+        .filter(t => t === 'CREATE' || t === 'EDIT');
+    assert.deepEqual(types, ['CREATE', 'EDIT'], `SSE must deliver both frames; got ${JSON.stringify(types)}`);
+});
