@@ -27,7 +27,15 @@
     "filepath": "src/features/watcher/file-watcher.js",
     "userNote": "NO TESTS: the debounce-then-flush behavior (_onFileChange + _flush at lines 93-120) is the core of the watcher and has zero unit tests. Edge cases that need coverage: (a) rapid CREATE+EDIT for the same file inside one debounce window — what arrives in the flush array? (b) DELETE arriving during an in-flight flush — does the next debounce see it? (c) callback rejection — does the watcher recover for the next event? (d) pending-changes Set semantics: { path, type } objects are reference-equal not value-equal, so duplicates accumulate. Hand-test today, regression-prone forever without coverage.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4a-executor",
+    "actionsTaken": "Added tests/features/watcher/file-watcher.test.js with 11 real probes of the in-process state machine (chokidar never started — probes drive _onFileChange / _flush / stop directly with debounceMs=30). Coverage: (1) 25 same-(path,type) events collapse to 1 flush entry — proves ticket-4 dedup, (2) distinct paths all flush in one batch, (3) CREATE+EDIT on same path stays as TWO entries — guards against the trap of Map<path,type> last-write-wins which would silently drop main.js's add-branch dispatch, (4) flush handler receives values Array (not Map), (5) timer resets on each event (debounce, not throttle) — drips events every DEBOUNCE-10 ms for three windows and asserts exactly one flush at the end, (6) stop() cancels pending timer and prevents flush — also asserts debounceTimer === null post-stop, (7) onFileChange rejection — watcher still flushes the next event (callCount==2), (8) metrics.eventsReceived counts every input event, (9) metrics.debounceMergeCount counts only duplicates, (10) metrics.flushCalls + lastFlushAt + lastFlushSize update across two distinct flush windows; lastFlushAt is Date.parse-able, (11) getMetrics() returns an isolated snapshot — mutating the returned object does not bleed back. Suite size: 207 → 218 (+11). Full `npm test` clean.",
+    "filesChanged": [
+      "tests/features/watcher/file-watcher.test.js"
+    ],
+    "commitHash": "PENDING",
+    "residualConcerns": null
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
@@ -116,7 +124,7 @@
     "filesChanged": [
       "src/features/watcher/file-watcher.js"
     ],
-    "commitHash": "PENDING",
+    "commitHash": "367d0d1",
     "residualConcerns": null
   },
   {
