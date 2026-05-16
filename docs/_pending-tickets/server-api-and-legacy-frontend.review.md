@@ -247,3 +247,146 @@ fixes. The minor JSDoc naming drift (`_pushSignal` vs `receiveSignal`)
 in terminal.js:38 is a candidate for a polish pass during a later
 wave but does not block 5I. Safe to proceed to **Wave 5I** (UI/a11y
 cleanup: FRONT-003, FRONT-005, FRONT-006 remain open per the JSON).
+
+---
+
+## Wave 5I Review
+
+Reviewer: `wave-5i-reviewer`
+Tickets in scope: 6 (FRONT-003), 8 (FRONT-005), 9 (FRONT-006).
+Commits audited: `9f6e2dd`, `2510f40`, `d1b4117`, `b3ca689` (range
+`c2924f6..b3ca689`).
+Pre-flight: tests 373/0/0/0 at HEAD `b3ca689`. PRE-FLIGHT OK.
+
+### Per-ticket findings
+
+- **Ticket 9 (FRONT-006) — PRD wizard kept as modal.** defer-confirmed.
+  Inline DESIGN DECISION block at `src/frontend/app.js:335-359` above
+  `window.openPRDWizard` documents the keep-modal rationale (founder's
+  strip-not-add stance), the migration cost (4th slide track, diamond
+  bindings, shelf icon, visibility gating, mount-host relocation), and
+  the accepted coupling at `file-explorer.js:350` with the migration
+  plan that the global stays as a `slideTo('prd')` shim so call sites
+  do not need updates. Roadmap entry P3.3 at
+  `docs/_pending-roadmap/server-api-and-legacy-frontend.md:180`
+  verified with exactly 8 numbered steps as claimed (SLIDE_TARGETS
+  extension, 4th column, mount host, visibility gate, diamondTarget
+  update, openPRDWizard shim, closePRDWizard deletion, CSS cleanup).
+  NO code behaviour change — defer is honest.
+
+- **Ticket 6 (FRONT-003) — explorer:error CustomEvent.** ACK.
+  `grep MutationObserver src/frontend/` returns 3 hits — all
+  documentary comments at `app.js:97` and
+  `file-explorer.js:147,333` describing what was REPLACED. ZERO
+  runtime `new MutationObserver(...)` instances. CustomEvent contract
+  verified: `file-explorer.js _setError` dispatches `'explorer:error'`
+  on `window` with `detail = { message, canRetry } | null` (or `null`
+  to clear); `app.js:136` registers
+  `window.addEventListener('explorer:error', ...)` inside the explorer
+  mount block. RETRY button at `app.js:127` uses
+  `retry.addEventListener('click', ...)` — NO `innerHTML` /
+  inline-onclick injection. `renderBanner` uses `createElement`
+  throughout and is idempotent (`querySelectorAll(...).forEach(remove)`
+  before paint). DRY+wrap try/catch at `app.js:137-141` with
+  `'[st8] explorer-error renderer failed'` log matches CLAUDE.md
+  convention. 3 tests in `tests/frontend/file-explorer-error-event.test.js`
+  (dispatch with detail, dispatch with null, addEventListener
+  delivery) re-ran independently: 3/3 pass.
+
+- **Ticket 8 (FRONT-005) — graph popup a11y.** ACK.
+  All four enhancements verified in
+  `src/frontend/components/graph-viewer/graph-viewer.js`:
+  (1) ARIA dialog semantics — `role='dialog'`, `aria-modal='true'`,
+  `aria-label='Connection graph'`, `aria-labelledby='graph-popup-title'`
+  at L383-385+406; close button `aria-label='Close connection graph'`
+  at L389.
+  (2) Escape close — `onKeyDown` at L460-465 calls
+  `e.preventDefault()` + `e.stopPropagation()` + `closeGraphPopup()`;
+  document-scoped capture-phase listener registered at L494.
+  (3) Focus trap — `getFocusable()` at L444-458 (filters hidden via
+  `offsetParent`); Tab wrap last→first at L487-491; Shift+Tab wrap
+  first→last at L482-486.
+  (4) Initial + return focus — close button focused at L499-501;
+  `opener` captured from `document.activeElement` at L375 and restored
+  at L419-421 inside `closeGraphPopup`. Listener cleanup at L417 runs
+  `document.removeEventListener('keydown', onKeyDown, true)` BEFORE
+  detaching the overlay. Close/reset-zoom buttons wired via
+  `addEventListener` at L429 + L435 (replaces previous inline
+  `onclick`).
+  **MUTATION PROBE EXECUTED:** stubbed the Escape branch in
+  `onKeyDown` to early-return (no `preventDefault`, no
+  `closeGraphPopup` call). Re-ran
+  `tests/frontend/graph-popup-a11y.test.js` — 2 of 7 failed as
+  expected: the Escape-close test AND the no-leak test (because
+  Escape is the path that triggers the listener-removal in
+  `closeGraphPopup`). Restored the Escape branch; 7/7 pass cleanly.
+  Escape handler is load-bearing.
+
+### NO-CHEATS audit results
+
+- `grep -rn 'new MutationObserver' src/frontend/` → ZERO runtime
+  instances. PASS.
+- `grep -n 'explorer:error' src/frontend/` → dispatch in
+  file-explorer.js, listener in app.js:136. PASS.
+- `grep -n 'innerHTML\|onclick' src/frontend/app.js | grep -i 'retry\|explorer-error'`
+  → ZERO matches — RETRY wired via addEventListener only. PASS.
+- `grep -n "role='dialog'\|aria-modal\|aria-labelledby" src/frontend/components/graph-viewer/graph-viewer.js`
+  → all present. PASS.
+- Mutation probe (Escape handler removed) → 2/7 graph-popup tests
+  failed; restored → 7/7 pass. PASS.
+- P3.3 roadmap entry: 8 steps confirmed at
+  docs/_pending-roadmap/server-api-and-legacy-frontend.md:192-213.
+  PASS.
+
+### Counts
+
+- 2 ack / 0 kickback / 1 defer-confirmed.
+- Test count final: 373 pass / 0 fail / 0 skip / 0 todo (matches
+  pre-flight; the mutation-probe edit-and-restore left no residue).
+
+---
+
+## Cluster Summary
+
+The `server-api-and-legacy-frontend` cluster ran across four sub-waves
+(5F → 5G → 5H → 5I) and is now ready to close.
+
+| Sub-wave | Tickets covered | ACK | Kickback | Defer |
+|---|---|---|---|---|
+| 5F | 0, 1, 3, 10, 12 | 5 | 0 | 0 |
+| 5G | 2, 11, 13, 14, 15 | 4 | 0 | 1 |
+| 5H | 4, 5, 7, 16 | 4 | 0 | 0 |
+| 5I | 6, 8, 9 | 2 | 0 | 1 |
+| **Cluster total** | **17 tickets** | **15** | **0** | **2** |
+
+Deferred tickets:
+- **#15 (BOOT-001)** — FILE_INDEXED batching deferred to roadmap P3.7
+  with Wave 2B's 0.82 ms/281-file measurement preserved and the
+  trigger condition (subscriber > 5 ms per fire → introduce
+  `BULK_INDEXED`) documented at `src/core/server/main.js:285-303`.
+- **#9 (FRONT-006)** — PRD wizard carousel migration deferred to
+  roadmap P3.3 with an explicit 8-step scope and the keep-modal
+  rationale documented at `src/frontend/app.js:335-359`.
+
+Test count trajectory:
+- 5F entry: 348 → 5F exit: 355
+- 5G exit: 363
+- 5H exit: 363 (no behaviour change for the new tests; D3 vendor only)
+- 5I exit: 373 (+10 from FRONT-003 and FRONT-005 a11y/no-leak tests)
+
+Cluster-close audit:
+- `find src -maxdepth 2 -name "0_*"` → EMPTY. PASS.
+- `git ls-files src/0_` → EMPTY. PASS.
+- `git log c2924f6..b3ca689 --name-only --pretty=format: | grep "^src/0_"`
+  → EMPTY (no 5I drift). PASS. (The naive `master..HEAD` audit
+  surfaces the historical d340af4 deletion baked into the sprint
+  baseline, per CLAUDE.md guidance to trust `ls src/` over external
+  reports — current canonical structure is
+  `core features frontend shared` only.)
+- Canonical `ls src/` → `core features frontend shared`. PASS.
+
+**Confidence: HIGH — cluster is ready to close.** All 17 tickets
+have honest verdicts; 15 ACK + 2 defer-confirmed (both with concrete
+roadmap pointers); zero kickbacks across the cluster. Tests
+373/0/0/0; no source-code edits remained from any reviewer's
+mutation probes.
