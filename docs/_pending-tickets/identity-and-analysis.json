@@ -46,8 +46,8 @@
     ],
     "commitHash": "5932e87",
     "residualConcerns": "The intent-coverage percentage check at gap-analyzer.js:217 ('(not set)' sentinel) is now pinned by the D3 probe \u2014 if a future refactor changes the sentinel string the test will fail loudly. D4's CommonJS vs ES6 rule ('any import wins') is similarly pinned; if the rule changes to 'majority wins' or 'first wins' the mixed-imports probe surfaces it. D6's positive probe asserts endpointCoverage = 14/14 against the current 14-endpoint map in gap-analyzer.js \u2014 if the map grows or shrinks the test pin will need updating. These are intentional regression locks, not brittleness.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Wave 3C: gap-analyzer.test.js verified with 10/10 pass; all six dimensions D1-D6 carry dedicated probes plus a D6 negative-case probe. No assert.ok(true) cheats. Mutation probe (reviewer): removed the '(not set)' sentinel check at gap-analyzer.js:217 \u2014 D3 probe failed loudly with 'not ok 3 - D3: intent coverage treats empty AND \"(not set)\" sentinel as unauthored'. Restoring the sentinel returned the suite to 10/10. The D3 pin is real, not coincidental."
   },
   {
     "filepath": "src/features/analysis/relationship-analyzer.js",
@@ -145,8 +145,8 @@
     ],
     "commitHash": "7f99a56",
     "residualConcerns": "If a developer adds lifecyclePhase to the manifest projection AND fails to read the header, this documentation only catches the regression at code review. Could be hardened with a unit test asserting the keys of the per-file projection exactly equal an expected set (would fail loudly on accidental addition). Out of scope for this ticket but worth a P3 follow-up.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Wave 3C: documentation-only audit landed cleanly. Header in manifest-generator.js explicitly cites Wave 3A's birthTimestamp reuse as the rationale for keeping birthTimestamp out of connection-state.json (fingerprint encodes it; persistence is now canonical authority; single identity surface preserved). Matching MANIFEST OMISSION NOTE in st8-types.js cross-references the header. residualConcern about a key-set unit test is a fair P3 follow-up."
   },
   {
     "filepath": "src/features/schema-cards/emitter.js",
@@ -217,8 +217,8 @@
     ],
     "commitHash": "3fb5ab3",
     "residualConcerns": "If Louis Phase L1 ships before frontend Wave 7, the data will exist with no consumer. The reverse \u2014 Wave 7 attempting the render before Louis ships \u2014 would have to either stub the data layer (a cheat) or block. The DEFERRAL NOTE's sequencing paragraph makes the dependency order explicit so neither cluster fronts the other.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Wave 3C: deferral is sound \u2014 the red lock indicator requires both a louis-and-locking data source (lock-manager.js + GET /api/locks) and a frontend Wave 7 3D render; identity-and-analysis owns neither half. The DEFERRAL NOTE expanded in dive-in.js cites both upstream cluster roadmaps, sketches the wire-up recipe (GET /api/locks on show, sprite attach at building.position + height-offset, LOCK_STATE hook subscribe), and preserves the founder's documentary intent from CODE_CITY_BARRADEAU_BUILDER.md. Sequencing is explicit. status=deferred per JSON."
   },
   {
     "filepath": "src/features/analysis/intent-seeder.js",
@@ -233,8 +233,8 @@
     ],
     "commitHash": "4088847",
     "residualConcerns": "None \u2014 the wiring is intact and now self-documented adjacent to the producer code. If a future ticket adds an /api/needs-ai-review-summary surface it would benefit from a similar inline pointer.",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "ack",
+    "reviewNote": "Wave 3C: INFO-level annotation landed correctly. Inline DOWNSTREAM WIRING comment next to TRIPLE_AT_PATTERN producer at intent-seeder.js correctly names the two render sites (app.js:466 badge-ai-review, file-explorer.js:465 intent table) and traces the data path through persistence.js:71 ALTER + getAllFiles + /api/files. No behavior change, no test surface needed for a pure annotation. Closes the line item with adjacent self-documentation."
   },
   {
     "filepath": "st8.sqlite",
@@ -247,8 +247,8 @@
     "filesChanged": [],
     "commitHash": "97abcc8",
     "residualConcerns": "Same as upstream: until persistence P1.1 lands, ALTER-driven schema changes remain ad-hoc and DBs created before a column-add do not get the new column unless they go through the introspection-diff warning path. Surfaces at boot as [st8:persistence:drift] warnings (Wave 1A payoff).",
-    "verdict": null,
-    "reviewNote": null
+    "verdict": "defer-confirmed",
+    "reviewNote": "Wave 3C: deferral confirmed against canonical owner. Verified persistence-and-database.for-review.json ticket 0 status=deferred / verdict=defer-confirmed (Wave 1B). The cross-link in actionsTaken to docs/_pending-roadmap/persistence-and-database.md P1.1 is concrete. Follows the Wave 2A upstream-resolved pattern correctly \u2014 no duplicate work, no parallel migration framework invented locally. residualConcerns inherit upstream (drift surfaces via Wave 1A [st8:persistence:drift] warnings)."
   },
   {
     "filepath": "src/features/indexing/indexer.js",

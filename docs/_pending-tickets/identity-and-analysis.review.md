@@ -239,3 +239,186 @@ split, and pick up identity-risk.json wiring without re-doing 3B's
 work.
 
 No source-code changes needed before 3C starts.
+
+---
+
+## Wave 3C Review
+
+Reviewer audited 5 tickets executed by `wave-3c-executor`: [2, 8, 12, 13, 14].
+Verdicts: **3 ack, 0 kickback, 2 defer-confirmed**. No cheats found.
+
+### Test-suite verification
+- `npm test` → tests:207 / suites:0 / pass:207 / fail:0 / cancelled:0 /
+  skipped:0 / todo:0. Confirms the 192 → 207 delta (10 new gap-analyzer
+  probes + 5 new identity-risk consumer probes).
+- Targeted run `node --test tests/features/analysis/gap-analyzer.test.js`
+  → 10/10 pass. All six dimensions covered (D1 lifecycle, D2 status,
+  D3 intent, D4 exports, D5 connections, D6 architecture), plus a D6
+  negative-case probe and a writeReport round-trip. No `assert.ok(true)`
+  cheats.
+- Targeted run `node --test tests/core/server/api-identity-risk.test.js`
+  → 5/5 pass (missing artefact / present artefact / malformed JSON /
+  POST returns 405 / records-only fallback when fallbackCount absent).
+
+### Mutation probe (reviewer)
+Picked ticket 2 (gap-analyzer D3 sentinel). Edited
+`src/features/analysis/gap-analyzer.js:217`, removed the
+`card.intent.purpose !== '(not set)'` sentinel from the hasPurpose
+predicate. Reran the gap-analyzer suite: `not ok 3 - D3: intent
+coverage treats empty AND "(not set)" sentinel as unauthored` —
+exactly the regression lock the executor claimed. Restored the
+sentinel, suite back to 10/10 pass. The pin is real, not
+order-coincidental.
+
+### Orchestrator-completed identity-risk consumer
+The executor was aborted mid-run while finishing the `.st8/identity-risk.json`
+consumer wire-up (a Wave 3B reviewer cross-cluster flag #5). After
+abort, the orchestrator finished and committed the work that was in
+the WIP commit (c5a1e5b → folded forward). Verified live:
+- `src/core/server/app.js` line 322 dispatcher case
+  `/api/identity-risk` → `_handleIdentityRisk`.
+- `src/core/server/app.js` line 1582 handler — returns
+  `{ok, count, records, generatedAt}` envelope on present file,
+  count=0 envelope on absent file (clean run), HTTP 500 on parse
+  error, HTTP 405 on non-GET. Surfaces `fallbackCount` as `count`
+  for parity with `/api/insights`.
+- `tests/core/server/api-identity-risk.test.js` — 5 probes covering
+  every branch, all pass.
+
+No additional ticket needed — this was the wave-level identity-risk
+consumer flagged in Wave 3A and Wave 3B reviews and is now resolved.
+
+### Per-ticket findings
+
+**Ticket 2 (gap-analyzer D1-D6 tests) — ack.** 10 probes landed at
+`tests/features/analysis/gap-analyzer.test.js`. D1 asserts phase
+distribution and canProgress filtering (PRODUCTION excluded). D2
+asserts RED root-cause inference for both 'No exports' and 'No
+importers' independently and combined plus GREEN-low-reachability
+0.3 threshold. D3 pins the load-bearing `(not set)` sentinel —
+mutation probe confirmed. D4 pins the 'any import wins' CommonJS-vs-ES6
+rule. D5 covers `||`-split fingerprint parsing for orphan-import
+detection. D6 has both positive (8 cards seeded, endpointCoverage
+expected) and negative (only server card, missingEndpoints
+populated) probes. Includes a roll-up + edge-case + writeReport
+round-trip.
+
+**Ticket 8 (connection-state.json omissions) — ack.**
+Documentation-only audit. The 45-line header in
+`src/features/schema-cards/manifest-generator.js` explicitly cites
+Wave 3A's birthTimestamp reuse as the strengthening rationale
+(persistence is now the canonical authority for birthTimestamp;
+adding the field to the manifest would create a second identity
+surface consumers could disagree with the fingerprint on).
+References the `parseFingerprint()` recipe for consumers who want
+the timestamp. Matching MANIFEST OMISSION NOTE in
+`src/shared/types/st8-types.js` cross-references the manifest
+header. Roadmap P2.5 satisfied. residualConcern about a key-set
+unit-test guard is a fair P3 follow-up.
+
+**Ticket 12 (dive-in lock indicator) — defer-confirmed.**
+JSON status=deferred. The DEFERRAL NOTE in
+`src/frontend/components/dive-in/dive-in.js` correctly names both
+upstream owners (louis-and-locking Phase L1 for the data source via
+GET /api/locks; frontend-experience Wave 7 for the 3D render).
+Sketches the wire-up recipe with concrete sprite-attach math
+(`building.position + (0, height + offset, 0)`, color `0xFF3344`,
+LOCK_STATE hook subscribe for mid-flight updates). Preserves the
+founder's documentary intent from
+`docs/Sonic/CODE_CITY_BARRADEAU_BUILDER.md`. Sequencing paragraph
+makes the dependency order explicit. Pointer files exist:
+`docs/_pending-roadmap/louis-and-locking.md` and
+`docs/_pending-roadmap/frontend-experience.md`.
+
+**Ticket 13 (needsAIReview annotation) — ack.** INFO-level
+confirmation. Inline DOWNSTREAM WIRING comment at
+`src/features/analysis/intent-seeder.js` adjacent to the
+TRIPLE_AT_PATTERN producer correctly names the two render sites
+(`app.js:466` badge-ai-review constellation span, and
+`file-explorer.js:465` intent table). Traces the data path through
+the persistence.js ALTER block + `getAllFiles()` + `/api/files`.
+No behavior change. Closes the line item with adjacent
+self-documentation; future readers won't re-flag.
+
+**Ticket 14 (migration framework cross-link) — defer-confirmed.**
+JSON status=deferred. Verified upstream:
+`docs/_pending-tickets/persistence-and-database.for-review.json`
+ticket 0 carries `status=deferred / verdict=defer-confirmed` (Wave
+1B). The roadmap pointer (`docs/_pending-roadmap/persistence-and-database.md`
+P1.1 SQLite migration framework) is the canonical owner. Follows
+the Wave 2A upstream-resolved pattern correctly — no duplicate
+migration framework invented locally. Inherited residualConcerns
+reference the existing `[st8:persistence:drift]` warnings (Wave 1A
+payoff) as the bridging surface until P1.1 lands.
+
+### Cheats considered and dismissed
+- **"D1-D6 tests trivially assert constructed values"** — read the
+  test file. Each dimension probe constructs realistic synthetic
+  cards, runs the real `GapAnalyzer.analyze()`, and asserts
+  semantic outcomes (root-cause strings, percentage thresholds,
+  fingerprint-parsing). Mutation probe confirmed D3 surfaces real
+  regressions.
+- **"connection-state.json omission docs without a test"** —
+  acknowledged by the executor as residualConcern; not a kickback
+  because the userNote scope was documentation, and the cross-file
+  cross-references between manifest-generator.js and st8-types.js
+  give a reviewer two failure surfaces to catch the regression at
+  code review time. P3 follow-up worth filing.
+- **"defer pointers are vague"** — both deferrals (12, 14) name
+  concrete roadmap files, concrete phases (Louis L1, persistence
+  P1.1, frontend Wave 7) and concrete API surfaces (GET /api/locks,
+  _migrations table). Acceptable.
+- **"identity-risk consumer is a stub"** — false. Live test surface
+  covers every branch: present-file + count-N records, missing-file
+  count=0 envelope, malformed JSON 500, POST 405, fallbackCount
+  field-missing graceful fallback to records.length. Real handler,
+  not a stub.
+
+### Cluster-close drift audit
+`git log --since="2026-05-14" --name-only --pretty=format: | grep -E
+"^src/0_"` reports 0_* paths from commits 36d9c16 (skeleton create)
+and d340af4 (cleanup), both dated 2026-05-14 and explicitly marked
+historical in CLAUDE.md. Tightened query
+`git log --since="2026-05-15"` returns empty. Working-tree check
+(`git ls-files | grep "^src/0_"`) is empty. No live drift. Cluster
+clear to close.
+
+### Safe to rename to `.for-review.json`?
+**Yes.** All 17 tickets in the cluster have terminal verdicts.
+The .st8/identity-risk.json consumer surface — flagged in both
+3A and 3B reviews as a cross-wave concern — is now live with test
+coverage. Test suite at 207/207. Cluster ready for the founder.
+
+---
+
+## Cluster Summary
+
+| Wave | Reviewer | ack | kickback | defer-confirmed |
+|---|---|---|---|---|
+| 3A | wave-3a-reviewer | 7 | 0 | 0 |
+| 3B | wave-3b-reviewer | 3 | 0 | 2 |
+| 3C | wave-3c-reviewer | 3 | 0 | 2 |
+| **TOTAL** | — | **13** | **0** | **4** |
+
+17 tickets total. 0 kickbacks across all three waves. The cluster
+shipped:
+- Identity reuse across runs (Wave 3A: birthTimestamp first-observed-
+  wins, isUnreliableBirthtime sentinel, identity-risk.json producer,
+  multi-fingerprint card dedup).
+- The three founder-priority routes (Wave 3B: `/api/signal-path`,
+  `/api/generate-report`, `/api/insights`).
+- Gap-analyzer D1-D6 regression locks, connection-state.json
+  contract documentation, downstream-wiring annotations, and two
+  upstream-owned deferrals with concrete cross-links (Wave 3C).
+- The Wave 3A/3B-flagged `.st8/identity-risk.json` consumer is now
+  surfaced as `/api/identity-risk` with 5 test probes
+  (orchestrator-completed at wave-3c hand-off).
+
+The four defer-confirmed tickets (3 relationship-analyzer, 6 traversal,
+12 dive-in lock indicator, 14 migration framework) all point at
+specific roadmap phases owned by other clusters or future waves.
+No work was punted without a forwarding address.
+
+Cluster ready to close. Renaming JSON to
+`.for-review.json`.
+
