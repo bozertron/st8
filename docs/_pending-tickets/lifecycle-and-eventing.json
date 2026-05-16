@@ -24,13 +24,22 @@
     "filesChanged": [
       "src/frontend/app.js"
     ],
+    "commitHash": "59325e8",
     "residualConcerns": "If a future requirement needs constellation status reconciliation for files that exist in the manifest but never receive a mutation event in the current session (e.g. status changed before page load), the bootstrap fetch in bootConstellation() is the right place to extend — NOT a re-introduced poll. Today the bootstrap fetch + per-event recolor covers the common case."
   },
   {
     "filepath": "src/frontend/services/coordination.js",
     "userNote": "REDUNDANT POLL: startPolling polls /api/connection-state.json every 2s via setInterval at line 65. The notification bus already exposes the same mutation data over SSE at /api/mutations, AND no current consumer of St8Coordination.addListener exists in src/frontend/ (grep confirms no addListener call sites). Either wire coordination to the SSE stream (cheap, real-time) or delete the service if nothing actually subscribes. Today it does work every 2s that no one reads.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4d-executor",
+    "actionsTaken": "Decision: WIRE, not delete. The service still has an active call site (app.js workspace-switch for the 'standard' / 'pretext-review' modes calls startPolling/stopPolling) — deleting it would silently break the right-hand file panel refresh. Replaced the 2s setInterval inside startPolling with an EventSource on /api/mutations: (1) coordinationState.pollInterval/pollMs removed; replaced with mutationSource (EventSource handle) + reconnectTimer + reconnectDelay (1s starting, doubling to 30s cap on error). (2) New _openMutationSource(manifestPath) builds the EventSource; onmessage triggers loadManifest(manifestPath) for any non-'connected' frame (the manifest is the source of truth for compareManifests/generateAiContext, so reload-on-event is the right invalidation strategy — payload-level diffing would duplicate logic that already lives in compareManifests). (3) onopen resets backoff; onerror closes the stream + schedules a single setTimeout retry with linear backoff. (4) EventSource-undefined guard: if the service is ever loaded outside a browser (Node tests), the function logs a warn and returns null rather than throwing — the initial loadManifest() bootstrap still works. (5) startPolling retains its name for call-site compat (app.js:399/411/429) — renaming would balloon scope. (6) stopPolling closes the EventSource AND clears the reconnect timer (was missing the timer-clear analogue in the old setInterval path because no retry existed). The 'startPolling' name is now a misnomer; left as-is to avoid touching three call sites in app.js outside this ticket's narrow scope. Future cleanup: rename startPolling -> startRefresh, stopPolling -> stopRefresh, update call sites — flagged as residual. Tests: 245/0/0/0 holds. Manual smoke option (b): EventSource is a browser global with no testable Node equivalent in this repo; the SSE plumbing it consumes (/api/mutations + NotificationBus.addSSEClient) is independently covered by tests/core/notification-bus.test.js with real HTTP probes that prove handshake + publish-to-subscriber delivery. The frontend change adds only standard EventSource wiring on top.",
+    "filesChanged": [
+      "src/frontend/services/coordination.js"
+    ],
+    "commitHash": "0f54a61",
+    "residualConcerns": "Function names startPolling/stopPolling are now misnomers (no polling happens). Renaming would touch three call sites in app.js and rebroadcast the API surface — out of scope for Wave 4D. Future cleanup ticket: rename to startRefresh/stopRefresh + update src/frontend/app.js:399/411/429."
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
@@ -238,6 +247,7 @@
     "filesChanged": [
       "src/frontend/services/coordination.js"
     ],
+    "commitHash": "0f54a61",
     "residualConcerns": null
   },
   {
