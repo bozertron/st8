@@ -16,8 +16,9 @@
 
  Differences vs. the original (all intentional):
    - void-engine loader removed (void-engine moved to a separate project,
-     per founder direction). The window.loadVoidEngine call sites inside
-     app.js remain — they're guarded with if-checks and become safe no-ops.
+     per founder direction). The window.loadVoidEngine / unloadVoidEngine
+     call sites in app.js were also removed in Wave 7C (ticket 3); the
+     legacy 'pretext-dev' workspace value now degrades to standard mode.
    - settings-reader.js (formerly src/frontend/services/state.js) was
      dead code — never script-loaded by the original st8.html, had its
      own hardcoded DEFAULT_VOIDFLOW that duplicated settings.js's defaults
@@ -58,6 +59,7 @@
 <link rel="stylesheet" href="components/terminal/terminal.css" />
 <link rel="stylesheet" href="components/notifications/toast.css" />
 <link rel="stylesheet" href="components/prd-wizard/prd-wizard.css" />
+<link rel="stylesheet" href="components/dive-in/dive-in.css" />
 <link rel="stylesheet" href="styles/carousel.css" />
 </head>
 <body>
@@ -117,6 +119,29 @@
        the diamond on the side closest to st8. -->
   <footer class="shelf" id="shelf" data-active="st8">
     <button class="slide-diamond slide-left" aria-label="Slide left" title="Slide left">◇</button>
+    <!--
+      #shelf-content is intentionally empty in markup (ticket 20).
+
+      Per founder design (batch-027 "Pattern 2" from agent-C audit) the
+      lower 1/8 is meant to be TAKEOVER-CAPABLE: workspace nav buttons,
+      LLM chat strip, ticket badges — components push/pop onto a stack
+      and the default chrome re-asserts when nothing is on top.
+
+      Wiring this requires building the registry (`St8Shelf.takeover(...)`),
+      the per-context content sources (workspace picker, ticket badge,
+      chat input), and the SSE plumbing for live ticket-count updates.
+      That's roadmap-scale work, not a single ticket.
+
+      Deferred to roadmap P1:
+        docs/_pending-roadmap/frontend-experience.md
+          "Lower-5th shelf takeover" (P1, lines 16-26)
+          "Workspace nav buttons in the shelf" (P1, lines 28-36)
+          "Real-time ticket badge in the shelf or phreak header" (P1, lines 47-53)
+
+      Keeping the element in the DOM as an empty <div> so future takeover
+      code has a stable mount point and CSS grid-center spacing stays
+      intact.
+    -->
     <div class="shelf-content" id="shelf-content"></div>
     <button class="slide-diamond slide-right" aria-label="Slide right" title="Slide right">◇</button>
   </footer>
@@ -152,6 +177,13 @@
   <script src="components/settings/settings.js"></script>
   <script src="services/coordination.js"></script>
 
+  <!-- Status colors — single source of truth (ticket 9).
+       Loaded BEFORE constellation.js and before the dive-in ESM module
+       so both consumers see window.St8StatusColors at init. Adding a
+       new status state (e.g. COMBAT going live) is now a one-file
+       change in status-colors.js + tokens.css. -->
+  <script src="components/status-colors.js"></script>
+
   <!-- Constellation (flat file view) — Phase B
        particles.lib.js is the unmodified vendored library; constellation.js
        is our thin st8-specific wrapper that maps files to particles. -->
@@ -170,6 +202,45 @@
       "three/addons/": "./components/dive-in/three/"
     }
   }
+  </script>
+  <!-- Importmap browser-support fallback (ticket 6).
+       <script type="importmap"> requires Chrome 89+ / Safari 16.4+ /
+       Firefox 108+. On older browsers the importmap is ignored and
+       components/dive-in/dive-in.js fails to resolve its `three` /
+       `three/addons/` specifiers — the file-dive-in then silently
+       breaks with a cryptic "Failed to resolve module specifier" in
+       the console. Hard-fail loudly instead: detect missing support
+       and surface a visible banner so users know WHY the dive-in
+       didn't open. The rest of the app (constellation, explorer,
+       phreak) does NOT depend on importmap and keeps working. -->
+  <script>
+    (function() {
+      try {
+        if (!HTMLScriptElement || !HTMLScriptElement.supports
+            || !HTMLScriptElement.supports('importmap')) {
+          var banner = document.createElement('div');
+          banner.id = 'importmap-fallback-banner';
+          banner.setAttribute('role', 'alert');
+          banner.style.cssText =
+            'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+            'background:#2a0a0f;color:#C9748F;' +
+            'border-bottom:1px solid #C9748F;' +
+            'font-family:monospace;font-size:13px;letter-spacing:1px;' +
+            'padding:8px 16px;text-align:center;';
+          banner.textContent =
+            '[st8] DIVE-IN UNAVAILABLE — this browser does not support <script type="importmap"> ' +
+            '(needs Chrome 89+, Safari 16.4+, or Firefox 108+). The rest of st8 still works.';
+          // Defer DOM insertion until <body> is ready.
+          if (document.body) document.body.appendChild(banner);
+          else document.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(banner);
+          });
+          console.warn('[st8] importmap unsupported — dive-in module will not load');
+        }
+      } catch (err) {
+        console.warn('[st8] importmap support probe failed:', err && err.message);
+      }
+    })();
   </script>
   <script type="module" src="components/dive-in/dive-in.js"></script>
 

@@ -17,7 +17,40 @@ const fs = require('fs');
 
 /**
  * Maps filename patterns to human-readable purpose descriptions.
- * Order matters — first match wins.
+ *
+ * ─── ORDERING POLICY (identity-and-analysis ticket 0) ────────────
+ *
+ * First-match-wins. Order IS load-bearing. The current ordering encodes
+ * three principles, listed from highest to lowest priority:
+ *
+ *   1. SPECIFIC > GENERIC. More-specific module-role patterns precede
+ *      generic ones. Examples:
+ *        - /persistence/   (line ~25)  before  /db/        (~50)
+ *        - /schema[-_]?card/  (~31)    before  /emitter/   (~32)
+ *        - /graph[-_]?builder/(~45)    before  /graph[-_]?traversal/
+ *        - /database[-_]?persister/    before  /persistence/ (alias)
+ *
+ *   2. NAMED-ROLE > FRAMEWORK. Module-purpose patterns precede
+ *      framework-tooling patterns. /indexer/ precedes /index/ so
+ *      background-indexer.js, file-indexer.js, etc. get "Codebase
+ *      indexing and analysis" rather than "Module entry point".
+ *
+ *   3. CODE-MODULE > DOC-ARTEFACT. Source-code role patterns precede
+ *      PRD / changelog / readme / decision-log patterns at the tail of
+ *      the array. The intent: code files matching both a code-role
+ *      pattern and a doc-role pattern (e.g. "roadmap.js") get the
+ *      code-role classification.
+ *
+ * ADDING A NEW PATTERN — checklist:
+ *   - If the new pattern is more specific than an existing one, insert
+ *     it BEFORE that one. Run tests/features/analysis/intent-seeder-
+ *     ordering.test.js to confirm no pinned mapping regressed.
+ *   - If the new pattern is generic (matches many basenames), append
+ *     to the relevant section. The test file is the executable lock
+ *     that catches accidental steals.
+ *   - First-match-wins means `/index/` near the top would silently
+ *     steal `background-indexer.js` from `/indexer/`. The current order
+ *     puts /indexer/ first by design.
  */
 const FILENAME_PURPOSE_MAP = [
     { pattern: /persistence/i, purpose: 'SQLite persistence layer' },
@@ -185,16 +218,37 @@ class IntentSeeder {
                 return { success: false, error: `File not found: ${fingerprint}` };
             }
 
-            // Parse file content for imports/exports heuristics
-            const { imports, exports, comments } = this._parseFileContent(file.filepath);
+            // SINGLE READ PASS (ticket 1): the disk file is read at most
+            // once per seedFile call. _readSourceOnce returns the content
+            // (or '' if the file doesn't exist) and the resolved absolute
+            // path. _parseFileContent uses the cached content; the @@@
+            // detection scan uses the same content. Previously _parseFile
+            // and the detection block each called fs.readFileSync, so a
+            // 500-file project did 1000 reads.
+            const { content, absPath } = this._readSourceOnce(file.filepath);
 
-            // Detect @@@ symbols in file content. Resolve relative to targetDir
-            // (file_registry.filepath is project-relative, not cwd-relative).
+            // Parse file content for imports/exports heuristics
+            const { imports, exports, comments } = this._parseFileContent(file.filepath, content);
+
+            // Detect @@@ symbols in the already-read content.
+            //
+            // ─── DOWNSTREAM WIRING (identity-and-analysis ticket 13) ───
+            // tripleAtCount + needsAIReview persist via flagForAIReview()
+            // and ARE surfaced in the UI today (verified Wave 3C):
+            //   - src/frontend/app.js:466 renders `<span class="badge-ai-review">@@@</span>`
+            //     next to the filename in the constellation file-list when
+            //     `file.needsAIReview` is true.
+            //   - src/frontend/components/file-explorer/file-explorer.js:465
+            //     renders the same badge inside the explorer intent table.
+            // Both badges read off the file row returned by /api/files,
+            // which is sourced from persistence.getAllFiles() (the column
+            // was added in the ALTER block at persistence.js:71). No gap —
+            // recorded here so future readers don't re-flag.
             const TRIPLE_AT_PATTERN = /(?:^|\s)@@@(?:\s|$)|<!--\s*@@@\s*-->|@@@AI_REVIEW/gm;
-            const detectionPath = path.isAbsolute(file.filepath) ? file.filepath : path.resolve(this.targetDir, file.filepath);
-            const contentForDetection = fs.existsSync(detectionPath) ? fs.readFileSync(detectionPath, 'utf-8') : '';
-            const tripleAtMatches = contentForDetection.match(TRIPLE_AT_PATTERN) || [];
+            const tripleAtMatches = content ? (content.match(TRIPLE_AT_PATTERN) || []) : [];
             const tripleAtCount = tripleAtMatches.length;
+            // absPath retained for future call sites that need the resolved path.
+            void absPath;
 
             if (tripleAtCount > 0 && this.persistence) {
                 this.persistence.flagForAIReview(file.filepath, tripleAtCount);
@@ -353,10 +407,38 @@ class IntentSeeder {
     }
 
     /**
+     * Read the source file at most once and return its content + resolved
+     * absolute path. Returns content='' if the file doesn't exist on disk
+     * (e.g. registry row for a now-deleted file). Used by seedFile() so a
+     * single fs.readFileSync call services BOTH the imports/exports parse
+     * and the @@@ AI-review detection scan (ticket 1).
+     *
+     * @private
+     * @param {string} filepath - relative or absolute filepath
+     * @returns {{ content: string, absPath: string }}
+     */
+    _readSourceOnce(filepath) {
+        const absPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
+        if (!fs.existsSync(absPath)) {
+            return { content: '', absPath };
+        }
+        try {
+            return { content: fs.readFileSync(absPath, 'utf-8'), absPath };
+        } catch (err) {
+            console.error(`[st8:seeder] Failed to read ${absPath}:`, err.message);
+            return { content: '', absPath };
+        }
+    }
+
+    /**
      * Parse file content to extract imports, exports, and comments using regex.
      * @private
+     * @param {string} filepath - relative or absolute filepath, used for card lookup
+     * @param {string} [preReadContent] - if provided, skip the on-disk re-read
+     *     (ticket 1 single-read optimisation). Caller resolves the filepath
+     *     once via _readSourceOnce and passes the content here.
      */
-    _parseFileContent(filepath) {
+    _parseFileContent(filepath, preReadContent) {
         const imports = [];
         const exports = [];
         const comments = [];
@@ -379,16 +461,23 @@ class IntentSeeder {
                 }
             }
 
-            // Fallback: read the actual file and parse with regex. Resolve
-            // relative to this.targetDir, NOT cwd — file_registry.filepath is
-            // stored relative to the indexed project root and is unreliable
-            // against cwd when the server's cwd differs.
-            const fullPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
-            if (!fs.existsSync(fullPath)) {
+            // Use pre-read content if the caller already paid the read cost.
+            // Otherwise fall back to a fresh read (preserves the legacy
+            // callable shape — _parseFileContent is exported in module.exports
+            // implicitly via the class export, so a future direct caller
+            // still works).
+            let content = preReadContent;
+            if (content === undefined) {
+                const fullPath = path.isAbsolute(filepath) ? filepath : path.resolve(this.targetDir, filepath);
+                if (!fs.existsSync(fullPath)) {
+                    return { imports, exports, comments };
+                }
+                content = fs.readFileSync(fullPath, 'utf-8');
+            } else if (content === '') {
+                // Empty content means the file didn't exist (per _readSourceOnce).
                 return { imports, exports, comments };
             }
 
-            const content = fs.readFileSync(fullPath, 'utf-8');
             const lines = content.split('\n');
 
             let inModuleExports = false;

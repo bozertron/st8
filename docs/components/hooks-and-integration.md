@@ -50,19 +50,20 @@ literals works (the registry uses string keys) but loses grep-ability.
 
 | Constant | String | Payload | Publishers | Subscribers (defaults) |
 |---|---|---|---|---|
-| `INDEX_START` | `index:start` | `{ targetDir, persistence }` | `src/core/server/main.js:107` | `sonic-daemon` (P=10) |
-| `FILE_INDEXED` | `file:indexed` | `{ file, targetDir, persistence }` | `src/core/server/main.js:157` (per-file in Pass-1 upsert) | none — extension point |
-| `INDEX_COMPLETE` | `index:complete` | `{ result, targetDir, persistence, emitter, printer }` | `src/core/server/main.js:195` | `manifest-generator` (P=10), `schema-card-emitter` (P=20), `gap-analyzer` (P=30), `intent-seeder` (P=40), `force-checks` (P=90) |
-| `FILE_BEFORE_CHANGE` | `file:before-change` | `{ change, targetDir, persistence }` | **no firers** | none |
-| `FILE_AFTER_CHANGE` | `file:after-change` | `{ change, file, mutation, schemaCard, targetDir, persistence }` | **no firers** | none |
-| `LIFECYCLE_TRANSITION` | `lifecycle:transition` | `{ file, oldPhase, newPhase }` | **no firers** | none |
-| `COMMIT_RECORDED` | `commit:recorded` | `{ commit: { hash, shortHash, subject, author, timestamp, branch, filesChanged } }` | `src/core/server/app.js:1484` (`POST /api/record-commit`) | none — extension point |
-| `PRD_GENERATE` | `prd:generate` | `{ targetDir, options }` | **no firers** | none |
-| `TICKET_CREATED` | `ticket:created` | `{ ticket: { id, fingerprint, filepath, userNote, sha256Hash, status, identityBundle, createdAt } }` | `src/core/server/app.js:1569` (`POST /api/tickets`) | none — extension point |
+| `INDEX_START` | `index:start` | `{ targetDir, persistence }` | `src/core/server/main.js` (bootstrap, pre Pass-1) | `sonic-daemon` (P=10) |
+| `FILE_INDEXED` | `file:indexed` | `{ file, targetDir, persistence }` | `src/core/server/main.js` (per-file in Pass-1 upsert) | none — extension point |
+| `INDEX_COMPLETE` | `index:complete` | `{ result, targetDir, persistence, emitter, printer }` | `src/core/server/main.js` (post Pass-2) | `manifest-generator` (P=10), `schema-card-emitter` (P=20), `gap-analyzer` (P=30), `intent-seeder` (P=40), `mutation-log-retention` (P=50), `force-checks` (P=90) |
+| `FILE_BEFORE_CHANGE` | `file:before-change` | `{ change, targetDir, persistence }` | `src/core/server/main.js` (watcher orchestrator, per code change) | none — extension point |
+| `FILE_AFTER_CHANGE` | `file:after-change` | `{ change, file, mutation, schemaCard, targetDir, persistence, emitter }` | `src/core/server/main.js` (watcher orchestrator, per code change) | `file-after-change/schema-card-emitter` (P=20), `file-after-change/sse-broadcaster` (P=30) |
+| `LIFECYCLE_TRANSITION` | `lifecycle:transition` | `{ file: { fingerprint, filepath }, oldPhase, newPhase }` | `src/core/server/app.js` — `_handleConceptFile` (null → CONCEPT), `_handleProductionPromote` (DEVELOPMENT → PRODUCTION) | none — extension point |
+| `COMMIT_RECORDED` | `commit:recorded` | `{ commit: { hash, shortHash, subject, author, timestamp, branch, filesChanged } }` | `src/core/server/app.js` (`POST /api/record-commit`) | none — extension point |
+| `PRD_GENERATE` | `prd:generate` | `{ targetDir, options }` | `src/core/server/app.js` — `_handlePrd` (`GET /api/prd`, fires before generation) | none — extension point |
+| `TICKET_CREATED` | `ticket:created` | `{ ticket: { id, fingerprint, filepath, userNote, sha256Hash, statusAtCreation, identityBundle, createdAt } }` | `src/core/server/app.js` (`POST /api/tickets`) | none — extension point |
 
-"No firers" hook points are declared extension seams. They are documented
-contract; nothing currently emits them. They are kept in the constants table so
-that the first publisher to wire one in does not have to invent a name.
+Every hook constant now has at least one publisher. Wave 2B (May 2026) closed
+the gap on the previous four "no firers" entries by wiring `FILE_BEFORE_CHANGE`
++ `FILE_AFTER_CHANGE` (watcher decomp), `LIFECYCLE_TRANSITION` (two real phase
+transitions in app.js), and `PRD_GENERATE` (the existing PRD route).
 
 ---
 
@@ -104,7 +105,7 @@ attaches st8's built-in modules to the registry.
 |---|---|---|---|
 | 10 | `sonic-daemon` | `require('../../features/search/sonic-daemon').start({ targetDir })` — spins up the Sonic TCP search backend as a child process | Wrapped in try/catch inside the handler. Logs `[st8] Sonic daemon start failed: …` and continues. st8 boots in SQLite-only mode (sonic-queries has SQLite fallback). |
 
-### INDEX_COMPLETE — 5 subscribers (in run order)
+### INDEX_COMPLETE — 6 subscribers (in run order)
 
 | Priority | Source | What it does | Failure semantics |
 |---|---|---|---|
@@ -112,6 +113,7 @@ attaches st8's built-in modules to the registry.
 | 20 | `schema-card-emitter` | `ctx.emitter.emitAllCards(ctx.persistence)` then `ctx.printer.printAllFromCards(...)` | Same registry-level isolation. |
 | 30 | `gap-analyzer` | Instantiates `GapAnalyzer(schemaCardsDir, persistence)`, calls `.analyze()` + `.writeReport(...)` to `.st8/gap-analysis.md` | Has its own try/catch — logs `[st8] Gap analysis failed: …` and returns. Belt-and-braces with the registry-level catch. |
 | 40 | `intent-seeder` | `IntentSeeder(...).seedAll()` — heuristic-fills `file_intent` rows. | Internal try/catch. |
+| 50 | `mutation-log-retention` | Once-per-24h prune of `file_mutation_log` rows older than 30 days; preserves PRODUCTION/PURGE rows. Gate keyed in `st8_settings`. | Internal try/catch. |
 | 90 | `force-checks` | `runForceChecks(ctx)` — see next section. | Internal try/catch per check; writes `.st8/force-check.md`. |
 
 The P=10..40 sequence preserves the byte-for-byte boot output the inline
@@ -119,10 +121,31 @@ orchestration produced before batch 023.
 
 ### FILE_INDEXED — 0 subscribers
 
-Wired and fired per file in the Pass-1 upsert loop (`main.js:157`). No default
+Wired and fired per file in the Pass-1 upsert loop. No default
 subscribers; reserved for future Louis lock checks, real-time UI cards, etc.
 The example in `default-subscribers.js`'s closing comment shows the intended
-shape.
+shape. Wave 2B added a zero-subscriber fast path in `HookRegistry.execute` so
+the per-file fire is essentially free until a subscriber registers.
+
+### FILE_BEFORE_CHANGE — 0 subscribers
+
+Wired and fired per code change in the watcher orchestrator
+(`main.js` `onFileChange` callback) BEFORE any persistence work. No default
+subscribers; reserved for future pre-write hooks (e.g. lint-on-save,
+Louis pre-lock validation).
+
+### FILE_AFTER_CHANGE — 2 subscribers (in run order)
+
+| Priority | Source | What it does | Failure semantics |
+|---|---|---|---|
+| 20 | `file-after-change/schema-card-emitter` | For CREATE/EDIT: AST-parses the file, joins last-mutation metadata from persistence, calls `ctx.emitter.emitCard(...)`. For DELETE: unlinks the schema card on disk. | Each branch wrapped in its own try/catch; logs `[st8] Failed to (delete|emit) schema card …` and continues so the SSE broadcaster downstream still fires. |
+| 30 | `file-after-change/sse-broadcaster` | `notificationBus.publish({ fingerprint, filepath, mutationType, actor, sha256Hash })` — pushes the change to SSE clients (frontend constellation, dive-in, terminal). | Registry-level catch. notification-bus has its own SSE-client isolation so a single broken socket can't break the publish. |
+
+Both subscribers guard on `ctx.file && ctx.mutation`. The watcher's
+`_applyFileChange` helper returns null when a change is a no-op (unlink of
+an unknown file, EDIT with unchanged hash, read failure) and the orchestrator
+still fires FILE_AFTER_CHANGE so observer subscribers see attempted-but-skipped
+changes — production subscribers just early-return.
 
 ---
 

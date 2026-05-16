@@ -24,6 +24,38 @@
 
 // ─── STATE ────────────────────────────────────────────────────
 
+/* ─── PHONE METAPHOR (Wave 5H ticket 16) ────────────────────────
+   The "phone" is a whimsical phone-phreaking metaphor for the
+   terminal's signal-suppression toggle. It exposes a single
+   user-controllable bit (`phoneOffHook`) that gates whether
+   inbound signal pop-ups render inside the terminal panel.
+
+   Signal flow:
+     (a) Persisted on `phreakState.phoneOffHook` (boolean, default false).
+     (b) Toggled by `togglePhoneOffHook()` (data-action="phone-toggle"
+         button in the terminal header, lifted into the column titlebar
+         by src/frontend/app.js).
+     (c) READ INTERNALLY by `_pushSignal()` (line ~397) — when off-hook
+         the signal is recorded with `suppressed:true` and the pop-up
+         is NOT rendered. ON-hook signals render the popup overlay.
+     (d) READ EXTERNALLY by src/frontend/app.js (≈lines 137-146) via
+         `PhreakTerminal.getPhoneState()` — used only to drive the
+         status-line text ("PHONE OFF-HOOK — SIGNALS SUPPRESSED" vs
+         "PHONE ON-HOOK — SIGNALS ACTIVE") and the .phone-on/.phone-off
+         CSS class on the status element.
+
+   In plain language: "phone off-hook" = signal pop-ups muted; "phone
+   on-hook" = signal pop-ups active. The metaphor borrows from analog
+   telephony where lifting the handset off the cradle prevented the
+   bell from ringing on inbound calls. This is pure UI state — no
+   backend round-trip, no persistence across reloads.
+
+   Future direction (FRONT-007 in cluster roadmap): consider routing
+   ALL SSE notifications through this state machine globally, so the
+   single toggle controls every notification surface rather than only
+   the terminal's signal pop-ups.
+   ───────────────────────────────────────────────────────────── */
+
 const phreakState = {
     lines: [],              // { id, type, content }
     history: [],            // command history
@@ -33,7 +65,7 @@ const phreakState = {
     onCopyLine: null,       // callback: fn(content)
     lastRenderedIndex: -1,  // tracks append-only render position
     isTUI: false,           // true when in full-screen TUI mode
-    phoneOffHook: false,    // true when phone is "off the hook"
+    phoneOffHook: false,    // true when phone is "off the hook" — see PHONE METAPHOR block above
     signals: [],            // { id, type, data, provisioned, timestamp }
     signalCounter: 0,
     _epoUnlisten: null,     // cleanup fn for EPO listener
@@ -595,6 +627,37 @@ function _enterTUI() {
 }
 
 // ─── TUI ISOLATION AND CLEAR FUNCTIONS ───────────────────────
+//
+// CROSS-COMPONENT COUPLING (Wave 5H ticket 5):
+//   _isolateFiles() calls `window.renderFileList()` (defined in
+//   src/frontend/app.js:448) and _clearVoid() targets the DOM node
+//   `#void-file-list` (created in app.js:405). BOTH dependencies are
+//   conditional: they only exist when the workspace type is
+//   'logic-analyzer' (app.js:398-407 — the .void-right-panel + the
+//   #void-file-list child are appended only on that workspace, and
+//   the right panel is removed on every other workspace switch).
+//
+//   Callers (live, NOT dead):
+//     - _isolateFiles is invoked by the TUI overlay click handler at
+//       lines 585-596 for data-action="isolate-green|yellow|red"
+//       AND "show-all" buttons rendered at lines 541-544.
+//     - _clearVoid is invoked by the TUI overlay click handler at
+//       line 601 for data-action="clear-void" button rendered at
+//       line 548. _clearAll (line 688) also calls _clearVoid.
+//
+//   Behaviour on non-logic-analyzer workspaces:
+//     - _isolateFiles still updates badges + writes a system line to
+//       the terminal, but the renderFileList() call is null-guarded
+//       (line 656 `if (window.renderFileList)`) so it silently no-ops
+//       on workspaces where app.js hasn't installed the global.
+//     - _clearVoid is null-guarded by `if (container)` (line 675) so
+//       it silently no-ops when #void-file-list is absent.
+//
+//   The earlier cluster doc (FRONT-002) flagged these as "dead
+//   coupling — globals never defined" — that read was incorrect. The
+//   globals ARE defined, just only on the logic-analyzer workspace.
+//   The null-guards make the code safe to leave wired on other
+//   workspaces. Keeping rather than removing.
 
 function _isolateFiles(status) {
     var manifest = window.VoidFileExplorer && window.VoidFileExplorer.getIndexedFingerprints

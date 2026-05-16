@@ -34,3 +34,13 @@ snapshots/
 
 # ST8 Identity System
 .st8/
+
+# ST8 runtime artifacts — regenerated every `node start.js .` run.
+# Timestamped indexer snapshots (e.g. 2026-05-15T11-18-23-245Z_*.txt) and
+# the LATEST_*.txt symlink-equivalents are pure runtime output. Hand-curated
+# planning docs (00_*, 01_*, EXECUTION-PLAN.md, PRD.md, etc.) stay tracked.
+.planning/st8_identity_system/*Z_*
+.planning/st8_identity_system/LATEST_*
+
+# Live connection state — written on every boot, dominates diffs otherwise.
+connection-state.json

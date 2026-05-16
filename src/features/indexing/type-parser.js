@@ -14,6 +14,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateTypeReport = generateTypeReport;
 // C:\orchestr8\scripts\prd src\typeParser.ts
+/**
+ * type-parser — TypeScript type / interface / enum extractor.
+ *
+ * INPUT CONTRACT:
+ *   - targetPath: absolute path to a project root OR a single .ts file.
+ *     When a directory, scans `<targetPath>/src/types/**\/*.ts`
+ *     (DEFAULT_TYPES_DIR), excluding `PRDs/`. When a file, parses it
+ *     directly if it ends in .ts.
+ *   - This parser uses fast-glob + regex extraction, NOT a full AST
+ *     parse — it's faster but less precise than ast-parser.js. For
+ *     full AST coverage of types in arbitrary files, use the per-file
+ *     extractImportsAndExports() pipeline (consumed by indexer.js).
+ *
+ * OUTPUT CONTRACT (generateTypeReport returns string):
+ *   - Human-readable text report listing every `type X = ...`,
+ *     `interface X { ... }`, and `enum X { ... }` declaration with
+ *     its export status. data-ingestion.js parses via
+ *     `parseTypeText()` into SemanticGraph nodes of type 'typeDefinition'.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js:890 — circuit-breaker-wrapped invocation.
+ *   - parser-persistence.js — persists into Types SQLite table.
+ *
+ * KNOWN LIMITATIONS:
+ *   - Only the `src/types/` directory is scanned on directory targets;
+ *     types co-located with their consumers are missed.
+ *   - Regex-only extraction: types defined via complex generic
+ *     conditional patterns may not be matched fully.
+ *   - PRDs/ subdirectory is intentionally filtered (DEFAULT_PRD_DIR).
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/typeParser.ts.
+ */
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const fast_glob_1 = __importDefault(require("fast-glob"));

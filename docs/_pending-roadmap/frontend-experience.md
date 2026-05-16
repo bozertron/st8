@@ -138,10 +138,36 @@ Priority key:
   between panels. Document the keymap somewhere visible (probably the
   shelf takeover for a `?` help glyph).
 
+- **Dive-in setStatus in-place color update**
+  `setStatus(file, status)` calls `buildForFile()` which tears down
+  and rebuilds the entire geometry (`new BarradeauBuilding(file).build()`
+  + Delaunay etc.) just to swap the per-particle color. Cheap path:
+  cache the builder + the color BufferAttribute and rewrite the
+  attribute in place + flag `needsUpdate=true`.
+
+  Measurement baseline (Wave 7C ticket 16 deferral): status flips are
+  rare today — debug-time bug-juice → green transitions, not a hot
+  loop — and the rebuild is bounded by a single building's particle
+  count (typically <500), invisible against the 2500ms emergence
+  animation that follows the rebuild. Threshold for re-prioritization:
+  ship the in-place update when setStatus is invoked at >1Hz (e.g. a
+  LIFECYCLE_TRANSITION batch flow that fans out many status changes)
+  OR when the rebuild becomes measurably stutter-visible (>50ms on
+  commodity hardware).
+
 - **Constellation spatial index**
   `nearestParticle` is O(N) per click. Add an 8×8 coarse spatial
   bucket keyed in `bindFilesToParticles()`. Becomes load-bearing once
   file counts cross ~5k.
+
+  Measurement baseline (Wave 7C ticket 13 deferral): at ~1000 files
+  the scan costs ~0.1ms per click on commodity hardware — well under
+  the 16ms frame budget and dwarfed by click-event dispatch. Threshold
+  for re-prioritization: ship the bucket optimization when click-to-
+  dive-in latency exceeds 10ms p95 in measurement, OR when file count
+  exceeds 5k in any active workspace. Residual concern: R*-tree (or
+  any tree structure) is overkill at this scale — the 8x8 grid is the
+  right shape. Do not ship a half-baked R*-tree.
 
 - **Sonic-aware degraded-mode indicator in the shelf**
   When Sonic fails to bind (IPv6 issue, port collision, binary

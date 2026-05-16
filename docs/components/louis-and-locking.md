@@ -14,6 +14,7 @@ directory in the st8 tree today; the closest things on disk are:
 | Louis design / Path C plan | `st8_bible.md:2527-2610` | The captured design — not yet implemented |
 | Stale comment | `src/frontend/components/dive-in/dive-in.js:21` | `Locked files get a red lock indicator above the building.` — referenced but never drawn |
 | Constellation color slot | `src/frontend/components/constellation/constellation.js` (`STATUS_COLOR.LOCKED`) | `{r:201, g:116, b:143}` pink — already reserved; nothing flips files into the LOCKED bucket yet |
+| Shared color tokens | `src/frontend/components/status-colors.js` (single-source `STATUS_COLOR` since Wave 7C ticket 9) | Both constellation and dive-in now read `STATUS_COLOR.LOCKED` from `window.St8StatusColors`; `statusColor(file)` already honors `file.locked` first (overrides RED/GREEN). Pre-wired and waiting for the L1 data source. |
 | LOCKED enum | `src/core/database/persistence.js:57,60` and bible §status enums | `FileStatus = ...LOCKED...`, `LifecyclePhase = ...LOCKED...` — declared, never written |
 
 The **Louis directory itself is not on disk** in this working copy — the
@@ -450,12 +451,47 @@ captured concept). Specifically:
 - **No defined behavior** for "the file no longer exists on disk but is
   still marked `locked = 1` in SQLite." Decide on every `LOCK_CHANGED`
   fire: drop the row, or keep it as a tombstone?
-- **No spec for the lock-history log.** Louis writes one
-  (`~/.louis-control/lock-history.log`). st8 already has
-  `file_mutation_log` and `activity_log`. The right merge is probably:
-  emit a `mutationType = 'LOCK'` row into `file_mutation_log` on every
-  lock-change (the LOCK enum value is already declared in the type system
-  but never written — see bible §line 1617's "Defined-but-never-fired").
+- **Lock-history audit trail — DECIDED (Wave 8A, ticket 15).**
+  Louis writes one (`~/.louis-control/lock-history.log`). st8 already
+  has `file_mutation_log` and `activity_log` — both reachable from the
+  default subscriber pipeline. **Decision: st8 reuses its existing
+  audit surfaces; no separate `lock-history.log` file.**
+
+  Specifically, when Phase L1's `HOOKS.LOCK_CHANGED` subscriber chain
+  ships, the audit trail rides two existing tables:
+
+  - **`file_mutation_log`** (per-file timeline) — the P=20
+    `lock-mutation-log` subscriber INSERTs a row with
+    `mutationType = 'LOCK'`, `fingerprint = <file>`, `actor` set per
+    the existing actor convention (DEVELOPER / AGENT-N / SYSTEM), and
+    `metadata = JSON.stringify({ locked: true|false })`. The LOCK enum
+    value is already declared in the mutation-type set but has never
+    been written (bible §line 1617's "Defined-but-never-fired");
+    `LOCK_CHANGED` is the natural firing site.
+  - **`activity_log`** (cross-cutting timeline) — already takes
+    `targetFingerprint` + `source` + `action` + `details`. A second
+    P=30 subscriber (`lock-activity-log`) writes
+    `{ source: 'LOUIS', action: 'LOCK'|'UNLOCK',
+       targetFingerprint, details: JSON }` for the higher-level "what
+    happened in the system, regardless of which file" view.
+
+  Rationale for picking (a) over a separate flat-file log:
+  - **No new persistence surface.** Two SQLite tables already have
+    everything Louis's flat log carried (timestamps, target, actor,
+    free-form details).
+  - **Queryable.** "Show me every lock event in the last 24h" is one
+    SQL line; same query against a text log needs a parser.
+  - **Travels with `st8.sqlite`.** Backups, exports, and the existing
+    schema-drift detector cover lock history for free.
+  - **Single source of truth.** A separate `~/.louis-control/lock-history.log`
+    written alongside SQLite would diverge on any crash/race between
+    the two writes.
+
+  The `~/.louis-control/protected-files.txt` file is **not** an audit
+  log — it is the ABI between st8 and the out-of-process git
+  pre-commit hook. That file stays (regenerated from SQLite on every
+  `LOCK_CHANGED` per the L1 design), but it is not the lock-history
+  audit trail.
 
 ---
 
@@ -492,6 +528,67 @@ the Three.js sprite.
 
 ---
 
+## Scope boundary — Path C, Warden only (Wave 8A, ticket 3)
+
+The founder picked **Path C** out of the three integration paths
+documented in bible §batch 021. Path C is "port just the Warden core
+(~140 lines) + build a new st8 panel UI." This subsection makes the
+IN-scope / OUT-of-scope split explicit so future contributors (human
+or agent) do not over-port.
+
+### IN scope for st8 (the Warden)
+
+These pieces ARE the louis-and-locking work in st8. Phase pointers
+refer to `docs/_pending-roadmap/louis-and-locking.md`.
+
+| Piece | Phase | Where it lives in st8 |
+|---|---|---|
+| `chmod` primitive (lock/unlock/isWritable/bulk) | L1 | `src/features/locks/lock-manager.js` (NEW) |
+| SQLite lock state (`locked` column + accessors) | L1 | `src/core/database/persistence.js` + `src/features/locks/lock-state.js` (NEW) |
+| `HOOKS.LOCK_CHANGED` + audit-log subscribers | L1 | `src/core/hook-registry.js` + `src/core/hooks/default-subscribers.js` |
+| Backend routes `/api/lock`, `/api/unlock`, `/api/locks` | L1 | `src/core/server/app.js` |
+| Settings-mounted lock-panel UI | L2 | `src/frontend/components/lock-panel/` (NEW) |
+| SSE `lock-change` event + constellation pink + explorer 🔒 badge | L2 | existing `/api/mutations` stream + constellation + file-explorer |
+| Git pre-commit hook + installer + `protected-files.txt` regenerator | L3 | `src/features/locks/git-hook-installer.js` (NEW) + `scripts/git-hooks/{pre-commit,install.sh}` |
+| Dive-in 🔒 sprite (red lock indicator above buildings) | L4 | `src/frontend/components/dive-in/dive-in.js` |
+
+That is the entire IN-scope surface. Anything not on this list is
+either (a) already done by st8 in some other way, or (b) explicitly
+out of scope per the table below.
+
+### OUT of scope for st8
+
+| Piece | Why excluded | Where it stays |
+|---|---|---|
+| **🎨 Connie** (database → LLM-friendly format converter) | Overlaps with st8's schema cards, PRD generator, and file-context-bundle pieces. Porting it would create two ways to do the same thing in st8 with subtle differences. | Stays in `Louis/lock_em_up_louis_v2.py` standalone. |
+| **📚 Carl** (LLM chat context generator) | Single-shot snapshot tool; st8's collaboration loop is incremental and persistent. Different product shape. | Stays in `Louis/lock_em_up_louis_v2.py` standalone. |
+| **The PyQt6 GUI itself** | st8's UI is a web panel. The standalone Louis app continues to exist for users who want an OS-level desktop tool. | `Louis/lock_em_up_louis_v2.py` continues to ship. |
+| **Path A (subprocess shell-out)** | Drags PyQt6 in as a runtime dependency even for headless st8 use. Slow per call. | Rejected — see bible §batch 021. |
+| **Path B (full 1463-line Node port)** | Massive rewrite of features (Connie, Carl, the tabbed GUI) that st8 does not need. | Rejected — see bible §batch 021. |
+| **Region-level locking** (lock specific line ranges) | `chmod` cannot do anything finer than file granularity; region locks need a different mechanism (annotated regions / mutation-handler advisory layer). | Deferred indefinitely. Separate feature if ever needed. |
+| **Per-lock attribution / multi-agent ownership** | MVP is anonymous (mirrors Louis). | Deferred to a follow-up wave when agent tagging matures (see Priority 2 in roadmap). |
+| **Audit / bug-hunt of `lock_em_up_louis_v2.py`** | The Python source is a separate product; its bugs do not affect the Node port. | Out-of-tree — see "Louis-standalone tool boundary" below. |
+
+### Why this section exists
+
+Without it, a well-meaning agent reading
+`Louis/lock_em_up_louis_v2.py` top-to-bottom might "helpfully" port
+all 1463 lines, drag PyQt6-equivalent web widgets into st8, or file
+tickets against Connie's database-converter logic. Path C exists
+precisely because the founder did not want any of that.
+
+If a future ticket proposes work outside the IN-scope table above,
+the reviewer should either:
+
+- Reject the ticket as out-of-scope and point at this section, or
+- Escalate to the founder for an explicit scope expansion (which
+  would update this table).
+
+The Wave 8A executor confirmed this section is in place; the boundary
+must survive future doc rewrites.
+
+---
+
 ## Out of scope
 
 These are explicitly **not** part of the Louis-in-st8 work:
@@ -508,6 +605,34 @@ These are explicitly **not** part of the Louis-in-st8 work:
   standalone app and is filed as a follow-up ticket in
   `_pending-tickets/louis-and-locking.json`, but it does not block the
   st8 port.
+
+### Louis-standalone tool boundary (Wave 8A explicit decision)
+
+`Louis/lock_em_up_louis_v2.py` is a **separate product** from st8. Any
+bugs, crashes, or UI regressions in the standalone PyQt6 app are
+**tracked outside this repository** and are explicitly NOT in scope for
+st8 work:
+
+- st8's Path C port reimplements the ~140-line Warden core in Node
+  (`src/features/locks/lock-manager.js`, to be created in Phase L1).
+  Python bugs in the standalone app do not migrate.
+- The Python source is included in the working tree only as a reference
+  implementation. Treat it like `OGB/` — read-only documentary
+  material, never imported, never edited from inside st8 sprint work.
+- If a contributor finds a PyQt6 lifecycle bug while reading
+  `lock_em_up_louis_v2.py`, the correct action is to log it in the
+  upstream Louis project's own issue tracker (or, if no such tracker
+  exists, raise it with the founder out-of-band). **Do not file an st8
+  ticket; do not edit the Python file from within an st8 wave.**
+- The standalone app's three-tab UI (Louis + Connie + Carl) is whole
+  beyond st8's interest in just the Warden. Even if Louis-standalone is
+  someday deprecated in favor of the in-st8 panel, that deprecation
+  decision is a founder-level call and would be its own batch.
+
+This boundary protects two things at once: it stops st8 sprint work
+from being derailed by out-of-tree bug-hunts, and it stops a
+well-meaning agent reading the 1463-line PyQt6 source from "helpfully"
+porting Connie or Carl in pursuit of completeness.
 
 ---
 

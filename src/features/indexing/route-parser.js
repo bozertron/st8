@@ -46,6 +46,36 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateRouteReport = generateRouteReport;
+/**
+ * route-parser — Vue Router declaration extractor (Stage 1 of integr8).
+ *
+ * INPUT CONTRACT:
+ *   - targetPath: absolute path to a project root OR a single .ts file.
+ *     When a directory, reads `<targetPath>/src/router/index.ts`
+ *     (DEFAULT_ROUTER_FILE_REL_PATH). When a file, parses it directly.
+ *   - options.comparePath (optional): a second project root whose
+ *     router/index.ts is parsed and reported alongside the primary.
+ *
+ * OUTPUT CONTRACT (generateRouteReport returns string):
+ *   - Human-readable text report. Lists every route with path, name,
+ *     component, parent (for nested routes). data-ingestion.js parses
+ *     this text via regex inside `parseRouteText()` to produce
+ *     SemanticGraph nodes of type 'route'.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js:863 — circuit-breaker-wrapped invocation.
+ *   - parser-persistence.js — persists extracted routes into the
+ *     Routes SQLite table.
+ *
+ * KNOWN LIMITATIONS:
+ *   - Vue Router only. React Router, Next.js file-routing, SvelteKit
+ *     route conventions are NOT detected.
+ *   - Hardcoded to `src/router/index.ts`. Projects using a different
+ *     entry file must pass that file's path explicitly.
+ *   - Only TypeScript router files. .js routers will not parse.
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/routeParser.ts.
+ */
 // C:\orchestr8\scripts\prd src\routeParser.ts
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));

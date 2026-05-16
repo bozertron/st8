@@ -14,6 +14,42 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateUiComponentReport = generateUiComponentReport;
 // C:\orchestr8\scripts\prd src\uiParser.ts
+/**
+ * ui-parser — UI component declaration extractor.
+ *
+ * INPUT CONTRACT:
+ *   - targetPath: absolute path to a project root OR a single .vue file.
+ *     When a directory, scans `<targetPath>/src/components/**\/*.vue`
+ *     (DEFAULT_COMPONENTS_DIR) and `<targetPath>/src/views/**\/*.vue`
+ *     (DEFAULT_VIEWS_DIR). When a file, parses it if .vue.
+ *   - options.uiPattern (optional): regex string overriding
+ *     DEFAULT_UI_PATTERN (`/<n-([a-zA-Z0-9-]+)/g`, which is NaiveUI's
+ *     `n-` prefix). Pass `/<el-([a-z0-9-]+)/g` for Element Plus etc.
+ *
+ * OUTPUT CONTRACT (generateUiComponentReport returns string):
+ *   - Human-readable text report listing each Vue SFC's
+ *     component-type classification (View / Component / Sub-Component
+ *     based on directory location relative to DEFAULT_VIEWS_DIR vs
+ *     DEFAULT_COMPONENTS_DIR), plus a uiPattern-match count.
+ *   - data-ingestion.js parses via `parseUiText()` into SemanticGraph
+ *     nodes of type 'uiComponent'.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js:905 — circuit-breaker-wrapped invocation.
+ *   - parser-persistence.js — persists into UiComponents SQLite table.
+ *
+ * KNOWN LIMITATIONS:
+ *   - Vue SFC-only. React components (.jsx/.tsx), Svelte (.svelte),
+ *     Web Components, etc. are NOT detected.
+ *   - The View vs Component vs Sub-Component classification is purely
+ *     path-based (DEFAULT_VIEWS_DIR / DEFAULT_COMPONENTS_DIR). Projects
+ *     using different conventions get 'Unknown'.
+ *   - The default UI-library probe (NaiveUI's `<n-...>`) is wrong for
+ *     Element Plus, Vuetify, Quasar, etc. — pass `options.uiPattern`
+ *     when invoking against those stacks.
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/uiParser.ts.
+ */
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const fast_glob_1 = __importDefault(require("fast-glob"));

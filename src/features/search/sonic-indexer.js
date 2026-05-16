@@ -19,6 +19,14 @@ exports.SonicIndexer = void 0;
 exports.getSonicIndexer = getSonicIndexer;
 const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const sonicClient_js_1 = require("./sonic-client.js");
+// Wave 5A ticket 1: This require resolves today (graph-persister.js lives
+// at src/core/database/ and exports getSharedDatabasePath + DatabasePersister).
+// Annotated as a watcher: the trio (sonic-client / sonic-indexer / sonic-queries)
+// was kebab-cased during Batch 027 import and all three now depend on this
+// specific path. Any future rename of graph-persister.js — or a move out of
+// src/core/database/ — would silently break Sonic indexing without test
+// coverage flagging it. Keep this require co-located with sonic-queries.js
+// (which has the identical dependency) if either is restructured.
 const databasePersister_js_1 = require("../../core/database/graph-persister.js");
 const types_js_1 = require("../../shared/types/integr8-types.js");
 // ============ CONSTANTS ============

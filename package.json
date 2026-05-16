@@ -7,7 +7,8 @@
     "start": "node start.js",
     "index": "node src/features/indexing/indexer.js",
     "serve": "node src/core/server/app.js",
-    "dev": "node start.js --dev"
+    "dev": "node start.js --dev",
+    "test": "node --test"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",

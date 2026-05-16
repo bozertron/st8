@@ -320,6 +320,24 @@ class SonicClient {
             mode: 'control',
         });
     }
+    /**
+     * Wave 5A ticket 9: rotate the auth password used by all three channels.
+     * The sonic-daemon calls this after generating a per-instance
+     * .st8/sonic.password so the client's hardcoded default does not
+     * have to match the canonical sonic.cfg shared key.
+     *
+     * Safe to call before connect(); takes effect on the next connect.
+     * If called while channels are already open they keep their current
+     * authenticated session until disconnect — the new password applies
+     * to subsequent reconnects.
+     */
+    setPassword(password) {
+        if (!password || typeof password !== 'string') return;
+        this.password = password;
+        this.searchChannel.options.password = password;
+        this.ingestChannel.options.password = password;
+        this.controlChannel.options.password = password;
+    }
     // --- Connection Lifecycle ---
     /** Connect both search and ingest channels */
     connect() {
@@ -429,7 +447,17 @@ class SonicClient {
                 return response === 'OK';
             }
             catch (err) {
-                console.warn('[SonicClient] Push failed:', err.message);
+                // Wave 5B ticket 5: defense-in-depth against upstream Sonic's
+                // broken-pipe panic. If the socket reset mid-PUSH, force the
+                // ingest channel disconnected so the next push() attempts a
+                // clean re-connect rather than reusing a half-dead handle.
+                // EPIPE/ECONNRESET surface as errors here; we treat any
+                // mid-command failure as a potential broken-pipe scenario.
+                const msg = (err && err.message) || '';
+                if (/EPIPE|ECONNRESET|Connection lost|Not connected/i.test(msg)) {
+                    try { yield this.ingestChannel.disconnect(); } catch (_) { /* best-effort */ }
+                }
+                console.warn('[SonicClient] Push failed:', msg);
                 return false; // Graceful fallback
             }
         });

@@ -40,6 +40,46 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ParserPersistence = void 0;
+/**
+ * parser-persistence — SQLite sink for the six specialised parsers.
+ *
+ * INPUT CONTRACT:
+ *   - new ParserPersistence(dbPath?). Defaults dbPath via
+ *     graph-persister.getSharedDatabasePath() so all integr8 tooling
+ *     writes to the same scaffolder_data.sqlite alongside the main
+ *     st8.sqlite. NOT the same DB as the rest of st8 — separate file.
+ *   - persistAllParserData(projectId, snapshotId, { storeText,
+ *     routeText, commandText, typeText, uiText, propertyData,
+ *     verificationIssues }) is the omnibus call from data-ingestion.js.
+ *   - Per-parser persistXxxData() entry points exist for independent
+ *     invocation (testing, replays).
+ *
+ * OUTPUT CONTRACT (side effect — writes to SQLite):
+ *   - ProjectFiles (file_id PK, project_id, snapshot_id, file_path,
+ *     file_name, file_size, created_at)
+ *   - Stores, Routes, Commands, Types, UiComponents, StoreProperties
+ *     — one row per extracted artefact, all keyed by
+ *     (project_id, snapshot_id). snapshot_id is what enables
+ *     before/after diffs of the same project across runs.
+ *   - VerificationIssues — staged for the integr8 verification stage.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js (Stage 1 orchestrator).
+ *   - Sonic / background-indexer (currently dormant; will read these
+ *     tables for impact-chain queries per the batch-025 wiring plan).
+ *
+ * KNOWN LIMITATIONS:
+ *   - No FK constraints on the parser tables. snapshot_id integrity is
+ *     maintained by convention (data-ingestion.js generates one
+ *     snapshotId per ingestion). A bug there could orphan rows.
+ *   - close() must be called explicitly. The class does NOT register a
+ *     SIGINT handler.
+ *   - Tables are CREATE TABLE IF NOT EXISTS in ensureProjectTables();
+ *     column additions are NOT picked up on existing databases (same
+ *     migration-framework gap as ST8_SCHEMA in persistence.js).
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/parserPersistence.ts.
+ */
 const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const crypto = __importStar(require("crypto"));
 const databasePersister_js_1 = require("../../core/database/graph-persister.js");

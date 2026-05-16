@@ -76,7 +76,16 @@ const St8FileEntry = Object.freeze({
 
 // ─── St8SchemaCard — EXTENDED FILE SHAPE FOR EMISSION ────────
 // Includes AST-extracted metadata + connections + intent + mutation summary
-
+//
+// MANIFEST OMISSION NOTE (identity-and-analysis ticket 8 / roadmap P2.5):
+// Two fields below — `lifecyclePhase` and `birthTimestamp` — are
+// INTENTIONALLY omitted from the per-file projection emitted into
+// `connection-state.json` by
+// src/features/schema-cards/manifest-generator.js::generateConnectionState().
+// See that file's header for the full reasoning. Short version:
+// birthTimestamp is already encoded inside `fingerprint`, and
+// lifecyclePhase is identity-internal (not consumer-facing). Do NOT add
+// either field to the manifest projection without reading that block.
 const St8SchemaCard = Object.freeze({
     // Core identity (from St8FileEntry)
     fingerprint: '',

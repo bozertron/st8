@@ -12,28 +12,41 @@
 'use strict';
 
 // ─── D3 LOADING ──────────────────────────────────────────────
+//
+// OFFLINE-FIRST (Wave 5H ticket 4):
+//   D3.js is vendored locally at src/frontend/vendor/d3/d3.v7.min.js
+//   (served from the same origin as everything else under STATIC_DIR
+//   == repo root). Previously the script src pointed at
+//   https://d3js.org/d3.v7.min.js — that broke the desktop-first /
+//   offline stance set during Sonic integration and was also a CSP
+//   liability. No network fetch is attempted; if the vendored file
+//   is missing, loadD3 rejects (no silent CDN fallback). To refresh:
+//     curl -sLo src/frontend/vendor/d3/d3.v7.min.js https://d3js.org/d3.v7.min.js
+//   Version pinned to v7.9.0 (matches the previous CDN target).
 
 let d3 = null;
 
+const D3_VENDOR_URL = '/src/frontend/vendor/d3/d3.v7.min.js';
+
 function loadD3() {
     if (d3) return d3;
-    
-    // Try to load D3 from CDN
+
+    // Load D3 from the local vendored copy (offline-first, no CDN).
     return new Promise(function(resolve, reject) {
         if (window.d3) {
             d3 = window.d3;
             resolve(d3);
             return;
         }
-        
+
         var script = document.createElement('script');
-        script.src = 'https://d3js.org/d3.v7.min.js';
+        script.src = D3_VENDOR_URL;
         script.onload = function() {
             d3 = window.d3;
             resolve(d3);
         };
         script.onerror = function() {
-            reject(new Error('Failed to load D3.js'));
+            reject(new Error('Failed to load D3.js from ' + D3_VENDOR_URL + ' — vendored file missing? Refresh with: curl -sLo src/frontend/vendor/d3/d3.v7.min.js https://d3js.org/d3.v7.min.js'));
         };
         document.head.appendChild(script);
     });
@@ -355,13 +368,25 @@ function _escapeHtml(str) {
 // ─── GRAPH POPUP ─────────────────────────────────────────────
 
 function showGraphPopup(manifest) {
-    // Create overlay
+    // Capture the element that opened the popup so we can return focus
+    // when it closes (a11y — standard modal pattern). May be null in
+    // programmatic flows; that's fine, focus simply stays where the
+    // browser puts it after teardown.
+    var opener = (typeof document !== 'undefined' && document.activeElement) || null;
+
+    // Create overlay. Wave 5I (ticket FRONT-005): added ARIA dialog
+    // semantics, Escape-to-close, focus trap, initial focus, and
+    // return-focus-on-close. The popup now matches the convention
+    // .panel-overlay uses for the PRD wizard.
     var overlay = document.createElement('div');
     overlay.className = 'graph-popup-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Connection graph');
     overlay.innerHTML = '<div class="graph-popup">' +
         '<div class="graph-popup-header">' +
-            '<span class="graph-popup-title">CONNECTION GRAPH</span>' +
-            '<button class="graph-popup-close" onclick="this.closest(\'.graph-popup-overlay\').remove()">◇</button>' +
+            '<span class="graph-popup-title" id="graph-popup-title">CONNECTION GRAPH</span>' +
+            '<button class="graph-popup-close" data-graph-popup-close="1" aria-label="Close connection graph">◇</button>' +
         '</div>' +
         '<div class="graph-popup-body" id="graph-popup-body"></div>' +
         '<div class="graph-popup-footer">' +
@@ -373,12 +398,116 @@ function showGraphPopup(manifest) {
             '</div>' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
                 '<span class="graph-popup-info">' + (manifest.files ? manifest.files.length : 0) + ' files</span>' +
-                '<button class="graph-popup-btn" onclick="window.St8GraphVisualizer.resetZoom()">RESET ZOOM</button>' +
+                '<button class="graph-popup-btn" data-graph-popup-resetzoom="1">RESET ZOOM</button>' +
             '</div>' +
         '</div>' +
     '</div>';
-    
+
+    overlay.setAttribute('aria-labelledby', 'graph-popup-title');
     document.body.appendChild(overlay);
+
+    // ─── A11Y: close handler ──────────────────────────────────
+    // Single close function — used by Escape key, close button, and
+    // any future programmatic dismissal. Removes the keydown listener
+    // and restores focus to the opener.
+    var closed = false;
+    function closeGraphPopup() {
+        if (closed) return;
+        closed = true;
+        document.removeEventListener('keydown', onKeyDown, true);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (opener && typeof opener.focus === 'function') {
+            try { opener.focus(); } catch (e) { /* opener may have detached */ }
+        }
+    }
+
+    // Wire the close diamond. Replaces the previous inline
+    // onclick="this.closest('.graph-popup-overlay').remove()" which
+    // skipped the focus-return + keydown-cleanup steps.
+    var closeBtn = overlay.querySelector('[data-graph-popup-close]');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeGraphPopup);
+    }
+
+    // Wire reset-zoom button via addEventListener (was inline onclick).
+    var resetBtn = overlay.querySelector('[data-graph-popup-resetzoom]');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            window.St8GraphVisualizer.resetZoom();
+        });
+    }
+
+    // ─── A11Y: focus trap + Escape ────────────────────────────
+    // Uses a single keydown listener registered on `document` in
+    // capture phase. Tab/Shift+Tab cycle through focusable elements
+    // INSIDE the overlay; Escape closes. Other keys propagate.
+    function getFocusable() {
+        var nodes = overlay.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]),' +
+            ' textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        var arr = [];
+        for (var i = 0; i < nodes.length; i++) {
+            // Skip hidden elements (best-effort — offsetParent is null
+            // when display:none, which covers our cases).
+            if (nodes[i].offsetParent !== null || nodes[i] === document.activeElement) {
+                arr.push(nodes[i]);
+            }
+        }
+        return arr;
+    }
+
+    function onKeyDown(e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeGraphPopup();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+
+        var focusable = getFocusable();
+        if (focusable.length === 0) {
+            // Nothing to trap to — prevent focus from leaving by
+            // refocusing the overlay container.
+            e.preventDefault();
+            overlay.focus();
+            return;
+        }
+
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        var active = document.activeElement;
+
+        if (e.shiftKey) {
+            if (active === first || !overlay.contains(active)) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (active === last || !overlay.contains(active)) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    }
+    document.addEventListener('keydown', onKeyDown, true);
+
+    // ─── A11Y: initial focus ──────────────────────────────────
+    // Focus the first focusable element (the close button) so the
+    // keyboard user lands inside the dialog immediately.
+    if (closeBtn && typeof closeBtn.focus === 'function') {
+        try { closeBtn.focus(); } catch (e) { /* JSDOM-style edge cases */ }
+    }
+
+    // Make overlay focusable as a fallback target for the focus trap
+    // when no focusable children exist.
+    if (!overlay.hasAttribute('tabindex')) {
+        overlay.setAttribute('tabindex', '-1');
+    }
+
+    // Expose closer for tests / programmatic dismissal.
+    overlay.__st8Close = closeGraphPopup;
     
     // Initialize graph
     var container = document.getElementById('graph-popup-body');

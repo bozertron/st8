@@ -13,6 +13,41 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateCommandReport = generateCommandReport;
+/**
+ * command-parser — Tauri command + frontend invoke() extractor.
+ *
+ * INPUT CONTRACT:
+ *   - targetPath: absolute path to a project root. Two scans run in
+ *     parallel from this root:
+ *       (a) `<targetPath>/src-tauri/src/commands/**\/*.rs` — looks for
+ *           `#[tauri::command]` attribute and the immediately-following
+ *           `fn name(...)` declaration (regex TAURI_COMMAND_PATTERN).
+ *       (b) `<targetPath>/src/**\/*.{ts,js,vue}` — looks for
+ *           `invoke('command-name', ...)` calls (regex INVOKE_PATTERN).
+ *   - Single-file targets: only scans the file if it's .ts/.js/.vue
+ *     (invoke side) OR .rs (command side).
+ *
+ * OUTPUT CONTRACT (generateCommandReport returns string):
+ *   - Human-readable text report cross-referencing each Rust command
+ *     with its frontend invoke() call sites. Includes a 'usage_count'
+ *     and a 'files using this command' list per command.
+ *   - data-ingestion.js parses this via `parseCommandText()` into
+ *     SemanticGraph nodes of type 'command'.
+ *
+ * CONSUMERS:
+ *   - data-ingestion.js:875 — circuit-breaker-wrapped invocation.
+ *   - parser-persistence.js — persists into Commands SQLite table.
+ *
+ * KNOWN LIMITATIONS:
+ *   - Tauri-only. Electron's ipcRenderer.invoke is NOT detected; nor
+ *     are gRPC, JSON-RPC, or generic IPC patterns.
+ *   - INVOKE_PATTERN matches the literal string only. Dynamic command
+ *     names like invoke(commandName) are not resolved.
+ *   - Hardcoded paths (`src-tauri/src/commands`, `src`) — non-default
+ *     project layouts will miss commands.
+ *
+ * ORIGIN: compiled from maestro-scaffolder-tool's src/commandParser.ts.
+ */
 // C:\orchestr8\scripts\prd src\commandParser.ts
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));

@@ -60,10 +60,51 @@ const fast_glob_1 = __importDefault(require("fast-glob"));
 const databasePersister_js_1 = require("../../core/database/graph-persister.js");
 const dataIngestion_js_1 = require("./data-ingestion.js");
 const parserPersistence_js_1 = require("./parser-persistence.js");
-const sonicClient_js_1 = require("./sonicClient.js");
+// Wave 5A ticket 0: was `./sonicClient.js` — file lives in the search feature
+// folder post-Batch 027 and uses kebab-case naming.
+const sonicClient_js_1 = require("../search/sonic-client.js");
 const insightStore_js_1 = require("../analysis/insight-store.js");
-const multiPassAnalyzer_js_1 = require("./multiPassAnalyzer.js");
-const precisionCapture_js_1 = require("./precisionCapture.js");
+// Wave 5A ticket 0: `./multiPassAnalyzer.js` and `./precisionCapture.js`
+// were MAESTRO assets that were never ported into st8 (see
+// docs/_pending-roadmap/sonic-and-search.md → "P1 — Revive background-indexer"
+// and docs/components/sonic-and-search.md § 6). Until the founder chooses
+// between porting the upstream modules or replacing them with direct
+// InsightStore writes, we provide inert no-op stand-ins that:
+//   - keep this module loadable (`require()` no longer throws MODULE_NOT_FOUND)
+//   - log a single warning when their factories are first invoked, so any
+//     future caller learns Layer 2 is dormant rather than silently passing
+//   - return safe values so executeFullIndex does not crash mid-pipeline
+// This is NOT a Layer 2 implementation — it is a load-fix only. The real
+// modules remain unported.
+const multiPassAnalyzer_js_1 = (() => {
+    let warned = false;
+    return {
+        getMultiPassAnalyzer() {
+            if (!warned) {
+                console.warn('[BackgroundIndexer] multiPassAnalyzer not ported from MAESTRO; PM-1 Layer 2 inert. See docs/_pending-roadmap/sonic-and-search.md.');
+                warned = true;
+            }
+            return {
+                runAllPasses: async () => ({ passes: [], insightsAdded: 0, ported: false }),
+            };
+        },
+    };
+})();
+const precisionCapture_js_1 = (() => {
+    let warned = false;
+    return {
+        createCaptureManager(/* captureMode */) {
+            if (!warned) {
+                console.warn('[BackgroundIndexer] precisionCapture not ported from MAESTRO; capture-mode metrics inert. See docs/_pending-roadmap/sonic-and-search.md.');
+                warned = true;
+            }
+            return {
+                beginSession() {},
+                endSession() {},
+            };
+        },
+    };
+})();
 const types_js_1 = require("../../shared/types/integr8-types.js");
 // ============ BACKGROUND INDEXER ============
 class BackgroundIndexer extends events_1.EventEmitter {

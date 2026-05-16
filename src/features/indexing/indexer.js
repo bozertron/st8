@@ -14,6 +14,10 @@
 const path = require('path');
 const fs = require('fs');
 const { generateFingerprint } = require('../../shared/types/st8-types');
+const {
+    deriveBirthTimestamp,
+    createFallbackReporter,
+} = require('../../shared/utils/birth-timestamp');
 
 // ─── LIB CODE REFERENCES ─────────────────────────────────────
 // Post-move: all 4 modules below now live under src/. The original
@@ -372,12 +376,23 @@ async function indexDirectory(targetDir, options = {}) {
         return { files: [], manifest: null };
     }
     
-    // Hash files
+    // Hash files. birthTimestamp derivation is identity-load-bearing —
+    // see src/shared/utils/birth-timestamp.js for the contract. When
+    // options.persistence is passed, prior fingerprints are reused so
+    // the identity thread (mutation_log, intent, connections) survives
+    // even on filesystems that don't record birthtime reliably.
+    const fallbackReporter = options.fallbackReporter || createFallbackReporter();
+    const persistence = options.persistence || null;
     const hashedFiles = files.map(file => {
         const hash = hashFile(file);
         const stat = fs.statSync(file);
         const filepath = path.relative(targetDir, file);
-        const birthTimestamp = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
+        const { birthTimestamp } = deriveBirthTimestamp({
+            stat,
+            filepath,
+            persistence,
+            reporter: fallbackReporter,
+        });
         return {
             filepath: filepath,
             filename: path.basename(file),
@@ -429,8 +444,44 @@ async function indexDirectory(targetDir, options = {}) {
     
     console.log(`[st8:indexer] Indexing complete: ${finalFiles.length} files`);
     console.log(`[st8:indexer] Status: ${manifest.metadata.statusCounts.GREEN} GREEN, ${manifest.metadata.statusCounts.YELLOW} YELLOW, ${manifest.metadata.statusCounts.RED} RED`);
-    
-    return { files: finalFiles, manifest };
+
+    // Surface birthTimestamp mtime-fallback events. A non-zero count means
+    // identity drift can occur on those files if mtime ever changes before
+    // persistence records the first observation. The .st8/identity-risk.json
+    // artifact is consumed by introspection tools / force-checks.
+    const fbSummary = fallbackReporter.summary();
+    if (fbSummary.count > 0) {
+        console.warn(
+            `[st8:identity-risk] ${fbSummary.count} file(s) used mtime-fallback for birthTimestamp ` +
+            `(stat.birthtime was epoch/pre-1980). See .st8/identity-risk.json.`
+        );
+        try {
+            const st8Dir = path.join(targetDir, '.st8');
+            if (!fs.existsSync(st8Dir)) fs.mkdirSync(st8Dir, { recursive: true });
+            fs.writeFileSync(
+                path.join(st8Dir, 'identity-risk.json'),
+                JSON.stringify({
+                    generatedAt: new Date().toISOString(),
+                    fallbackCount: fbSummary.count,
+                    records: fbSummary.records,
+                }, null, 2)
+            );
+        } catch (err) {
+            console.error('[st8:identity-risk] Failed to write identity-risk.json:', err.message);
+        }
+    } else {
+        // Clean run — remove any stale identity-risk.json so consumers
+        // don't read an out-of-date file.
+        try {
+            const riskPath = path.join(targetDir, '.st8', 'identity-risk.json');
+            if (fs.existsSync(riskPath)) fs.unlinkSync(riskPath);
+        } catch (err) {
+            // Stale-file cleanup is best-effort.
+            console.error('[st8:identity-risk] Failed to clean stale identity-risk.json:', err.message);
+        }
+    }
+
+    return { files: finalFiles, manifest, identityRisk: fbSummary };
 }
 
 // ─── CLI ENTRY POINT ─────────────────────────────────────────

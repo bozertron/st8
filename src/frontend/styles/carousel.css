@@ -196,35 +196,63 @@
   pointer-events: none;
 }
 
-/* ─── OUTER DOCK DIAMONDS (always present, redundant shortcuts) ─
-   These are the dock-left and dock-right glyphs in the original
-   .dock-row. The founder asked for them to become diamonds replacing
-   the existing file-explorer icon and "phreak>" text button. They
-   serve the same slide actions as the shelf diamonds — duplicates by
-   design, since the founder's mental model is "always at the edges". */
+/* ─── OUTER DOCK DIAMONDS ───────────────────────────────────────
+   The .dock-diamond rules used to live here (lines 199–230 pre-Wave
+   7C). They were never wired — no .dock-diamond element exists in
+   index.html or any component. The original brief (batch 027 design)
+   was outer-edge dock diamonds replacing the file-explorer icon and
+   `phreak>` text button in `.dock-row`. The markup work is tracked on
+   the frontend-experience roadmap as P2 "Outer dock diamonds" — when
+   that ticket lands it should re-introduce the .dock-diamond rules
+   alongside the markup that consumes them.
+   Removed in Wave 7C ticket 4 to drop unreferenced CSS. */
 
-.dock-diamond {
-  background: transparent;
-  border: none;
-  color: var(--gold);
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  text-shadow:
-    0 0 3px  rgba(var(--pink-rgb), 0.45),
-    0 0 10px rgba(var(--pink-rgb), 0.25);
-  transition: text-shadow 200ms ease, transform 200ms ease;
+/* ─── NARROW-VIEWPORT GUARDS (ticket 18) ──────────────────────
+   The strip is sized at 300vw with `transform: translateX(-100vw)` for
+   the centered st8 panel. The .panels-viewport (overflow:hidden) is the
+   primary containment; html/body `overflow:hidden` in base.css is the
+   global backstop. Together these prevent the 300vw strip from leaking
+   a horizontal scrollbar onto the document. So far so good.
+
+   What this @media block adds:
+   - On viewports narrower than 768px the per-column padding
+     (var(--space-5) ≈ 24px each side) eats too much of the visible
+     100vw, leaving the panel-frame visibly cramped and pushing the
+     titlebar text into the close-diamond. Reduce to var(--space-3).
+   - The shelf grid `auto 1fr auto` already collapses cleanly when the
+     center grows/shrinks, but the slide-diamond hit targets (44×44)
+     plus the shelf padding (var(--space-5)) can sum to >25% of a
+     narrow viewport. Drop the shelf side-padding on narrow screens
+     so the diamonds stay closer to the screen edge — which is also
+     the founder's "always at the edges" mental model.
+   - sub-360px (phones in portrait): the panel-titlebar text size from
+     panels.css can wrap and push the panel-body downward; force a
+     single-line ellipsis on .panel-title via overflow:hidden +
+     text-overflow:ellipsis as a containment of last resort.
+
+   None of these change behavior on desktop (>=768px); they are pure
+   safety margins for users who narrow the window or load on a phone. */
+
+@media (max-width: 768px) {
+  .panel-column {
+    padding: var(--space-3, 12px);
+  }
+  .shelf {
+    padding: 0 var(--space-3, 12px);
+    gap: var(--space-3, 12px);
+  }
+  .slide-diamond {
+    width: 40px;
+    height: 40px;
+    font-size: 28px;
+  }
 }
-.dock-diamond:hover {
-  transform: scale(1.08);
-  text-shadow:
-    0 0 5px  rgba(var(--pink-rgb), 0.75),
-    0 0 14px rgba(var(--pink-rgb), 0.45);
+
+@media (max-width: 360px) {
+  .panel-titlebar .panel-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
 }
-.dock-diamond:active { transform: scale(0.96); }

@@ -62,6 +62,53 @@ const settingsState = {
     llmProviders: LLM_PROVIDERS
 };
 
+// ─── MODEL ENTRY SCHEMA (ticket 0, Wave 5D) ──────────────────
+//
+// Editable shape for a `models` array entry. Declares each field's
+// type (controls input element), label (display), and whether the
+// value is sensitive (controls masking — apiKey is type:'password').
+// buildModelEntryFields(entry, schema) is the pure helper that walks
+// this schema and emits a {key, type, value, label, sensitive, options}
+// list for the renderer to consume.
+const MODEL_ENTRY_SCHEMA = [
+    { key: 'id',       type: 'text',     label: 'ID',         placeholder: 'short-slug' },
+    { key: 'name',     type: 'text',     label: 'Name',       placeholder: 'Display name' },
+    { key: 'provider', type: 'select',   label: 'Provider',   optionsFrom: 'LLM_PROVIDERS' },
+    { key: 'model',    type: 'text',     label: 'Model',      placeholder: 'e.g. claude-sonnet-4-6' },
+    { key: 'apiKey',   type: 'password', label: 'API Key',    sensitive: true, placeholder: '(leave blank to use env var)' },
+    { key: 'baseUrl',  type: 'text',     label: 'Base URL',   placeholder: '(optional, for self-hosted)' },
+    { key: 'enabled',  type: 'boolean',  label: 'Enabled' }
+];
+
+// Per-array-category schema map. New array categories (sirkits,
+// shells, keybindings) can register their own schemas here as their
+// editors land in future waves.
+const ENTRY_SCHEMAS = {
+    models: MODEL_ENTRY_SCHEMA
+};
+
+// Pure helper: given an entry object + schema, returns an array of
+// resolved fields ready for the renderer. Falls back to empty-string
+// values for missing keys (so the form renders inputs even for a
+// freshly-added entry). Exported via window.__test for node tests.
+function buildModelEntryFields(entry, schema) {
+    var safeEntry = entry || {};
+    return schema.map(function(field) {
+        var raw = Object.prototype.hasOwnProperty.call(safeEntry, field.key)
+            ? safeEntry[field.key]
+            : (field.type === 'boolean' ? false : '');
+        return {
+            key: field.key,
+            type: field.type,
+            label: field.label,
+            value: raw,
+            sensitive: !!field.sensitive,
+            placeholder: field.placeholder || '',
+            optionsFrom: field.optionsFrom || null
+        };
+    });
+}
+
 // ─── DEFAULT SETTINGS ────────────────────────────────────────
 
 const DEFAULT_SETTINGS = {
@@ -81,6 +128,20 @@ const DEFAULT_SETTINGS = {
     models: [],
     shells: [],
     keybindings: [],
+    // ─── theme (DORMANT BUT PLANNED — ticket 7 audit, Wave 5C) ──
+    // The UI renders + persists edits to these keys but nothing
+    // consumes them today (grep src/ for `palette_overrides`,
+    // `font_sizes`, `spacing_scale` — only this object matches).
+    //
+    // Outcome (b) from the ticket: dormant but planned. The wiring is
+    // already on the roadmap as P2.3 in
+    // docs/_pending-roadmap/settings-and-providers.md ("Apply theme
+    // tokens"), which describes the applyTheme(theme) pass that walks
+    // these objects and writes CSS custom properties on
+    // document.documentElement after loadSettings() resolves.
+    //
+    // Do NOT remove these keys without first deleting the P2.3 entry —
+    // the category is intentionally write-only until P2.3 lands.
     theme: {
         palette_overrides: {},
         font_sizes: {},
@@ -158,9 +219,13 @@ function renderCategoryEntries(categoryId) {
         // Key-value pairs (e.g., voidflow, theme)
         html += '<div class="settings-form">';
         Object.keys(entries).forEach(function(key) {
-            var value = entries[key];
+            // Ticket 4: coerce against DEFAULT_SETTINGS' expected type
+            // so a SQLite round-trip that turned `200` into `"200"`
+            // doesn't collapse a number input into a text input.
+            var value = coerceSettingValue(categoryId, key, entries[key]);
+            entries[key] = value;
             var type = typeof value;
-            
+
             html += '<div class="settings-field">' +
                 '<label class="settings-label">' + key.replace(/_/g, ' ').toUpperCase() + '</label>';
             
@@ -197,24 +262,53 @@ function updateValue(categoryId, key, value) {
     if (!settingsState.entries[categoryId]) {
         settingsState.entries[categoryId] = {};
     }
+    // Capture the previous value so we can revert on persist failure
+    // (ticket 9). `undefined` means "the key did not exist" — the
+    // revert deletes it back out instead of writing `undefined`.
+    var hadKey = Object.prototype.hasOwnProperty.call(settingsState.entries[categoryId], key);
+    var prevValue = hadKey ? settingsState.entries[categoryId][key] : undefined;
     settingsState.entries[categoryId][key] = value;
-    
-    // Persist to backend
-    _persistSetting(categoryId, key, value);
-    console.info('[st8] Settings updated:', categoryId, key, value);
+
+    // Persist to backend. Ticket 9: read the response and revert UI
+    // state on non-2xx so we don't silently retain bad data after a
+    // ticket-8 enum rejection (or any other 4xx/5xx).
+    return _persistSetting(categoryId, key, value).then(function(ok) {
+        if (!ok) {
+            if (hadKey) {
+                settingsState.entries[categoryId][key] = prevValue;
+            } else {
+                delete settingsState.entries[categoryId][key];
+            }
+            // Re-render so the form reflects the rolled-back state.
+            if (settingsState.activeCategory === categoryId &&
+                typeof document !== 'undefined') {
+                renderCategoryEntries(categoryId);
+            }
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn('[st8] Settings rejected by server; reverted',
+                             categoryId, key);
+            }
+        } else {
+            console.info('[st8] Settings updated:', categoryId, key, value);
+        }
+        return ok;
+    });
 }
 
 function _persistSetting(categoryId, key, value) {
-    fetch('/api/settings', {
+    return fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category: categoryId, key: key, value: value })
     }).then(function(res) {
         if (!res.ok) {
             console.warn('[st8] Failed to persist setting:', categoryId, key, res.status);
+            return false;
         }
+        return true;
     }).catch(function(err) {
         console.warn('[st8] Settings persistence error:', err.message);
+        return false;
     });
 }
 
@@ -226,9 +320,14 @@ function loadSettings() {
         })
         .then(function(result) {
             if (result && result.data) {
-                // Merge loaded settings into state
+                // Merge loaded settings into state — first migrate old
+                // keys (ticket 5), then type-coerce values (ticket 4),
+                // then unwrap array-category entries (ticket 0, 5D).
                 Object.keys(result.data).forEach(function(category) {
-                    settingsState.entries[category] = result.data[category];
+                    var raw = result.data[category];
+                    var migrated = migrateCategoryKeys(category, raw);
+                    var coerced = coerceCategoryValues(category, migrated);
+                    settingsState.entries[category] = unwrapArrayCategory(category, coerced);
                 });
                 console.info('[st8] Settings loaded from backend:', Object.keys(result.data).length, 'categories');
             }
@@ -244,13 +343,178 @@ function addEntry(categoryId) {
     if (!settingsState.entries[categoryId]) {
         settingsState.entries[categoryId] = [];
     }
-    settingsState.entries[categoryId].push({ id: 'new-entry', name: 'New Entry' });
+    var newEntry = { id: 'new-entry', name: 'New Entry' };
+    // For categories with a registered schema, seed empty fields so
+    // the EDIT form has every input rendered immediately.
+    var schema = ENTRY_SCHEMAS[categoryId];
+    if (schema) {
+        schema.forEach(function(f) {
+            if (!Object.prototype.hasOwnProperty.call(newEntry, f.key)) {
+                newEntry[f.key] = (f.type === 'boolean') ? false : '';
+            }
+        });
+    }
+    settingsState.entries[categoryId].push(newEntry);
     renderCategoryEntries(categoryId);
+    // Persist the updated array. Best-effort: if the POST fails,
+    // _persistSetting already logs; the in-memory state is rolled
+    // back by the caller of editEntry (next save) if needed.
+    _persistArrayEntries(categoryId, settingsState.entries[categoryId]);
 }
 
 function editEntry(categoryId, index) {
-    // TODO: Show edit form
-    console.info('[st8] Edit entry:', categoryId, index);
+    // Ticket 0 (Wave 5D): real edit form for array-category entries.
+    // Currently only the `models` category has a registered schema in
+    // ENTRY_SCHEMAS; other array categories (sirkits, shells, etc.)
+    // log a not-implemented notice instead of silently doing nothing
+    // (the previous stub).
+    var schema = ENTRY_SCHEMAS[categoryId];
+    if (!schema) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[st8] editEntry: no schema registered for category ' + categoryId +
+                         ' — add one to ENTRY_SCHEMAS in settings.js');
+        }
+        return;
+    }
+
+    var entries = settingsState.entries[categoryId];
+    if (!Array.isArray(entries) || index < 0 || index >= entries.length) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[st8] editEntry: invalid entry at ' + categoryId + '[' + index + ']');
+        }
+        return;
+    }
+
+    // Snapshot the entry being edited so cancel can revert without a
+    // re-fetch. Use a deep-clone so in-form mutations don't bleed.
+    settingsState.editingEntry = {
+        categoryId: categoryId,
+        index: index,
+        snapshot: JSON.parse(JSON.stringify(entries[index])),
+        draft: JSON.parse(JSON.stringify(entries[index]))
+    };
+
+    _renderEditEntryForm();
+}
+
+function _renderEditEntryForm() {
+    var main = (typeof document !== 'undefined') ? document.getElementById('settings-main') : null;
+    if (!main) return;
+
+    var editing = settingsState.editingEntry;
+    if (!editing) return;
+    var schema = ENTRY_SCHEMAS[editing.categoryId];
+    if (!schema) return;
+
+    var fields = buildModelEntryFields(editing.draft, schema);
+    var html = '<div class="settings-category-header">' +
+        '<h2 class="settings-category-title">EDIT ENTRY</h2>' +
+        '<p class="settings-category-desc">' + escapeHtml(editing.categoryId) +
+        ' [' + editing.index + ']</p>' +
+    '</div>' +
+    '<div class="settings-form" id="settings-edit-form">';
+
+    fields.forEach(function(f) {
+        html += '<div class="settings-field">' +
+            '<label class="settings-label" for="se-' + escapeHtml(f.key) + '">' +
+            escapeHtml(f.label) + '</label>';
+
+        if (f.type === 'select' && f.optionsFrom === 'LLM_PROVIDERS') {
+            // Ticket 6 consumer: provider dropdown from LLM_PROVIDERS.
+            html += '<select id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'onchange="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value)">' +
+                '<option value="">(select provider)</option>' +
+                buildProviderOptions(f.value) +
+                '</select>';
+        } else if (f.type === 'boolean') {
+            html += '<select id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'onchange="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value === \'true\')">' +
+                '<option value="true"' + (f.value ? ' selected' : '') + '>TRUE</option>' +
+                '<option value="false"' + (!f.value ? ' selected' : '') + '>FALSE</option>' +
+                '</select>';
+        } else if (f.type === 'password') {
+            // SECURITY: apiKey MUST be masked. Even with at-rest
+            // encryption (deferred to Wave 5E backend), shoulder-surfing
+            // protection is a frontend-only concern.
+            html += '<input type="password" id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'autocomplete="new-password" spellcheck="false" ' +
+                'placeholder="' + escapeHtml(f.placeholder) + '" ' +
+                'value="' + escapeHtml(String(f.value || '')) + '" ' +
+                'oninput="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value)">';
+        } else {
+            html += '<input type="text" id="se-' + escapeHtml(f.key) + '" class="settings-input" ' +
+                'placeholder="' + escapeHtml(f.placeholder) + '" ' +
+                'value="' + escapeHtml(String(f.value || '')) + '" ' +
+                'oninput="window.St8Settings.updateEditField(\'' + escapeHtml(f.key) + '\', this.value)">';
+        }
+        html += '</div>';
+    });
+
+    html += '</div>' +
+        '<div class="settings-edit-actions">' +
+            '<button class="settings-action-btn" onclick="window.St8Settings.cancelEdit()">CANCEL</button>' +
+            '<button class="settings-add-btn" onclick="window.St8Settings.saveEntry()">SAVE</button>' +
+        '</div>' +
+        '<div class="settings-edit-error" id="settings-edit-error" style="display:none;"></div>';
+
+    main.innerHTML = html;
+}
+
+function updateEditField(key, value) {
+    if (!settingsState.editingEntry) return;
+    settingsState.editingEntry.draft[key] = value;
+}
+
+function cancelEdit() {
+    var editing = settingsState.editingEntry;
+    settingsState.editingEntry = null;
+    if (editing && settingsState.activeCategory === editing.categoryId) {
+        renderCategoryEntries(editing.categoryId);
+    }
+}
+
+function saveEntry() {
+    var editing = settingsState.editingEntry;
+    if (!editing) return Promise.resolve(false);
+
+    var arr = settingsState.entries[editing.categoryId];
+    if (!Array.isArray(arr)) return Promise.resolve(false);
+
+    // Optimistic apply of the draft, then persist the full array.
+    var prev = arr[editing.index];
+    arr[editing.index] = editing.draft;
+
+    return _persistArrayEntries(editing.categoryId, arr).then(function(ok) {
+        if (!ok) {
+            // Revert on persist failure — same ticket-9 pattern as
+            // updateValue but for the whole-array shape.
+            arr[editing.index] = prev;
+            _showEditError('Save failed — server rejected the entry. Changes reverted.');
+            return false;
+        }
+        // Success: close the editor and re-render the list.
+        settingsState.editingEntry = null;
+        if (settingsState.activeCategory === editing.categoryId) {
+            renderCategoryEntries(editing.categoryId);
+        }
+        return true;
+    });
+}
+
+function _showEditError(msg) {
+    if (typeof document === 'undefined') return;
+    var box = document.getElementById('settings-edit-error');
+    if (!box) return;
+    box.textContent = msg;
+    box.style.display = 'block';
+}
+
+// Persist an entire array-shaped category under a single
+// well-known key ('_entries'). Reuses _persistSetting's
+// Promise<boolean> contract (ticket 9, Wave 5C) so failures are
+// surfaced and revertible.
+function _persistArrayEntries(categoryId, entries) {
+    return _persistSetting(categoryId, '_entries', entries);
 }
 
 function duplicateEntry(categoryId, index) {
@@ -261,6 +525,7 @@ function duplicateEntry(categoryId, index) {
         copy.name = (copy.name || copy.id || 'Entry') + ' (copy)';
         settingsState.entries[categoryId].push(copy);
         renderCategoryEntries(categoryId);
+        _persistArrayEntries(categoryId, settingsState.entries[categoryId]);
     }
 }
 
@@ -357,6 +622,181 @@ function showSettingsInExplorer() {
     loadSettings();
 }
 
+// ─── MODULE-LOAD ASSERTIONS ──────────────────────────────────
+//
+// Ticket 3 (Wave 5C): SETTINGS_CATEGORIES and DEFAULT_SETTINGS must
+// stay in lock-step. A typo on one side (e.g. `void_flow` vs
+// `voidflow`) silently produces an empty form because
+// renderCategoryEntries falls through to `{}`. Assert at module load
+// that the two sets of keys are identical.
+//
+// We *throw* in non-browser environments (test harness) so that the
+// drift is caught loudly during CI. In a real browser we still throw
+// — but settings.js loads early enough that the error surfaces in the
+// console long before any user interaction.
+(function _assertCategoriesMatchDefaults() {
+    var catIds = SETTINGS_CATEGORIES.map(function(c) { return c.id; }).sort();
+    var defKeys = Object.keys(DEFAULT_SETTINGS).sort();
+    if (catIds.join(',') !== defKeys.join(',')) {
+        var msg = '[st8] SETTINGS_CATEGORIES / DEFAULT_SETTINGS mismatch: ' +
+                  'categories=[' + catIds.join(',') + '] defaults=[' + defKeys.join(',') + ']';
+        // Surface on console for browser visibility, then throw so
+        // tests + CI catch drift.
+        if (typeof console !== 'undefined' && console.error) console.error(msg);
+        throw new Error(msg);
+    }
+})();
+
+// ─── TYPE VALIDATION (ticket 4) ──────────────────────────────
+//
+// Ticket 4 (Wave 5C): SQLite round-trips can return strings where
+// DEFAULT_SETTINGS declares numbers/booleans (e.g. reveal_wpm stored
+// as "200" instead of 200). renderCategoryEntries previously inferred
+// input type from `typeof value` only, so a string-typed number
+// collapsed to a text input. coerceSettingValue() compares the loaded
+// value against DEFAULT_SETTINGS' type and coerces or warns.
+//
+// Returns the coerced value. If coercion is impossible (e.g. "hello"
+// where a number is expected), returns the DEFAULT_SETTINGS value and
+// logs a warning — never throws, never silently corrupts state.
+function coerceSettingValue(categoryId, key, value) {
+    var defaults = DEFAULT_SETTINGS[categoryId];
+    // Arrays + missing categories: pass through (array categories
+    // have per-entry shapes, not scalar key types).
+    if (!defaults || Array.isArray(defaults)) return value;
+    if (!Object.prototype.hasOwnProperty.call(defaults, key)) return value;
+
+    var expected = typeof defaults[key];
+    var actual = typeof value;
+    if (expected === actual) return value;
+
+    // Cross-type coercion attempts.
+    if (expected === 'number' && actual === 'string') {
+        var n = parseFloat(value);
+        if (!Number.isNaN(n) && Number.isFinite(n)) return n;
+    }
+    if (expected === 'boolean' && actual === 'string') {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+    }
+    if (expected === 'string' && (actual === 'number' || actual === 'boolean')) {
+        return String(value);
+    }
+    if (expected === 'object' && actual === 'string') {
+        try {
+            var parsed = JSON.parse(value);
+            if (typeof parsed === 'object' && parsed !== null) return parsed;
+        } catch (_) { /* fall through to default below */ }
+    }
+
+    // Coercion impossible — fall back to default + warn.
+    if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[st8] settings type mismatch ' + categoryId + '.' + key +
+                     ': expected ' + expected + ', got ' + actual +
+                     ' (' + JSON.stringify(value) + ') — using default');
+    }
+    return defaults[key];
+}
+
+// ─── ARRAY CATEGORY UNWRAP (ticket 0, Wave 5D) ───────────────
+//
+// Array categories (`models`, `sirkits`, `shells`, `keybindings`) are
+// persisted under the single well-known key '_entries' as a JSON
+// array. `getAllSettings()` returns `{models: {_entries: [...]}}`
+// shape; unwrap to the bare array so `Array.isArray(entries)` is true
+// downstream (renderCategoryEntries branches on it). If the key is
+// missing OR the value isn't an array, fall back to the default empty
+// array for array-shaped categories.
+function unwrapArrayCategory(categoryId, raw) {
+    var defaults = DEFAULT_SETTINGS[categoryId];
+    if (!Array.isArray(defaults)) return raw;
+    if (Array.isArray(raw)) return raw; // already an array
+    if (raw && typeof raw === 'object' && Array.isArray(raw._entries)) {
+        return raw._entries;
+    }
+    // Fallback: empty array (matches the DEFAULT_SETTINGS shape).
+    return [];
+}
+
+function coerceCategoryValues(categoryId, entries) {
+    var defaults = DEFAULT_SETTINGS[categoryId];
+    if (!defaults || Array.isArray(defaults) || !entries || typeof entries !== 'object' || Array.isArray(entries)) {
+        return entries;
+    }
+    var out = {};
+    Object.keys(entries).forEach(function(k) {
+        out[k] = coerceSettingValue(categoryId, k, entries[k]);
+    });
+    return out;
+}
+
+// ─── SETTINGS KEY MIGRATIONS (ticket 5) ──────────────────────
+//
+// Ticket 5 (Wave 5C): st8_settings has no schema migration story.
+// The full migration framework is deferred to P1.1 (see
+// docs/_pending-roadmap/persistence-and-database.md). For settings
+// SPECIFICALLY, we maintain a tiny per-key rename map: when
+// loadSettings() reads from the backend, any row whose (category,key)
+// matches an entry in SETTINGS_KEY_MIGRATIONS is rewritten to the new
+// key client-side AND re-persisted under the new name so subsequent
+// reads no longer trigger migration.
+//
+// Structure: { 'categoryId.oldKey': 'newKey' }
+// Entries should be idempotent and added when DEFAULT_SETTINGS keys
+// are renamed. Currently empty — the map is a placeholder ready to
+// receive renames without requiring a schema-level framework.
+var SETTINGS_KEY_MIGRATIONS = {
+    // Example for future use:
+    // 'voidflow.reveal_wpm': 'reveal_words_per_minute'
+};
+
+// ─── PROVIDER DROPDOWN HELPER (ticket 6) ─────────────────────
+//
+// Ticket 6 (Wave 5D): window.St8Settings.getLLMProviders() was added
+// in batch 025 but had no caller in src/. The editEntry() form (ticket
+// 0) now consumes the registry to populate the provider <select> when
+// editing a `models` entry.
+//
+// buildProviderOptions(selectedId) returns an HTML <option> string for
+// every entry in LLM_PROVIDERS, with the matching id pre-selected. The
+// function is pure (no DOM, no fetch) so it's exercised by node tests.
+function buildProviderOptions(selectedId) {
+    return LLM_PROVIDERS.map(function(p) {
+        var sel = (p.id === selectedId) ? ' selected' : '';
+        return '<option value="' + escapeHtml(p.id) + '"' + sel + '>' +
+               escapeHtml(p.name) + '</option>';
+    }).join('');
+}
+
+function migrateCategoryKeys(categoryId, entries) {
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return entries;
+    var migrated = {};
+    var renames = []; // [{oldKey, newKey}] — for re-persist
+    Object.keys(entries).forEach(function(oldKey) {
+        var newKey = SETTINGS_KEY_MIGRATIONS[categoryId + '.' + oldKey];
+        if (newKey && !Object.prototype.hasOwnProperty.call(entries, newKey)) {
+            migrated[newKey] = entries[oldKey];
+            renames.push({ oldKey: oldKey, newKey: newKey, value: entries[oldKey] });
+        } else {
+            migrated[oldKey] = entries[oldKey];
+        }
+    });
+    // Re-persist renames so the migration is idempotent + permanent.
+    if (renames.length && typeof fetch !== 'undefined') {
+        renames.forEach(function(r) {
+            _persistSetting(categoryId, r.newKey, r.value);
+            // Best-effort delete of the old key — not critical if the
+            // backend doesn't support it; the new key will shadow it
+            // on subsequent reads anyway because we don't read old
+            // keys back.
+            fetch('/api/settings?category=' + encodeURIComponent(categoryId) +
+                  '&key=' + encodeURIComponent(r.oldKey), { method: 'DELETE' })
+                  .catch(function() {});
+        });
+    }
+    return migrated;
+}
+
 // ─── PUBLIC API ───────────────────────────────────────────────
 
 window.St8Settings = {
@@ -368,6 +808,10 @@ window.St8Settings = {
     editEntry: editEntry,
     duplicateEntry: duplicateEntry,
     loadSettings: loadSettings,
+    // Ticket 0 (Wave 5D): real edit-form lifecycle.
+    updateEditField: updateEditField,
+    cancelEdit: cancelEdit,
+    saveEntry: saveEntry,
     getCategories: function() { return SETTINGS_CATEGORIES; },
     getDefaults: function() { return DEFAULT_SETTINGS; },
     getLLMProviders: function() { return LLM_PROVIDERS; }

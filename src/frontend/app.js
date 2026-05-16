@@ -23,6 +23,50 @@
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     };
 
+    // Ticket 14: pre-initialize window._st8FileIndex so downstream
+    // readers (onParticleClick lookup, makeTicketFromNotes) always see
+    // an object — even if bootConstellation()'s /api/connection-state
+    // fetch fails (offline, backend down) or runs after a Make-Ticket
+    // click. bootConstellation re-assigns this to the populated map on
+    // success; on failure the empty {} keeps reads from throwing.
+    if (!window._st8FileIndex) window._st8FileIndex = {};
+
+    // ──────────────────────────────────────────────────────────
+    // AUTH (ticket 27)
+    //
+    // The write routes /api/record-commit and /api/tickets require
+    // X-St8-Secret. The secret is generated server-side at boot and
+    // served to loopback callers via GET /api/auth-token. We fetch it
+    // once at module load and cache the resulting Promise so every
+    // call to st8AuthFetch() that needs the header reuses it.
+    //
+    // If the fetch fails (server down, non-loopback, secret not yet
+    // initialized) we degrade to fetching without the header — the
+    // server will respond 401/503, which is the correct visible
+    // failure mode for the user. We do not silently mask auth errors.
+    // ──────────────────────────────────────────────────────────
+    window._st8SecretPromise = (function() {
+      return fetch('/api/auth-token', { method: 'GET' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(j) { return (j && j.secret) ? j.secret : null; })
+        .catch(function() { return null; });
+    })();
+
+    /**
+     * Fetch wrapper that adds X-St8-Secret to the request headers
+     * once the secret has been loaded. Pass-through to the global
+     * `fetch` for everything else. Use for any POST to a write route
+     * gated by ticket-27 auth.
+     */
+    window.st8AuthFetch = function(url, opts) {
+      opts = opts || {};
+      return window._st8SecretPromise.then(function(secret) {
+        var headers = Object.assign({}, opts.headers || {});
+        if (secret) headers['X-St8-Secret'] = secret;
+        return fetch(url, Object.assign({}, opts, { headers: headers }));
+      });
+    };
+
 // ──────────────────────────────────────────────────────────────
 // Main application (panels, wizard, file list, toasts, SSE)
 // Extracted from st8.html lines 1797–2584.
@@ -55,18 +99,55 @@
             window.VoidFileExplorer.mount(this.host, function(paths) {
               console.info('[st8] selected:', paths);
             });
+
+            // Wave 5I (ticket FRONT-003): the explorer used to render
+            // an inline .explorer-error-banner inside its host, and a
+            // shell-side MutationObserver hoisted it into the titlebar.
+            // The observer fired on every DOM mutation inside the host
+            // and broke silently any time the banner's parent element
+            // changed. Replaced with a CustomEvent contract:
+            // file-explorer.js dispatches 'explorer:error' on `window`
+            // with detail = { message, canRetry } | null; the shell
+            // paints/clears the banner in the titlebar directly.
             const self = this;
-            const hoist = function() {
+            const renderBanner = function(detail) {
               const titlebar = self.column.querySelector('.panel-titlebar');
               if (!titlebar) return;
-              const fresh = self.host.querySelector('.explorer-error-banner');
+              // Remove any existing banner first (idempotent).
               titlebar.querySelectorAll('.explorer-error-banner').forEach(function(n) {
-                if (n !== fresh) n.parentNode.removeChild(n);
+                n.parentNode.removeChild(n);
               });
-              if (fresh) titlebar.appendChild(fresh);
+              if (!detail) return;
+              const banner = document.createElement('div');
+              banner.className = 'explorer-error-banner';
+              const icon = document.createElement('span');
+              icon.className = 'explorer-error-icon';
+              icon.textContent = '⚠';
+              const msg = document.createElement('span');
+              msg.className = 'explorer-error-msg';
+              msg.textContent = detail.message || '';
+              banner.appendChild(icon);
+              banner.appendChild(msg);
+              if (detail.canRetry) {
+                const retry = document.createElement('button');
+                retry.className = 'explorer-retry-btn';
+                retry.textContent = 'RETRY';
+                retry.addEventListener('click', function() {
+                  if (window.VoidFileExplorer && typeof window.VoidFileExplorer._retry === 'function') {
+                    window.VoidFileExplorer._retry();
+                  }
+                });
+                banner.appendChild(retry);
+              }
+              titlebar.appendChild(banner);
             };
-            hoist();
-            new MutationObserver(hoist).observe(this.host, { childList: true, subtree: true });
+            window.addEventListener('explorer:error', function(e) {
+              try {
+                renderBanner(e && e.detail);
+              } catch (err) {
+                console.warn('[st8] explorer-error renderer failed:', err && err.message);
+              }
+            });
           } else {
             this.host.innerHTML = '<div style="padding:24px;color:#C9748F">file-explorer.js failed to load</div>';
           }
@@ -155,6 +236,12 @@
       }
       const stage = document.getElementById('stage');
       if (!stage) return;
+      // Ticket 14: initialize the file-index up front so downstream
+      // readers (the onParticleClick lookup, makeTicketFromNotes) see
+      // an empty object rather than `undefined` if the manifest fetch
+      // fails (offline, backend down, boot race). Populated inside the
+      // success branch below.
+      if (!window._st8FileIndex) window._st8FileIndex = {};
       fetch('/api/connection-state.json')
         .then(function(r) { return r.ok ? r.json() : { files: [] }; })
         .then(function(data) {
@@ -189,25 +276,48 @@
           console.warn('[st8] constellation /api/files failed:', err && err.message);
         });
     }
-    bootConstellation();
+    // Ticket 21: invoke bootConstellation on DOMContentLoaded rather than at
+    // script-parse time. `<script src="app.js">` lives at the END of <body>
+    // today so the DOM IS parsed by now — but if anyone ever adds
+    // defer/async, moves the tag, or wraps the bundle differently, the
+    // top-level `document.getElementById('stage')` lookup races and silently
+    // returns null. DOMContentLoaded fires immediately when the document is
+    // already parsed (the spec guarantees this), so wrapping is a strictly
+    // defensive move with zero behavior change in the current load order.
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootConstellation);
+    } else {
+      bootConstellation();
+    }
 
-    // Live updates: when a mutation event arrives on the SSE stream, recolor
-    // the corresponding particle. The existing mutation toast handler already
-    // subscribes to /api/mutations — we piggyback by listening on the same
-    // window event the toast handler emits, but to keep coupling loose we
-    // just poll the manifest periodically too (cheap; 5s).
-    setInterval(function() {
+    // Live updates (post Wave 4D ticket 1): the constellation listens on
+    // the SAME /api/mutations stream the mutation toast handler uses. The
+    // window event 'st8:mutation' is dispatched from that handler below
+    // (see the mutationSource.onmessage block) with the parsed payload —
+    // we subscribe here and recolor a single particle on each event.
+    //
+    // Replaces the previous 5s setInterval poll of /api/connection-state.json:
+    // SSE delivers the same status signal with <1s latency and no idle
+    // round-trips. Initial constellation state still comes from the
+    // one-shot fetch in bootConstellation() above.
+    window.addEventListener('st8:mutation', function(ev) {
       if (!window.St8Constellation) return;
-      fetch('/api/connection-state.json')
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-          if (!data || !Array.isArray(data.files)) return;
-          data.files.forEach(function(f) {
-            window.St8Constellation.updateFileStatus(f.fingerprint, f.status);
-          });
-        })
-        .catch(function() {});
-    }, 5000);
+      var data = ev && ev.detail;
+      if (!data || !data.fingerprint) return;
+
+      // schemaCard carries the canonical GREEN/YELLOW/RED status the
+      // poller was reading from connection-state.json. For DELETE events
+      // schemaCard is null on purpose (file is gone); skip those — the
+      // particle will be reconciled on the next full manifest reload.
+      var status = data.schemaCard && data.schemaCard.status;
+      if (!status) return;
+
+      try {
+        window.St8Constellation.updateFileStatus(data.fingerprint, status);
+      } catch (err) {
+        console.warn('[st8] constellation updateFileStatus failed:', err && err.message);
+      }
+    });
 
     // Wire the contextual slide diamonds. Each .slide-diamond is either
     // .slide-left (in the left shelf slot) or .slide-right (right slot).
@@ -236,17 +346,134 @@
       });
     });
 
-    // From any flanking panel, ESC returns to st8 center (matches the
-    // "diamond closest to st8" semantic). Skip when the phreak TUI is
-    // active — it has its own ESC behavior.
+    // ─── CAROUSEL KEYBOARD NAV (ticket 7) ──────────────────────
+    // Carousel was one-button-deep before this: only ESC worked.
+    // Now wired:
+    //   ESC          → return to st8 center (matches "diamond closest to st8")
+    //   ArrowLeft    → slide one column left  (phreak→st8, st8→explorer)
+    //   ArrowRight   → slide one column right (explorer→st8, st8→phreak)
+    //   Home         → jump to leftmost column (explorer)
+    //   End          → jump to rightmost column (phreak)
+    //
+    // Suppression rules (skip the global handler):
+    //   - phreak TUI is active (it owns its own keymap)
+    //   - typeable focus: <input>, <textarea>, <select>, contenteditable
+    //     OR an open .notes-popup-overlay / .panel-overlay.open
+    //     (PRD wizard, notes popup own their own Tab/Esc focus context)
+    //   - any modifier key down (Ctrl/Meta/Alt/Shift) — preserves
+    //     browser shortcuts and avoids stealing Ctrl+ArrowLeft etc.
+    //
+    // Both the keydown router AND the slide-target computation are
+    // exported on window.St8Slide so tests/frontend can drive them
+    // as pure functions without a DOM.
+
+    /**
+     * Compute the next active panel given the current panel + a key.
+     * Pure function: no DOM, no side effects.
+     * Returns null when the key is unhandled or no slide should happen.
+     *
+     * @param {string} key       — KeyboardEvent.key value
+     * @param {string} current   — current panel ('explorer'|'st8'|'phreak')
+     * @returns {string|null}    — target panel or null
+     */
+    function nextSlideTarget(key, current) {
+      const order = ['explorer', 'st8', 'phreak'];
+      const idx = order.indexOf(current);
+      if (idx < 0) return null; // unknown current — no-op
+      if (key === 'Escape') return current === 'st8' ? null : 'st8';
+      if (key === 'ArrowLeft')  return idx > 0 ? order[idx - 1] : null;
+      if (key === 'ArrowRight') return idx < order.length - 1 ? order[idx + 1] : null;
+      if (key === 'Home') return current === 'explorer' ? null : 'explorer';
+      if (key === 'End')  return current === 'phreak'   ? null : 'phreak';
+      return null;
+    }
+
+    /**
+     * Return true if the keydown should be suppressed (a typeable
+     * element has focus, or an in-app modal owns the keymap).
+     * Pure function over `document` / event target only.
+     */
+    function shouldSuppressCarouselKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return true;
+      // Shift alone is allowed (no shifted form of ArrowLeft/Right
+      // collides), but Shift+Arrow inside a text input would already
+      // be caught by the input check below.
+      const t = e.target;
+      if (t) {
+        const tag = (t.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+        if (t.isContentEditable) return true;
+      }
+      // Modal overlays own their own keymap.
+      if (document.querySelector('.notes-popup-overlay')) return true;
+      const prdOverlay = document.getElementById('overlay-prd-wizard');
+      if (prdOverlay && prdOverlay.classList.contains('open')) return true;
+      // Phreak TUI owns its own keymap.
+      if (window.PhreakTerminal && window.PhreakTerminal.getState && window.PhreakTerminal.getState().isTUI) return true;
+      return false;
+    }
+
     document.addEventListener('keydown', function(e) {
-      if (e.key !== 'Escape') return;
-      if (window.PhreakTerminal && window.PhreakTerminal.getState && window.PhreakTerminal.getState().isTUI) return;
+      const key = e.key;
+      if (key !== 'Escape' && key !== 'ArrowLeft' && key !== 'ArrowRight'
+          && key !== 'Home' && key !== 'End') return;
+      if (shouldSuppressCarouselKey(e)) return;
       const current = strip && strip.getAttribute('data-active');
-      if (current && current !== 'st8') slideTo('st8');
+      const target = nextSlideTarget(key, current || 'st8');
+      if (!target) return;
+      e.preventDefault();
+      slideTo(target);
+      // Move focus to the slide-diamond that *would have triggered*
+      // this slide so screen readers announce the active control and
+      // subsequent keyboard actions stay on the carousel chrome
+      // instead of falling back to the body. The shelf's contextual
+      // visibility (.slide-left hidden when on explorer; .slide-right
+      // hidden when on phreak) means after the slide there's always a
+      // visible diamond pointing back to the previous panel; focus
+      // that.
+      try {
+        const back = (target === 'explorer') ? '.slide-right'
+                   : (target === 'phreak')   ? '.slide-left'
+                   : (current === 'explorer') ? '.slide-right' : '.slide-left';
+        const diamond = document.querySelector('.shelf ' + back);
+        if (diamond && typeof diamond.focus === 'function') diamond.focus();
+      } catch (_) { /* focus is best-effort */ }
     });
 
+    // Export the pure helpers so tests can verify the keymap without
+    // booting a full DOM. Append to window.St8Slide established above.
+    if (window.St8Slide) {
+      window.St8Slide.nextSlideTarget = nextSlideTarget;
+      window.St8Slide.shouldSuppressCarouselKey = shouldSuppressCarouselKey;
+    }
+
     // ─── PRD WIZARD ─────────────────────────────────────────
+    //
+    // DESIGN DECISION (Wave 5I, ticket FRONT-006):
+    //   The PRD wizard remains a modal `.panel-overlay#overlay-prd-wizard`
+    //   rather than a 4th carousel slide. The frontend wave previously
+    //   chose this and the founder's stance is "strip legacy UI, don't
+    //   add to it." Promoting the wizard to a permanent carousel column
+    //   would require:
+    //     - a 4th slide track in `panels-strip` (currently 3-target:
+    //       explorer | st8 | phreak — see SLIDE_TARGETS above)
+    //     - new diamond-key bindings, shelf icon, and visibility gating
+    //       (hide unless INDEX has run)
+    //     - moving `loadTemplatesForWizard` + the generation flow into
+    //       its own mounted component, mirroring explorer/phreak.
+    //   None of that is needed for the current launch surface.
+    //
+    //   Trade-off:
+    //   - Modal isolates the wizard from the carousel and lets users
+    //     keep their explorer context while configuring a PRD.
+    //   - `file-explorer.js:350` calls `window.openPRDWizard()` directly,
+    //     a coupling we accept: if the wizard ever moves to a slide,
+    //     this global function will become a `slideTo('prd')` wrapper
+    //     and the call site does NOT need to change.
+    //
+    //   Deferred to roadmap: `docs/_pending-roadmap/server-api-and-legacy-frontend.md`
+    //   item P3.3 — "Migrate PRD wizard into the carousel pattern".
+    //
     window.openPRDWizard = function() {
       document.getElementById('overlay-prd-wizard').classList.add('open');
       loadTemplatesForWizard();
@@ -362,28 +589,11 @@
         if (window.St8Coordination) {
           window.St8Coordination.startPolling('/api/connection-state.json');
         }
-        // Unload void-engine if it was loaded
-        if (window.unloadVoidEngine) window.unloadVoidEngine();
-      } else if (wsType === 'pretext-dev') {
-        // Activate pretext development mode — load void-engine
-        voidEl.classList.remove('split-mode');
-        // Remove right panel if exists
-        const rightPanel = voidEl.querySelector('.void-right-panel');
-        if (rightPanel) rightPanel.remove();
-        // Stop coordination polling
-        if (window.St8Coordination) {
-          window.St8Coordination.stopPolling();
-        }
-        // Load void-engine for pretext workspace
-        if (window.loadVoidEngine) {
-          window.loadVoidEngine().then(() => {
-            console.info('[st8] void-engine loaded for pretext-dev workspace');
-          }).catch(err => {
-            console.error('[st8] failed to load void-engine:', err);
-          });
-        }
       } else {
-        // Deactivate split mode (standard workspace)
+        // Deactivate split mode (standard workspace; also catches
+        // legacy 'pretext-dev' workspace value — void-engine was
+        // retired to a separate project, so pretext-dev now degrades
+        // gracefully to standard mode. See index.html header comment).
         voidEl.classList.remove('split-mode');
         // Remove right panel
         const rightPanel = voidEl.querySelector('.void-right-panel');
@@ -392,8 +602,6 @@
         if (window.St8Coordination) {
           window.St8Coordination.stopPolling();
         }
-        // Unload void-engine if it was loaded
-        if (window.unloadVoidEngine) window.unloadVoidEngine();
       }
     };
 
@@ -609,7 +817,9 @@
       if (valueEl   && valueEl.value)   parts.push('VALUE:\n'   + valueEl.value);
       const userNote = parts.join('\n\n') || '(no note text)';
 
-      fetch('/api/tickets', {
+      // Auth-aware POST — st8AuthFetch attaches X-St8-Secret if the
+      // secret was successfully fetched on page load (ticket 27).
+      window.st8AuthFetch('/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -628,11 +838,16 @@
       }).then(function(r) { return r.json(); }).then(function(data) {
         if (data && data.ok) {
           // Visual feedback: toast + close the popup.
-          if (window.showCopyFeedback) {
-            window.showCopyFeedback('Ticket #' + data.id + ' opened — phreak> will see it');
-          } else {
-            console.info('[st8] Ticket #' + data.id + ' created');
+          // Note: showCopyFeedback is a local function in this closure (NOT on
+          // window). The previous `window.showCopyFeedback` check was always
+          // falsy, silently swallowing the success toast. Call the local fn
+          // directly. showCopyFeedback targets a `.file-list-item[data-path=X]`
+          // — pass the filepath so the COPIED-style badge lands on the right
+          // row in the explorer's file list.
+          if (typeof showCopyFeedback === 'function') {
+            showCopyFeedback(filepath);
           }
+          console.info('[st8] Ticket #' + data.id + ' created');
           const overlay = document.querySelector('.notes-popup-overlay');
           if (overlay) overlay.remove();
         } else {
@@ -918,6 +1133,16 @@
             }
 
             console.log('[st8] Mutation:', data.mutationType, data.filepath);
+
+            // Re-broadcast on the window so loose subscribers (e.g. the
+            // constellation recolor handler installed earlier in this file)
+            // can consume the same event without coupling to this closure.
+            // Wave 4D ticket 1: replaces the 5s connection-state.json poll.
+            try {
+              window.dispatchEvent(new CustomEvent('st8:mutation', { detail: data }));
+            } catch (err) {
+              console.warn('[st8] window.dispatchEvent failed:', err && err.message);
+            }
 
             // Display notification toast in UI
             showMutationToast(data);

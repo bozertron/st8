@@ -39,7 +39,43 @@ class FileWatcher {
         this.onFileChange = options.onFileChange || null;
         this.watcher = null;
         this.debounceTimer = null;
-        this.pendingChanges = new Set();
+        // Map keyed by `${path}::${type}` so successive events for the
+        // same (path, type) within one debounce window collapse to one
+        // entry. The previous `new Set()` with object-literal entries
+        // never deduped — each `{ path, type }` literal is reference-
+        // unique, so 100 chokidar 'change' events on one file produced
+        // 100 entries in the flush array (ticket 4). The composite key
+        // preserves the (path, type) distinction so a CREATE followed
+        // by an EDIT in the same window still produces two entries.
+        this.pendingChanges = new Map();
+        // Lightweight observability counters (ticket 14, wave 4A).
+        // No external instrumentation library; expose via getMetrics().
+        //   eventsReceived       — every chokidar add/change/unlink that
+        //                          reaches _onFileChange (post-ignore-list)
+        //   debounceMergeCount   — count of events that collapsed onto an
+        //                          existing pendingChanges key (i.e. the
+        //                          dedup actually fired)
+        //   flushCalls           — number of times _flush() has run
+        //   lastFlushAt          — ISO timestamp of the most recent flush
+        //                          (null until the first flush)
+        //   lastFlushSize        — number of change entries in the most
+        //                          recent flush array (post-dedup)
+        this._metrics = {
+            eventsReceived: 0,
+            debounceMergeCount: 0,
+            flushCalls: 0,
+            lastFlushAt: null,
+            lastFlushSize: 0
+        };
+    }
+
+    /**
+     * Returns a snapshot of the watcher's observability counters.
+     * Returned object is a shallow copy — mutating it does not affect
+     * internal state.
+     */
+    getMetrics() {
+        return { ...this._metrics };
     }
     
     start() {
@@ -52,6 +88,25 @@ class FileWatcher {
         console.log(`[st8:watcher] Starting watcher on: ${this.targetDir}`);
         
         this.watcher = chokidar.watch(this.targetDir, {
+            // ── IGNORE LIST AUDIT (ticket 13, wave 4A) ──────────────
+            // The previous broad `**/*.json` and `**/*.toml` globs
+            // existed to prevent st8's own manifest writes
+            // (connection-state.json + ai-signal.toml at targetDir
+            // root) from re-triggering the watcher. After Wave 2B
+            // decomposed the watcher callback into FILE_AFTER_CHANGE
+            // subscribers AND the indexer's SELF_WRITTEN_BASENAMES
+            // guard (src/features/indexing/indexer.js:166) already
+            // skips those exact basenames at index time, the broad
+            // globs were over-scoped — they silently swallowed
+            // legitimate user config edits (package.json,
+            // tsconfig.json, pyproject.toml, Cargo.toml, etc.) so
+            // a `package.json` change never triggered re-index.
+            //
+            // Scope tightened to the two known manifest basenames at
+            // the target root only. Anything deeper (e.g. user
+            // package.json in a subdir) now flows through the
+            // watcher and is filtered downstream by main.js
+            // CODE_EXTENSIONS + indexer SELF_WRITTEN_BASENAMES.
             ignored: [
                 '**/node_modules',
                 '**/.git',
@@ -63,8 +118,8 @@ class FileWatcher {
                 '**/*.sqlite',
                 '**/*.sqlite-wal',
                 '**/*.sqlite-shm',
-                '**/*.json',
-                '**/*.toml',
+                path.join(this.targetDir, 'connection-state.json'),
+                path.join(this.targetDir, 'ai-signal.toml'),
                 '**/.st8/**',
                 '**/.planning/st8_identity_system/**',
                 '**/.archive/**',
@@ -91,23 +146,32 @@ class FileWatcher {
     }
     
     _onFileChange(filePath, eventType) {
-        this.pendingChanges.add({ path: filePath, type: eventType });
-        
+        const key = `${filePath}::${eventType}`;
+        this._metrics.eventsReceived++;
+        if (this.pendingChanges.has(key)) {
+            this._metrics.debounceMergeCount++;
+        }
+        this.pendingChanges.set(key, { path: filePath, type: eventType });
+
         if (this.debounceTimer) {
             clearTimeout(this.debounceTimer);
         }
-        
+
         this.debounceTimer = setTimeout(() => {
             this._flush().catch(err => {
                 console.error('[st8:watcher] Flush failed:', err.message);
             });
         }, this.debounceMs);
     }
-    
+
     async _flush() {
-        const changes = Array.from(this.pendingChanges);
+        const changes = Array.from(this.pendingChanges.values());
         this.pendingChanges.clear();
-        
+
+        this._metrics.flushCalls++;
+        this._metrics.lastFlushAt = new Date().toISOString();
+        this._metrics.lastFlushSize = changes.length;
+
         console.log(`[st8:watcher] Flushing ${changes.length} changes`);
         
         if (this.onFileChange) {

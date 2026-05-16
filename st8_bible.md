@@ -6,6 +6,76 @@
 
 ---
 
+## Table of Contents
+
+Line numbers reference HEAD at the time of generation. Re-run `grep -nE "^(## |### Batch )" st8_bible.md` to refresh if drift is suspected.
+
+### Major sections
+
+| Section | Line |
+|---|---|
+| What is ST8? | 79 |
+| Architecture Overview | 107 |
+| Layer 1: Frontend (st8.html + Companion JS) | 171 |
+| Layer 2: Backend (backend/) | 259 |
+| Layer 3: Analysis Libraries (lib/) | 424 |
+| Layer 4: Integr8 Pipeline (lib/commands/integr8/) | 574 |
+| Layer 5: Schema Cards (.st8/schema-cards/) | 699 |
+| Database Schema | 751 |
+| Signal Flow | 853 |
+| Workspace Types | 930 |
+| Design Tokens (Non-Negotiable) | 953 |
+| API Endpoints | 974 |
+| Dependencies | 999 |
+| Current Problems | 1013 |
+| Roadmap | 1040 |
+| Related Projects | 1060 |
+| Key Insights | 1069 |
+| PRD System (Planned) | 1098 |
+| Signal Path Analysis (from Codebase Review) | 1197 |
+| Components Being Removed | 1296 |
+| The .st8 Directory | 1310 |
+| Research Synthesis (2026-05-14) | 1400 |
+| Re-Integration Plan | 1583 |
+| Refactor Findings — 2026-05-14 | 1674 |
+| Refactor Batch Log — 2026-05-14 | 1775 |
+
+### Refactor Batch Log — quick index
+
+Chronological list of every batch with its one-line goal and starting line. Batches 001-021 are the layout refactor proper; 022+ are follow-on debug/feature work threaded through the same log.
+
+| Batch | Topic | Line |
+|---|---|---|
+| 001 | `shared` — leaf utilities + types into src/shared/ | 1782 |
+| 002 | `core-database` — persistence + graph-persister into src/core/database/ | 1813 |
+| 003 | `lifecycle-watcher` — bruno-oscar + file-watcher into src/features/ | 1874 |
+| 004 | `schema-cards` — emitter, printer, manifest-generator | 1897 |
+| 005 | `prd` — prd-generator + template-engine into src/features/prd/ | 1934 |
+| 006 | `analysis` — gap-analyzer + intent-seeder into src/features/analysis/ | 1957 |
+| 007 | `integr8-core` — pipeline orchestrator + serializers into src/features/integr8/ | 1985 |
+| 008 | `indexing-parsers` — six AST parsers + overview into src/features/indexing/ | 2024 |
+| 009 | `indexing-engine` — indexer + parser-persistence + data-ingestion | 2064 |
+| 010 | `server-and-entry` — main.js (was index) + app.js (was server) | 2098 |
+| 011 | `launcher-rewire` + end-to-end boot — start.js rewired, full boot verified | 2135 |
+| 012 | `frontend-components` — st8.html sliced into HTML/CSS/JS components | 2169 |
+| 013 | `st8-html-css-extraction` — inline CSS extracted to src/frontend/styles/ | 2200 |
+| 014 | `st8-html-js-extraction` — inline JS extracted to src/frontend/app.js | 2238 |
+| 015 | `frontend-shell` — 142-line index.html slim shell | 2272 |
+| 016 | `backend-static-fix-and-v2-route` — static-route fixes + /v2 route | 2330 |
+| 017 | `background-indexer` — backgroundIndexer.js migrated to src/features/indexing/ | 2374 |
+| 018 | `void-engine-fake-stream-cleanup` — retire void-engine + fake-stream | 2416 |
+| 019 | `stage-originals-to-OGB` — pre-refactor originals into OGB/ for archival | 2444 |
+| 020 | `flip-default-to-new-shell` — index.html → new slim shell by default | 2482 |
+| 021 | `post-refactor-cleanup-and-signal-tests` — file-renames + Tier 2/6 signal tests | 2531 |
+| 022 | `intent-seeder-fix-and-gap-analyzer-jsdoc` — schema fix + docstrings | 2684 |
+| 023 | `hook-registry-and-named-hooks` — HookRegistry + HOOKS constants + DRY+wrap | 2707 |
+| 024 | `post-commit-git-hook` — record-commit endpoint + .git/hooks installer | 2767 |
+| 025 | `post-audit-cleanup-and-force-checks` — drift sweeps + boot-time force checks | 2805 |
+| 026 | `little-stuff-fixes` — small bugs swept after the big waves | 2922 |
+| 027 | `sonic-foundation` (Layer 1 of PM-1) — Sonic daemon + missing trio wired | 2938 |
+
+---
+
 ## What is ST8?
 
 ST8 is a standalone codebase analysis tool that provides real-time visibility into file connection state. It's the first in a series: **st8 → integr8 → actu8 → orchestr8**.
@@ -2526,6 +2596,52 @@ For each of 43 schema cards in `st8_json/schema-cards/`: recover original filepa
 
 ### Louis Concept (captured for future session — not implemented yet)
 
+> **Louis Cross-References (Wave 8A — ticket 1)**
+>
+> The Louis design is fragmented across this bible. **The canonical
+> spec is no longer the bible itself — it is
+> `docs/components/louis-and-locking.md`** (a Wave-7-era consolidation
+> + Wave 8A annotations). The bible holds the original design memo and
+> a handful of forward-pointing mentions; future Louis work should
+> cite the component doc and the roadmap, not duplicate either here.
+>
+> Every Louis mention in the bible as of Wave 8A:
+>
+> - **§Batch 021 (this section, lines 2527-2610)** — original "Lock 'em
+>   up Louis" design memo. The three-tab description, the three
+>   integration paths (A/B/C), the Path C plan, and the captured chmod
+>   primitive sketch. Source of truth for the *concept*; superseded for
+>   *implementation* by the component doc.
+> - **§Batch 023 (hooks-architecture)** — "future modules — Louis,
+>   plugins, external integrations" appears in the rationale for why
+>   the hook chain needed to be lifted out of `main.js`. Forward
+>   pointer only.
+> - **§LifecyclePhase / FileStatus enum tables** — the `LOCKED` slot is
+>   reserved in both enums but never written. Phase L1 of the roadmap
+>   adds the write path.
+> - **§Constellation color slot** — `STATUS_COLOR.LOCKED` reserves the
+>   pink token (`{r:201, g:116, b:143}`); now lives in
+>   `src/frontend/components/status-colors.js` (Wave 7C ticket 9
+>   consolidation).
+> - **§Line ~1617 ("Defined-but-never-fired")** — the `LOCK` mutation
+>   type in the type system that the Wave-8A audit-trail decision
+>   (component doc, "Lock-history audit trail — DECIDED") finally
+>   binds to a firing site.
+>
+> **Authoritative documents** (in priority order):
+>
+> 1. `docs/components/louis-and-locking.md` — canonical spec, decisions
+>    D1–D7, chmod primitive in full, boundary docs, audit-trail
+>    decision.
+> 2. `docs/_pending-roadmap/louis-and-locking.md` — Phase L1–L4 build
+>    plan with exit criteria + dependency graph.
+> 3. `docs/_pending-tickets/louis-and-locking.json` — per-file
+>    backlog, mostly GREEN forward-looking entries.
+>
+> Future Louis batches: add a cross-link entry here pointing at the
+> batch number, but keep the prose in the component doc. The bible is
+> the design-decision log, not the spec.
+
 The founder uploaded `Louis/` (commit `1df677b` on `master`): a 1463-line PyQt6 desktop app called "Lock 'em up Louis" containing three fused tools:
 
 1. **👮 Louis (Warden)** — File locking. `chmod 444` to lock, `chmod 644` to unlock. State in `~/.louis-control/{louis-config.json, protected-files.txt, lock-history.log}`. Optional `.git/hooks/pre-commit` that refuses commits to protected files.
@@ -2940,4 +3056,4 @@ CONNECTED <sonic-server v1.4.9>
 
 **Layers 2-5 of PM-1 remain unbuilt** — captured in batch 025's roadmap. Layer 1 (this batch) is the foundation; subsequent layers wire the dead modules onto it.
 
-**Commit:** (filled in below)
+**Commit:** `7f16a65`

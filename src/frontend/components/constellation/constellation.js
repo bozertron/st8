@@ -39,16 +39,24 @@
   'use strict';
 
   // ─── Status → color mapping ───────────────────────────────────
-  // Per the founder's spec: gold for healthy, blue for sad ("bug-juice").
-  // The third state from the Barradeau builder doc was "combat" (purple)
-  // for agents-active — wired here for future use.
-  const STATUS_COLOR = {
-    GREEN:   { r: 212, g: 175, b: 55  },   // --gold
-    YELLOW:  { r: 212, g: 175, b: 55  },   // gold (slightly desaturated in opacity)
-    RED:     { r: 31,  g: 189, b: 234 },   // --cyan (sad / bug-juice)
-    LOCKED:  { r: 201, g: 116, b: 143 },   // --pink (louis-protected, future)
-    COMBAT:  { r: 157, g: 78,  b: 221 },   // purple (agents-active, future)
+  // Ticket 9 (Wave 7C): the STATUS_COLOR map moved to the shared
+  // single-source-of-truth module at components/status-colors.js
+  // (loaded BEFORE this script in index.html). We keep a local
+  // `STATUS_COLOR` alias that points at the shared RGB table so the
+  // rest of this file reads unchanged. If the shared module didn't
+  // load (script tag dropped, load-order broken), we fall back to
+  // the historical inline values rather than crash — same fail-soft
+  // posture as the particles.js guard a few lines down.
+  const STATUS_COLOR = (window.St8StatusColors && window.St8StatusColors.RGB) || {
+    GREEN:   { r: 212, g: 175, b: 55  },
+    YELLOW:  { r: 212, g: 175, b: 55  },
+    RED:     { r: 31,  g: 189, b: 234 },
+    LOCKED:  { r: 201, g: 116, b: 143 },
+    COMBAT:  { r: 157, g: 78,  b: 221 },
   };
+  if (!window.St8StatusColors) {
+    console.warn('[st8:constellation] components/status-colors.js not loaded — using inline STATUS_COLOR fallback. Verify <script> load order in index.html.');
+  }
 
   function statusColor(file) {
     if (file && file.locked)            return STATUS_COLOR.LOCKED;
@@ -118,8 +126,14 @@
       console.warn('[st8:constellation] target element not found');
       return;
     }
+    // Ticket 5: explicit guard on the particles.js global contract.
+    // particles.lib.js is loaded as a classic <script> in index.html
+    // and produces exactly two side-effect globals: window.particlesJS
+    // (function) and window.pJSDom (Array). The full contract is
+    // documented at the top of components/constellation/particles.lib.js.
+    // We're the sole consumer; fail soft if either is missing.
     if (typeof window.particlesJS !== 'function') {
-      console.warn('[st8:constellation] particles.lib.js not loaded — did the <script src> drop?');
+      console.warn('[st8:constellation] window.particlesJS missing — components/constellation/particles.lib.js not loaded (script tag dropped, or load order broken). See particles.lib.js header for the global contract.');
       return;
     }
     state.targetEl = targetEl;
@@ -203,6 +217,15 @@
     });
   }
 
+  // PERF NOTE — ticket 13 (Wave 7C, deferred):
+  // nearestParticle is O(N) per click. Acceptable today: ~1000 files
+  // = ~0.1ms per scan on commodity hardware, dwarfed by click-event
+  // dispatch overhead. Becomes load-bearing once file counts cross
+  // ~5k (node_modules-scope repos). The optimization is a coarse
+  // spatial bucket (8x8 grid over the canvas) keyed in
+  // bindFilesToParticles() — see
+  // docs/_pending-roadmap/frontend-experience.md P3 "Constellation
+  // spatial index". Don't ship a half-baked R*-tree.
   function nearestParticle(x, y, maxRadius) {
     if (!state.pJS || !state.pJS.particles) return null;
     const arr = state.pJS.particles.array;
@@ -268,7 +291,13 @@
   }
 
   function destroy() {
-    if (state.pJS && typeof state.pJS.fn && typeof state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function') {
+    // Ticket 19: the previous guard used `typeof state.pJS.fn` and
+    // `typeof state.pJS.fn.vendors` — typeof returns a non-empty string
+    // even for `undefined` (the string `"undefined"`), so those two
+    // checks were always truthy and only the trailing `typeof ... ===
+    // 'function'` actually gated the call. Tightened to real truthy
+    // checks on the intermediates plus the function-type check.
+    if (state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function') {
       try { state.pJS.fn.vendors.destroypJS(); } catch (_) {}
     }
     state.pJS = null;

@@ -1,0 +1,13 @@
+# ─── Generated / vendored artifacts ────────────────────────────────────
+# Files marked `linguist-generated=true` are collapsed by default in
+# GitHub diffs and excluded from language statistics. Use this for
+# files that are produced by a build (tsc, bundlers) or vendored from
+# an upstream repo where the canonical source lives elsewhere.
+#
+# Provenance for each entry is documented in the file's own header.
+
+# Ticket 14 (Wave 1B, 2026-05-15) — tsc-compiled artifact from
+# maestro-scaffolder-tool. Upstream .ts lives in that repo; edits made
+# here will be lost on the next re-vendor. See header comment in the
+# file for the full provenance trail.
+src/core/database/graph-persister.js linguist-generated=true

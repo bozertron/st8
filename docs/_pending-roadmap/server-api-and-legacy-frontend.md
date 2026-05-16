@@ -181,16 +181,39 @@ expose the surface.
 
 `src/frontend/index.html:125` declares
 `.panel-overlay#overlay-prd-wizard` — still a modal. Frontend agent
-explicitly kept it that way. File-explorer.js:362 hard-codes
-`onclick="window.openPRDWizard()"` which assumes the modal pattern. If
-the PRD wizard becomes a 4th slide, the explorer's button signature
-changes.
+explicitly kept it that way and Wave 5I (ticket FRONT-006) re-confirmed
+the decision: **keep modal, defer carousel migration to this roadmap
+item.** The rationale (modal isolates wizard from explorer context;
+desktop-first strip-not-add stance) is documented inline at
+`src/frontend/app.js` next to `window.openPRDWizard`.
 
-Either:
+Precise scope for the carousel migration (when revived):
 
-- Decide to keep the modal and document the why, OR
-- Migrate to a 4th carousel column ("PRD" slide). Hide the slide unless
-  the user has run INDEX (so it's not a permanent column).
+1. Extend `SLIDE_TARGETS` in `src/frontend/app.js` from
+   `['explorer','st8','phreak']` to include `'prd'`. Pick a column
+   position (likely rightmost of phreak, or between explorer and st8).
+2. Add a 4th `.panel-column[data-panel="prd"]` to
+   `src/frontend/index.html`, mirroring the explorer/phreak columns,
+   with its own `.panel-titlebar` + mount host.
+3. Add a `panels.prd` entry to the mount map with `mount()` that
+   relocates the PRD form template (currently inside
+   `#overlay-prd-wizard`) into the new host. Delete the overlay.
+4. Wire the visibility gate — the PRD slide should be hidden until
+   INDEX has run (i.e., the manifest exists). Re-use the same gating
+   the explorer-host uses for "no manifest yet" empty state.
+5. Update the diamond hint logic in `app.js` (`diamondTarget()`) for
+   the new neighbor relationships.
+6. Replace `window.openPRDWizard()` with `slideTo('prd')` and keep
+   the public function name as a backwards-compat shim so
+   `src/frontend/components/file-explorer/file-explorer.js:350` does
+   not need changes.
+7. Delete `window.closePRDWizard` and remove the `data-close` button
+   from the migrated content (the carousel uses diamonds, not X).
+8. Update `src/frontend/components/prd-wizard/prd-wizard.css` to drop
+   `.panel-overlay`-specific positioning rules.
+
+Estimated effort: ~3 hours including manual smoke. Blocking nothing;
+revisit when the launch surface stabilises.
 
 ### P3.4 — file-explorer error-banner: replace MutationObserver hoist
 
@@ -223,6 +246,25 @@ charming but undocumented. Either:
 - Hidden-files toggle in file-explorer.js (`LS_SHOW_HIDDEN` undefined,
   no button wires it).
 
+### P3.7 — BULK_INDEXED hook (defer of BOOT-001 / Wave 5G ticket 15)
+
+`main.js` fires `HOOKS.FILE_INDEXED` once per file inside the Pass-1
+upsert loop, awaiting each fire sequentially. Today there are ZERO
+default subscribers — Wave 2B measured the entire 281-file fire chain at
+0.82 ms (sub-millisecond per fire) because `HookRegistry.execute()`
+short-circuits when no handlers and no `.on()` listeners exist. The
+await chain is NOT a bottleneck on the current path.
+
+**Trigger to revisit:** any subscriber that blocks > 5 ms per fire
+(file-level Louis lock checks, real-time UI updates, embedding
+generation) turns this loop into a serialised hot path. At that point
+add a `BULK_INDEXED` hook fired ONCE after Pass 1 with
+`{files, targetDir, persistence}` so bulk consumers can amortise their
+work, and keep per-file consumers on `FILE_INDEXED` with a documented
+per-fire perf budget. The fire site in `main.js` carries an inline
+comment preserving the measurement so a future contributor doesn't
+optimise prematurely (Wave 5G ticket 15).
+
 ---
 
 ## Priority distribution
@@ -231,7 +273,8 @@ charming but undocumented. Either:
 - **P2:** 7 items (D3 bundling, renderFileList decoupling, OpenAPI,
   body-size backfill, traversal audit, readJsonBody helper, manifest
   freshness)
-- **P3:** 6 items (REST conventions, rate-limit/auth, PRD wizard,
-  error-banner hoist, phone metaphor, dead-constant cleanup)
+- **P3:** 7 items (REST conventions, rate-limit/auth, PRD wizard,
+  error-banner hoist, phone metaphor, dead-constant cleanup, BULK_INDEXED
+  hook defer)
 
-Total: 15 roadmap items.
+Total: 16 roadmap items.

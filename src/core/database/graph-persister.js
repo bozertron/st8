@@ -1,6 +1,37 @@
 "use strict";
-// src/commands/integr8/databasePersister.ts
-// Direct Node.js-to-SQLite persistence for integr8's semantic graph.
+// ─────────────────────────────────────────────────────────────────────
+// GENERATED ARTIFACT — DO NOT HAND-EDIT.
+//
+// Provenance (ticket 14, Wave 1B decision, 2026-05-15):
+//   Upstream:  maestro-scaffolder-tool/src/commands/integr8/databasePersister.ts
+//   Compiler:  tsc (see the __createBinding / __importStar boilerplate
+//              and the trailing `//# sourceMappingURL=databasePersister.js.map`
+//              footer — both are tell-tale tsc output markers).
+//
+// Status:      READ-ONLY in this repo. Any change must be made in the
+//              upstream .ts source and round-tripped back through tsc;
+//              hand-edits here will be silently clobbered the next time
+//              the maestro snapshot is re-vendored.
+//
+// Why we keep it:
+//   * insight-store.js (src/features/analysis/) imports
+//     getSharedDatabasePath() from this file to locate the project-
+//     scoped scaffolder_data.sqlite — a DIFFERENT database file from
+//     st8.sqlite, used by the integr8 pipeline.
+//   * sonic-indexer, sonic-queries, traversal, integr8/index,
+//     parser-persistence, background-indexer all reference the
+//     DatabasePersister class for graph storage in scaffolder_data.sqlite.
+//   * persistence.js (st8.sqlite owner) deliberately does NOT use the
+//     DatabasePersister class — the maestro-fallthrough was removed in
+//     ticket 6. The two databases are independent.
+//
+// .gitattributes marks this file with `linguist-generated=true` so
+// review tools collapse the diff and surface only the upstream .ts edits.
+//
+// Original header from the tsc compile:
+//   src/commands/integr8/databasePersister.ts
+//   Direct Node.js-to-SQLite persistence for integr8's semantic graph.
+// ─────────────────────────────────────────────────────────────────────
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -49,6 +80,15 @@ const os = __importStar(require("os"));
  * Linux: ~/.local/share/com.scaffolder.app/scaffolder_data.sqlite
  * macOS: ~/Library/Application Support/com.scaffolder.app/scaffolder_data.sqlite
  * Windows: %APPDATA%/com.scaffolder.app/scaffolder_data.sqlite
+ *
+ * Wave 5B ticket 6 note: ground-plane.js renamed APP_ID to 'com.st8.app' to
+ * match founder guidance ("st8 is its own thing"). This function intentionally
+ * still points at 'com.scaffolder.app' because (a) InsightStore (compiled-from-TS,
+ * risky to edit) and the legacy integr8 pipeline write to scaffolder_data.sqlite
+ * at this path — renaming would orphan existing on-disk insight data on every
+ * developer's machine, and (b) this is the *database file location*, not the
+ * st8 identity. A future migration ticket can introduce a getSharedDatabasePath
+ * v2 that reads from com.st8.app and migrates rows on first boot.
  */
 function getSharedDatabasePath() {
     const platform = os.platform();

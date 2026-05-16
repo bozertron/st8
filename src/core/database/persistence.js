@@ -13,40 +13,55 @@
 'use strict';
 
 const path = require('path');
-const fs = require('fs');
 const { St8FileEntry, LifecyclePhase, FileStatus } = require('../../shared/types/st8-types');
 
 // ─── LIB CODE REFERENCES ─────────────────────────────────────
-// Post-move: graph-persister.js now lives alongside this file in
-// src/core/database/. The dynamic-loader pattern is preserved (graceful
-// fallback on missing module) but LIB_DIR now points at the local directory.
-
-const LIB_DIR = __dirname;
-
-let _databasePersister = null;
-
-function loadLibModule(modulePath) {
-    try {
-        const fullPath = path.join(LIB_DIR, modulePath);
-        if (!fs.existsSync(fullPath)) {
-            throw new Error(`Lib module not found: ${fullPath}`);
-        }
-        return require(fullPath);
-    } catch (err) {
-        console.error(`[st8:persistence] Failed to load lib module: ${modulePath}`, err.message);
-        return null;
-    }
-}
-
-function getDatabasePersister() {
-    if (!_databasePersister) {
-        _databasePersister = loadLibModule('graph-persister.js');
-    }
-    return _databasePersister;
-}
+// The old loadLibModule / getDatabasePersister helpers (a dynamic-loader
+// pattern that tried to construct a maestro DatabasePersister against
+// st8.sqlite first) were dead code: graph-persister.js exports the class
+// via `exports.DatabasePersister = ...`, so `typeof require(...) ===
+// 'function'` was always false and the loader's only consumer (the old
+// initialize() try-block) always fell through to better-sqlite3 direct.
+// Removed alongside the fallthrough cleanup (ticket 6). graph-persister.js
+// remains in this directory because insight-store imports it separately
+// for the unrelated getSharedDatabasePath() helper.
 
 // ─── ST8 SCHEMA ──────────────────────────────────────────────
 
+/**
+ * FK CASCADE DESIGN — read before touching file_registry deletes.
+ *
+ * `file_registry.fingerprint` is the parent key referenced by four child
+ * tables: `connections.sourceFingerprint`, `file_intent.fingerprint`,
+ * `file_mutation_log.fingerprint`, and `tickets.fingerprint`. SQLite FK
+ * enforcement is ON at boot (initialize() runs `PRAGMA foreign_keys = ON`
+ * after WAL), so any direct `DELETE FROM file_registry WHERE …` that
+ * leaves child rows behind will throw SQLITE_CONSTRAINT_FOREIGNKEY.
+ *
+ * The schema deliberately omits `ON DELETE CASCADE`. The cascade is
+ * implemented in JS so callers can write the mutation_log entry BEFORE
+ * the parent row disappears (otherwise the audit trail dies with the
+ * file). Two paths perform the cascade:
+ *
+ *   - `deleteFile(filepath)` — iterates every fingerprint at that path
+ *     (file_registry permits multiple rows per filepath, one per
+ *     birthTimestamp) and for EACH fingerprint runs, in order:
+ *       1. deleteConnectionsForFile(fingerprint)
+ *       2. deleteIntentForFile(fingerprint)
+ *       3. deleteMutationLogForFile(fingerprint)
+ *       4. deleteTicketsForFile(fingerprint)
+ *       5. DELETE FROM file_registry WHERE fingerprint = ?
+ *
+ *   - `pruneFilesNotIn(currentFilepaths)` — identical per-fingerprint
+ *     order, run inside a single transaction over the diff set.
+ *
+ * Rule of thumb: NEVER write `DELETE FROM file_registry WHERE filepath = ?`
+ * directly. ALWAYS go through deleteFile() or pruneFilesNotIn() so the
+ * four child tables get cleaned per-fingerprint first. New child tables
+ * added to ST8_SCHEMA must (a) declare their FOREIGN KEY, (b) add a
+ * delete*ForFile(fingerprint) helper, and (c) wire that helper into
+ * both cascade paths above.
+ */
 const ST8_SCHEMA = `
 CREATE TABLE IF NOT EXISTS file_registry (
   fingerprint TEXT PRIMARY KEY,
@@ -57,7 +72,7 @@ CREATE TABLE IF NOT EXISTS file_registry (
   status TEXT DEFAULT 'RED',
   reachabilityScore REAL DEFAULT 0.0,
   impactRadius INTEGER DEFAULT 0,
-  lifecyclePhase TEXT DEFAULT 'DEVELOPMENT',
+  lifecyclePhase TEXT DEFAULT 'DEVELOPMENT' CHECK (lifecyclePhase IN ('CONCEPT', 'LOCKED', 'WIRING', 'DEVELOPMENT', 'PRODUCTION')),
   birthTimestamp TEXT,
   lastModified TEXT,
   lastIndexed TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -67,7 +82,7 @@ CREATE TABLE IF NOT EXISTS file_registry (
   expiryDate TEXT,
   associatedWith TEXT,
   eventTrigger TEXT,
-  brunoStatus TEXT DEFAULT 'active',
+  brunoStatus TEXT DEFAULT 'active' CHECK (brunoStatus IN ('active', 'flagged', 'archived')),
   needsAIReview INTEGER DEFAULT 0,
   tripleAtCount INTEGER DEFAULT 0,
   aiContentInjected INTEGER DEFAULT 0,
@@ -137,6 +152,28 @@ CREATE TABLE IF NOT EXISTS st8_settings (
   PRIMARY KEY (category, key)
 );
 
+-- ─── PRD_PROJECTS ──────────────────────────────────────────
+-- LIVE TABLE — wired end-to-end as of 2026-05-15.
+--
+-- Audit trail (ticket 11, Wave 1B): the table is not dormant.
+--   * Frontend: src/frontend/index.html exposes a "CREATE PROJECT"
+--     button (#prd-create-btn) that calls window.createPRDProject()
+--     in src/frontend/app.js:277.
+--   * API: src/core/server/app.js:1086 _handlePrdProjects services
+--     GET /api/prd-projects (list), GET /api/prd-projects/:name
+--     (single), and POST /api/prd-projects (create). The handler
+--     calls getAllPRDProjects / getPRDProject / createPRDProject
+--     directly against this table.
+--   * DB methods: createPRDProject / getPRDProject /
+--     getAllPRDProjects / updatePRDProject / deletePRDProject are
+--     all defined in this file. updatePRDProject and deletePRDProject
+--     do not yet have HTTP routes wired — that's PRD-system UI work,
+--     not a persistence concern. The methods are kept so the PRD
+--     feature can grow without re-touching this file.
+--
+-- Cross-reference: the PRD generator at src/features/prd/ uses
+-- prd_projects to track scaffolded projects. If a future refactor
+-- consolidates PRD storage elsewhere, revisit this comment.
 CREATE TABLE IF NOT EXISTS prd_projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
@@ -149,6 +186,25 @@ CREATE TABLE IF NOT EXISTS prd_projects (
 
 CREATE INDEX IF NOT EXISTS idx_prd_projects_name ON prd_projects(name);
 
+-- ─── AI_CONTENT ────────────────────────────────────────────
+-- @@@-flagged content store. Deliberately decoupled from file_registry:
+--
+--   * Key is filepath (not fingerprint) because content can arrive
+--     before the file is indexed (or after it has been pruned — e.g.
+--     a conversation transcript referencing a file that no longer
+--     exists on disk).
+--   * No FK to file_registry. Adding one would force-couple content
+--     ingestion to indexer lifecycle and break the content-first
+--     workflow.
+--   * NOT cascaded from deleteFile / pruneFilesNotIn. Deleting a file
+--     leaves its ai_content rows in place by design — the content is
+--     a historical record of what was said about a path, independent
+--     of whether the path is currently live.
+--
+-- If you change this decision, also (a) add a fingerprint column
+-- and an FK, (b) wire a cascade hook in deleteFile + pruneFilesNotIn,
+-- (c) update EXPECTED_SCHEMA above, (d) add a migration so existing
+-- ai_content rows get their fingerprint backfilled.
 CREATE TABLE IF NOT EXISTS ai_content (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   filepath TEXT NOT NULL,
@@ -195,7 +251,127 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE INDEX IF NOT EXISTS idx_tickets_filepath ON tickets(filepath);
 CREATE INDEX IF NOT EXISTS idx_tickets_open ON tickets(resolvedAt);
 CREATE INDEX IF NOT EXISTS idx_tickets_fingerprint ON tickets(fingerprint);
+
+-- ─── PROVIDERS ─────────────────────────────────────────────
+-- Canonical LLM collaborator registry (ticket 8, Wave 1B).
+--
+-- Mirrors LLM_PROVIDERS in src/frontend/components/settings/settings.js.
+-- The seeder runs at boot (seedCanonicalProviders) so a fresh DB is
+-- populated with the seven canonical entries, and INSERT OR IGNORE
+-- keeps existing rows intact.
+--
+-- tickets.claimedBy is intended to reference providers.id. We do NOT
+-- declare a SQL-level FOREIGN KEY because the tickets table predates
+-- this providers table on every existing st8.sqlite and adding an FK
+-- column to an existing SQLite table requires the migration framework
+-- (ticket 0 / roadmap P1.1) — out of scope here. Until that lands, the
+-- relationship is enforced at the JS layer in claimTicket(), which
+-- throws on an unknown provider id (same pattern as logActivity's
+-- key-whitelist validator from Wave 1A).
+--
+-- Cross-cluster: settings-and-providers (Wave 5b) owns the CRUD UI
+-- for this table. The settings UI's model editor reads providers via
+-- getAllProviders() and writes via upsertProvider(); the validator on
+-- claimTicket() reads via getProvider(id).
+CREATE TABLE IF NOT EXISTS providers (
+  id TEXT PRIMARY KEY,           -- canonical short name: 'anthropic', 'openai', etc.
+  displayName TEXT NOT NULL,     -- human-readable label
+  kind TEXT NOT NULL,            -- 'cloud' | 'local' | 'human' | 'custom'
+  envKey TEXT,                   -- API-key environment variable name (null for local/custom)
+  docsUrl TEXT,                  -- documentation URL (null permitted)
+  active INTEGER DEFAULT 1,      -- 1 = available for assignment, 0 = disabled
+  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_providers_active ON providers(active);
 `;
+
+// ─── CANONICAL PROVIDERS ─────────────────────────────────────
+//
+// Seed for the providers table. Matches LLM_PROVIDERS in
+// src/frontend/components/settings/settings.js — those two lists are
+// the same registry. If you add a provider here, mirror it in the
+// frontend constant (and ideally vice-versa once the settings UI
+// gains a write-back to this table).
+//
+// `human` is added on top of the frontend list — it represents a
+// human collaborator picking up a ticket (the founder, a contributor)
+// distinct from any of the LLM providers. The tickets workflow allows
+// human claims so this is the right place to recognise that.
+const CANONICAL_PROVIDERS = [
+    { id: 'anthropic',  displayName: 'Anthropic',         kind: 'cloud',  envKey: 'ANTHROPIC_API_KEY',  docsUrl: 'https://docs.anthropic.com' },
+    { id: 'openai',     displayName: 'OpenAI',            kind: 'cloud',  envKey: 'OPENAI_API_KEY',     docsUrl: 'https://platform.openai.com/docs' },
+    { id: 'google',     displayName: 'Google (Gemini)',   kind: 'cloud',  envKey: 'GOOGLE_API_KEY',     docsUrl: 'https://ai.google.dev/docs' },
+    { id: 'ollama',     displayName: 'Ollama (local)',    kind: 'local',  envKey: null,                 docsUrl: 'https://github.com/ollama/ollama' },
+    { id: 'lmstudio',   displayName: 'LM Studio (local)', kind: 'local',  envKey: null,                 docsUrl: 'https://lmstudio.ai/docs' },
+    { id: 'openrouter', displayName: 'OpenRouter',        kind: 'cloud',  envKey: 'OPENROUTER_API_KEY', docsUrl: 'https://openrouter.ai/docs' },
+    { id: 'custom',     displayName: 'Custom (URL)',      kind: 'custom', envKey: null,                 docsUrl: null },
+    { id: 'human',      displayName: 'Human',             kind: 'human',  envKey: null,                 docsUrl: null },
+];
+
+// ─── EXPECTED SCHEMA (introspection target) ──────────────────
+//
+// Parallel to ST8_SCHEMA above. ST8_SCHEMA is what we CREATE; this is
+// what we EXPECT at boot. introspectSchema() runs `PRAGMA table_info`
+// on every listed table and logs a `[st8:persistence:drift]` warning
+// for missing tables, missing columns, or extra columns.
+//
+// Why a parallel structure instead of parsing ST8_SCHEMA? Parsing a
+// 150-line template literal at boot would be fragile (commented-out
+// blocks, multi-line FK clauses, etc.). A hand-maintained constant
+// keeps the diff explicit: anyone who touches ST8_SCHEMA is expected
+// to touch EXPECTED_SCHEMA in the same edit.
+//
+// Pairs naturally with a future migration framework (P1.1): the
+// migration runner mutates the live DB, the introspector confirms the
+// mutation landed and flags any column ST8_SCHEMA expects that an
+// older DB never gained (the five post-initial columns are the
+// canonical example — needsAIReview, tripleAtCount, aiContentInjected,
+// templateVariables, hasUnfilledVariables).
+//
+// Column-type comparison is intentionally case-insensitive and ignores
+// the trailing `(N)` size annotation — SQLite treats type names as
+// affinity hints, not strict types.
+const EXPECTED_SCHEMA = {
+    file_registry: [
+        'fingerprint', 'filepath', 'filename', 'sha256Hash', 'fileSizeBytes',
+        'status', 'reachabilityScore', 'impactRadius', 'lifecyclePhase',
+        'birthTimestamp', 'lastModified', 'lastIndexed', 'isEntryPoint',
+        'lastAccessed', 'sessionsSinceAccess', 'expiryDate', 'associatedWith',
+        'eventTrigger', 'brunoStatus', 'needsAIReview', 'tripleAtCount',
+        'aiContentInjected', 'templateVariables', 'hasUnfilledVariables',
+    ],
+    connections: [
+        'id', 'sourceFingerprint', 'targetFingerprint', 'connectionType',
+        'importSpecifier', 'isResolved', 'confidenceScore', 'lastVerified',
+    ],
+    file_intent: [
+        'fingerprint', 'purpose', 'dependsOnBehavior', 'valueStatement',
+        'authoredBy', 'lastUpdated',
+    ],
+    file_mutation_log: [
+        'id', 'fingerprint', 'sha256Hash', 'mutationType', 'changedFields',
+        'actor', 'timestamp', 'metadata',
+    ],
+    activity_log: [
+        'id', 'timestamp', 'source', 'action', 'targetFingerprint', 'details',
+    ],
+    st8_settings: ['category', 'key', 'value', 'updatedAt'],
+    prd_projects: [
+        'id', 'name', 'path', 'template', 'variables', 'created', 'updated',
+    ],
+    ai_content: ['id', 'filepath', 'content', 'reviewed', 'timestamp'],
+    tickets: [
+        'id', 'fingerprint', 'filepath', 'sha256Hash', 'statusAtCreation',
+        'userNote', 'identityBundle', 'createdAt', 'claimedAt', 'claimedBy',
+        'resolvedAt', 'resolution',
+    ],
+    providers: [
+        'id', 'displayName', 'kind', 'envKey', 'docsUrl', 'active',
+        'createdAt', 'updatedAt',
+    ],
+};
 
 // ─── PERSISTENCE CLASS ───────────────────────────────────────
 
@@ -207,30 +383,152 @@ class St8Persistence {
     
     async initialize() {
         try {
-            // Try to use maestro's DatabasePersister
-            const DatabasePersister = getDatabasePersister();
-            if (DatabasePersister && typeof DatabasePersister === 'function') {
-                this.db = new DatabasePersister(this.dbPath);
-                console.log('[st8:persistence] Using maestro DatabasePersister');
-            } else {
-                // Fallback: use better-sqlite3 directly
-                const Database = require('better-sqlite3');
-                this.db = new Database(this.dbPath);
-                this.db.pragma('journal_mode = WAL');
-                this.db.pragma('synchronous = NORMAL');
-                console.log('[st8:persistence] Using better-sqlite3 directly');
-            }
-            
+            // st8.sqlite owns its own schema (the 9 tables declared in
+            // ST8_SCHEMA below). The maestro-derived DatabasePersister in
+            // ./graph-persister.js is project-scoped to a different file
+            // (scaffolder_data.sqlite, used by the integr8 pipeline) and
+            // declares an unrelated graph-of-nodes-and-edges schema. The
+            // old code attempted `new DatabasePersister(this.dbPath)` first
+            // and fell through to better-sqlite3 direct — but graph-persister
+            // exports the class via `exports.DatabasePersister = ...`, so
+            // `typeof require('./graph-persister') === 'function'` was always
+            // false and the maestro branch never ran. The fallthrough was the
+            // real path, and the log line read like a routine success.
+            //
+            // Drop the dead branch. st8 always uses better-sqlite3 directly
+            // against st8.sqlite. graph-persister.js stays in the tree
+            // because insight-store imports it separately for the
+            // getSharedDatabasePath() helper (a different DB file).
+            const Database = require('better-sqlite3');
+            this.db = new Database(this.dbPath);
+            this.db.pragma('journal_mode = WAL');
+            this.db.pragma('synchronous = NORMAL');
+            console.log(
+                '[st8:persistence] Initialised better-sqlite3 ' +
+                '(st8.sqlite owns its own schema; maestro DatabasePersister ' +
+                'is project-scoped to scaffolder_data.sqlite)'
+            );
+
+            // Enforce declared FOREIGN KEY constraints. Without this pragma,
+            // SQLite accepts orphan rows in connections, file_intent,
+            // file_mutation_log, and tickets — making the schema's FK
+            // declarations documentary only. Manual JS-side cascade in
+            // deleteFile / pruneFilesNotIn is still required (SQLite does
+            // not auto-cascade unless ON DELETE CASCADE is declared, which
+            // we deliberately do not use — cascade semantics live in JS so
+            // mutation_log + activity_log can be written before deletion).
+            this.db.pragma('foreign_keys = ON');
+
             // Apply st8 schema
             this.db.exec(ST8_SCHEMA);
             console.log('[st8:persistence] Database initialized:', this.dbPath);
-            
+
+            // Detect drift between ST8_SCHEMA / EXPECTED_SCHEMA and the
+            // live DB. Pre-existing st8.sqlite files predate post-initial
+            // columns (needsAIReview, etc.) — without a migration framework
+            // they only land in a fresh DB. introspectSchema() logs the
+            // diff so the gap is visible, not silent. Throws are only on
+            // catastrophic introspection failure (e.g. sqlite_master
+            // unreadable) — column drift logs warnings and continues.
+            try {
+                const drift = this.introspectSchema();
+                if (drift.hasDrift) {
+                    for (const line of drift.report) {
+                        console.warn('[st8:persistence:drift]', line);
+                    }
+                }
+            } catch (driftErr) {
+                console.error('[st8:persistence] Schema introspection failed:', driftErr.message);
+            }
+
+            // Seed the canonical providers (ticket 8). INSERT OR IGNORE
+            // keeps user-edited rows intact across boots. Wrapped in
+            // try/catch so a seed failure can't block boot.
+            try {
+                this.seedCanonicalProviders();
+            } catch (seedErr) {
+                console.error('[st8:persistence] Provider seeding failed:', seedErr.message);
+            }
+
         } catch (err) {
             console.error('[st8:persistence] Failed to initialize database:', err.message);
             throw err;
         }
     }
-    
+
+    /**
+     * Compare EXPECTED_SCHEMA to the live DB via PRAGMA table_info.
+     * Returns a structured diff so callers can decide whether to log,
+     * throw, or attempt migration. initialize() calls this after the
+     * schema apply and logs warnings on any drift.
+     *
+     * @returns {{
+     *   hasDrift: boolean,
+     *   missingTables: string[],
+     *   extraTables: string[],
+     *   missingColumns: Record<string, string[]>,
+     *   extraColumns: Record<string, string[]>,
+     *   report: string[]
+     * }}
+     */
+    introspectSchema() {
+        const result = {
+            hasDrift: false,
+            missingTables: [],
+            extraTables: [],
+            missingColumns: {},
+            extraColumns: {},
+            report: [],
+        };
+
+        // Inventory of actual tables in the DB (skip sqlite internals).
+        const actualTableRows = this.db.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).all();
+        const actualTables = new Set(actualTableRows.map(r => r.name));
+        const expectedTables = new Set(Object.keys(EXPECTED_SCHEMA));
+
+        for (const t of expectedTables) {
+            if (!actualTables.has(t)) {
+                result.missingTables.push(t);
+                result.hasDrift = true;
+                result.report.push(`missing table: ${t}`);
+            }
+        }
+        for (const t of actualTables) {
+            if (!expectedTables.has(t)) {
+                result.extraTables.push(t);
+                result.hasDrift = true;
+                result.report.push(`extra table (not in EXPECTED_SCHEMA): ${t}`);
+            }
+        }
+
+        // Column diff for tables that exist on both sides.
+        for (const table of Object.keys(EXPECTED_SCHEMA)) {
+            if (!actualTables.has(table)) continue;
+            const actualCols = this.db.pragma(`table_info(${table})`).map(c => c.name);
+            const actualSet = new Set(actualCols);
+            const expectedCols = EXPECTED_SCHEMA[table];
+            const expectedSet = new Set(expectedCols);
+
+            const missing = expectedCols.filter(c => !actualSet.has(c));
+            const extra = actualCols.filter(c => !expectedSet.has(c));
+
+            if (missing.length > 0) {
+                result.missingColumns[table] = missing;
+                result.hasDrift = true;
+                result.report.push(`${table}: missing column(s) [${missing.join(', ')}]`);
+            }
+            if (extra.length > 0) {
+                result.extraColumns[table] = extra;
+                result.hasDrift = true;
+                result.report.push(`${table}: extra column(s) not in EXPECTED_SCHEMA [${extra.join(', ')}]`);
+            }
+        }
+
+        return result;
+    }
+
     // ─── FILE REGISTRY ──────────────────────────────────────
     
     upsertFile(file) {
@@ -273,26 +571,91 @@ class St8Persistence {
         }));
     }
     
+    /**
+     * Look up a file_registry row by filepath.
+     *
+     * file_registry permits MULTIPLE rows per filepath (different
+     * birthTimestamp → different fingerprint). Without an explicit
+     * ORDER BY, SQLite returned whichever row sat first in physical
+     * layout — non-deterministic across runs. We now sort by
+     * birthTimestamp DESC so the most-recent identity wins.
+     *
+     * Callers that need to operate on EVERY fingerprint for a path
+     * (e.g. deleteFile) must use getAllFilesByPath instead.
+     *
+     * @param {string} filepath
+     * @returns {object|undefined} most-recent file_registry row
+     */
     getFileByPath(filepath) {
-        const stmt = this.db.prepare('SELECT * FROM file_registry WHERE filepath = ?');
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_registry WHERE filepath = ? ORDER BY birthTimestamp DESC'
+        );
         return stmt.get(filepath);
     }
-    
+
+    /**
+     * Return ALL file_registry rows for a filepath, newest first.
+     * Used by deleteFile to cascade across every fingerprint that
+     * shares the filepath — see the §4 caveat in
+     * docs/components/persistence-and-database.md.
+     *
+     * @param {string} filepath
+     * @returns {object[]}
+     */
+    getAllFilesByPath(filepath) {
+        const stmt = this.db.prepare(
+            'SELECT * FROM file_registry WHERE filepath = ? ORDER BY birthTimestamp DESC'
+        );
+        return stmt.all(filepath);
+    }
+
+    /**
+     * Delete every file_registry row for `filepath` and cascade through
+     * connections, file_intent, file_mutation_log, and tickets.
+     *
+     * IMPORTANT: file_registry can have multiple rows per filepath
+     * (different birthTimestamps = different fingerprints from different
+     * runs). The old implementation looked up ONE row, cascaded that
+     * fingerprint's children, then `DELETE FROM file_registry WHERE
+     * filepath = ?` removed ALL rows — leaving connections/intent/
+     * mutation_log/tickets for the other fingerprints orphaned. With
+     * PRAGMA foreign_keys ON the orphan-creating delete now throws.
+     *
+     * Current shape: iterate every fingerprint, cascade per-fingerprint
+     * (same as pruneFilesNotIn), DELETE BY FINGERPRINT not filepath.
+     */
     deleteFile(filepath) {
-        const file = this.getFileByPath(filepath);
-        if (!file) return { changes: 0 };
+        const files = this.getAllFilesByPath(filepath);
+        if (files.length === 0) return { changes: 0 };
 
-        const _deleteFileTx = this.db.transaction((fp, fingerprint) => {
-            this.deleteConnectionsForFile(fingerprint);
-            this.deleteIntentForFile(fingerprint);
-            this.deleteMutationLogForFile(fingerprint);
+        const deleteRowStmt = this.db.prepare('DELETE FROM file_registry WHERE fingerprint = ?');
 
-            const stmt = this.db.prepare('DELETE FROM file_registry WHERE filepath = ?');
-            return stmt.run(fp);
+        const _deleteFileTx = this.db.transaction(() => {
+            let changes = 0;
+            const fingerprints = [];
+            for (const f of files) {
+                this.deleteConnectionsForFile(f.fingerprint);
+                this.deleteIntentForFile(f.fingerprint);
+                this.deleteMutationLogForFile(f.fingerprint);
+                this.deleteTicketsForFile(f.fingerprint);
+                const result = deleteRowStmt.run(f.fingerprint);
+                if (result.changes > 0) {
+                    changes += result.changes;
+                    fingerprints.push(f.fingerprint);
+                }
+            }
+            return { changes, fingerprints };
         });
 
-        const result = _deleteFileTx(filepath, file.fingerprint);
-        return { changes: result.changes, fingerprint: file.fingerprint };
+        const { changes, fingerprints } = _deleteFileTx();
+        // Backwards-compatible return shape: callers historically read
+        // `fingerprint` (singular). Surface the most-recent fingerprint
+        // (first in the DESC-ordered list) plus the full set.
+        return {
+            changes,
+            fingerprint: fingerprints[0] || files[0].fingerprint,
+            fingerprints,
+        };
     }
 
     /**
@@ -324,6 +687,7 @@ class St8Persistence {
                 this.deleteConnectionsForFile(f.fingerprint);
                 this.deleteIntentForFile(f.fingerprint);
                 this.deleteMutationLogForFile(f.fingerprint);
+                this.deleteTicketsForFile(f.fingerprint);
                 const result = deleteRowStmt.run(f.fingerprint);
                 if (result.changes > 0) pruned.push(f.fingerprint);
             }
@@ -385,14 +749,142 @@ class St8Persistence {
         return stmt.run(resolution || '', id);
     }
 
-    /** Claim a ticket on behalf of an LLM provider. */
+    /**
+     * Claim a ticket on behalf of an LLM provider.
+     *
+     * `claimedBy` MUST be the `id` of an active row in the providers
+     * table (ticket 8). The SQL schema doesn't yet declare a FOREIGN
+     * KEY (the tickets table predates the providers table on existing
+     * DBs and adding the FK requires the migration framework / ticket
+     * 0), so this method enforces the relationship at the JS layer —
+     * same pattern as the logActivity key-whitelist validator from
+     * Wave 1A. Loud bug beats quiet bug.
+     *
+     * Throws TypeError if claimedBy is empty, RangeError if the id is
+     * not a known active provider.
+     */
     claimTicket(id, claimedBy) {
+        if (!claimedBy || typeof claimedBy !== 'string') {
+            throw new TypeError(
+                `[st8:persistence] claimTicket: claimedBy must be a non-empty string (provider id). Got ${JSON.stringify(claimedBy)}.`
+            );
+        }
+        const provider = this.getProvider(claimedBy);
+        if (!provider) {
+            const known = this.getAllProviders().map((p) => p.id).join(', ');
+            throw new RangeError(
+                `[st8:persistence] claimTicket: unknown provider '${claimedBy}'. Known providers: [${known}]. Add the provider via upsertProvider() before claiming.`
+            );
+        }
+        if (provider.active === 0) {
+            throw new RangeError(
+                `[st8:persistence] claimTicket: provider '${claimedBy}' exists but is inactive (active=0). Re-activate via upsertProvider({id, active: 1}) before claiming.`
+            );
+        }
         const stmt = this.db.prepare(`
             UPDATE tickets
             SET claimedAt = CURRENT_TIMESTAMP, claimedBy = ?
             WHERE id = ? AND claimedAt IS NULL
         `);
-        return stmt.run(claimedBy || 'unknown', id);
+        return stmt.run(claimedBy, id);
+    }
+
+    // ─── PROVIDERS (ticket 8, Wave 1B) ──────────────────────
+    //
+    // CRUD for the providers table. The settings-and-providers cluster
+    // (Wave 5b) owns the UI side; these methods are the storage layer
+    // it will eventually call. Until that lands, the seeded canonical
+    // entries (CANONICAL_PROVIDERS) are the only rows — they cover
+    // every provider in the frontend LLM_PROVIDERS registry plus
+    // 'human' for non-LLM claims.
+
+    /**
+     * Idempotent — INSERT OR IGNORE so an existing DB keeps any
+     * user-edited rows. Called from initialize().
+     */
+    seedCanonicalProviders() {
+        const stmt = this.db.prepare(`
+            INSERT OR IGNORE INTO providers (id, displayName, kind, envKey, docsUrl, active)
+            VALUES (?, ?, ?, ?, ?, 1)
+        `);
+        const tx = this.db.transaction((rows) => {
+            let inserted = 0;
+            for (const r of rows) {
+                const info = stmt.run(r.id, r.displayName, r.kind, r.envKey, r.docsUrl);
+                if (info.changes > 0) inserted += 1;
+            }
+            return inserted;
+        });
+        return { inserted: tx(CANONICAL_PROVIDERS), total: CANONICAL_PROVIDERS.length };
+    }
+
+    /** Returns a single provider row or null. */
+    getProvider(id) {
+        const row = this.db.prepare('SELECT * FROM providers WHERE id = ?').get(id);
+        return row || null;
+    }
+
+    /**
+     * Returns every provider row ordered by displayName. Pass
+     * `{ activeOnly: true }` to filter inactive rows out.
+     */
+    getAllProviders(opts) {
+        const activeOnly = opts && opts.activeOnly;
+        const sql = activeOnly
+            ? 'SELECT * FROM providers WHERE active = 1 ORDER BY displayName'
+            : 'SELECT * FROM providers ORDER BY displayName';
+        return this.db.prepare(sql).all();
+    }
+
+    /**
+     * Insert or update a provider. Updates `updatedAt` automatically.
+     * `kind` must be one of 'cloud' | 'local' | 'human' | 'custom'.
+     * Throws on missing required fields.
+     */
+    upsertProvider(p) {
+        if (!p || !p.id || !p.displayName || !p.kind) {
+            throw new TypeError(
+                `[st8:persistence] upsertProvider: { id, displayName, kind } are required. Got ${JSON.stringify(p)}.`
+            );
+        }
+        const KINDS = new Set(['cloud', 'local', 'human', 'custom']);
+        if (!KINDS.has(p.kind)) {
+            throw new RangeError(
+                `[st8:persistence] upsertProvider: kind must be one of [cloud, local, human, custom]. Got '${p.kind}'.`
+            );
+        }
+        const stmt = this.db.prepare(`
+            INSERT INTO providers (id, displayName, kind, envKey, docsUrl, active, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                displayName = excluded.displayName,
+                kind        = excluded.kind,
+                envKey      = excluded.envKey,
+                docsUrl     = excluded.docsUrl,
+                active      = excluded.active,
+                updatedAt   = CURRENT_TIMESTAMP
+        `);
+        return stmt.run(
+            p.id,
+            p.displayName,
+            p.kind,
+            p.envKey || null,
+            p.docsUrl || null,
+            p.active === 0 ? 0 : 1
+        );
+    }
+
+    /**
+     * Soft delete — flip active=0. Hard delete is intentionally not
+     * exposed because rows in tickets.claimedBy may still reference
+     * this provider id; we want the historical record to remain
+     * resolvable via getProvider().
+     */
+    deactivateProvider(id) {
+        const stmt = this.db.prepare(
+            'UPDATE providers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?'
+        );
+        return stmt.run(id);
     }
 
     deleteConnectionsForFile(fingerprint) {
@@ -409,6 +901,17 @@ class St8Persistence {
     
     deleteMutationLogForFile(fingerprint) {
         const stmt = this.db.prepare('DELETE FROM file_mutation_log WHERE fingerprint = ?');
+        return stmt.run(fingerprint);
+    }
+
+    /**
+     * Cascade helper for tickets — drops every ticket referencing the
+     * given fingerprint. Called from deleteFile and pruneFilesNotIn so
+     * deleting a file_registry row never leaves orphan tickets behind
+     * (which would FK-violate once PRAGMA foreign_keys is enforced).
+     */
+    deleteTicketsForFile(fingerprint) {
+        const stmt = this.db.prepare('DELETE FROM tickets WHERE fingerprint = ?');
         return stmt.run(fingerprint);
     }
     
@@ -434,6 +937,24 @@ class St8Persistence {
     getConnectionsForFile(fingerprint) {
         const stmt = this.db.prepare('SELECT * FROM connections WHERE sourceFingerprint = ? OR targetFingerprint = ?');
         return stmt.all(fingerprint, fingerprint);
+    }
+
+    /**
+     * Return every row in the connections table. Used by force-checks FC5
+     * to verify that every connection's source AND target fingerprint
+     * still has a row in file_registry (dangling-edge detector).
+     *
+     * Returns an array (possibly empty); never null. Sorted by
+     * (sourceFingerprint, targetFingerprint) so the order is deterministic
+     * across runs — matters for FC5's diff-friendly report output.
+     *
+     * Ticket 18.
+     */
+    getAllConnections() {
+        const stmt = this.db.prepare(
+            'SELECT * FROM connections ORDER BY sourceFingerprint, targetFingerprint'
+        );
+        return stmt.all();
     }
     
     // ─── FILE INTENT ────────────────────────────────────────
@@ -596,11 +1117,77 @@ class St8Persistence {
         return { purgedMutations: count };
     }
 
+    // ─── MUTATION LOG RETENTION ─────────────────────────────
+    //
+    // Policy (ticket 10, Wave 1B):
+    //   * KEEP FOREVER:   mutationType in ('PRODUCTION', 'PURGE') —
+    //                     lifecycle-transition markers that must remain
+    //                     queryable for the lifetime of the project.
+    //   * PRUNE AFTER N:  every other mutationType (CONCEPT and content-
+    //                     change strings) older than `retentionDays` days.
+    //                     Default 30 days, overridable per call.
+    //
+    // The cutoff comparison uses the `timestamp` column (TEXT, ISO format
+    // via SQLite's CURRENT_TIMESTAMP). SQLite compares ISO timestamps as
+    // strings, which sorts identically to chronological order — no need
+    // to round-trip through Date math.
+    //
+    // Returns { prunedRows, retentionDays, cutoff } so the caller (the
+    // hook subscriber) can log the result without re-querying.
+    pruneMutationLogRetention(retentionDays = 30) {
+        if (!Number.isFinite(retentionDays) || retentionDays < 0) {
+            throw new RangeError(
+                `[st8:persistence] pruneMutationLogRetention: retentionDays must be a non-negative finite number, got ${retentionDays}`
+            );
+        }
+
+        // Compute cutoff in ISO format. CURRENT_TIMESTAMP in SQLite
+        // produces 'YYYY-MM-DD HH:MM:SS' (space separator, no TZ). We
+        // match that format so the string comparison is well-defined.
+        const cutoffMs = Date.now() - retentionDays * 86400 * 1000;
+        const cutoffIso = new Date(cutoffMs)
+            .toISOString()
+            .replace('T', ' ')
+            .replace(/\.\d{3}Z$/, '');
+
+        const stmt = this.db.prepare(
+            `DELETE FROM file_mutation_log
+             WHERE mutationType NOT IN ('PRODUCTION', 'PURGE')
+               AND timestamp < ?`
+        );
+        const info = stmt.run(cutoffIso);
+        return {
+            prunedRows: info.changes || 0,
+            retentionDays,
+            cutoff: cutoffIso,
+        };
+    }
+
     // ─── ACTIVITY LOG ───────────────────────────────────────
     
     logActivity(activity) {
+        // Guard against the camelCase / snake_case drift that produced
+        // silent NULL targetFingerprint rows for every TICKET_CREATED
+        // activity (see persistence-and-database.md §8.3). The activity_log
+        // schema uses camelCase column names; an upstream writer passing
+        // `target_fingerprint` would previously be silently nulled.
+        // Now we throw — loud bug beats quiet bug.
+        const ALLOWED_KEYS = new Set([
+            'source',
+            'action',
+            'targetFingerprint',
+            'details',
+        ]);
+        const unknown = Object.keys(activity || {}).filter(k => !ALLOWED_KEYS.has(k));
+        if (unknown.length > 0) {
+            throw new Error(
+                `[st8:persistence] logActivity: unknown key(s) [${unknown.join(', ')}]. ` +
+                `activity_log columns are camelCase — did you mean targetFingerprint? ` +
+                `Allowed keys: ${Array.from(ALLOWED_KEYS).join(', ')}.`
+            );
+        }
         const stmt = this.db.prepare(`
-            INSERT INTO activity_log 
+            INSERT INTO activity_log
             (source, action, targetFingerprint, details)
             VALUES (?, ?, ?, ?)
         `);
@@ -618,20 +1205,99 @@ class St8Persistence {
     }
     
     // ─── SETTINGS ────────────────────────────────────────────
+    //
+    // Wave 5E ticket 2: the `models` category's entry arrays contain a
+    // user-typed `apiKey` field. Without encryption that field lands
+    // plaintext in `st8.sqlite`. The settings-crypto module gives us a
+    // transparent encrypt-on-write / decrypt-on-read seam:
+    //
+    //   - upsertSetting() detects models[*].apiKey and encrypts each
+    //     before JSON.stringify + INSERT. Non-models categories are
+    //     unaffected. Values already in ciphertext form pass through.
+    //   - getSetting / getSettingsByCategory / getAllSettings detect
+    //     the ciphertext shape and decrypt symmetrically.
+    //
+    // The encryption key lives at `<dbDir>/.st8/encryption.key` and is
+    // generated on first encrypt (see settings-crypto.ensureKey).
+
+    /**
+     * If `value` looks like a 5D `_entries` array for the `models`
+     * category, encrypt each entry's `apiKey` in-place and return a
+     * NEW array. Other categories pass through untouched.
+     *
+     * Idempotent: an entry whose apiKey is already in ciphertext form
+     * is left as-is (the shape recognizer is conservative — see
+     * settings-crypto.isCiphertext).
+     */
+    _encryptModelEntries(category, value) {
+        if (category !== 'models') return value;
+        if (!Array.isArray(value)) return value;
+        const crypto = require('../../shared/utils/settings-crypto');
+        return value.map((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+            if (typeof entry.apiKey !== 'string' || entry.apiKey.length === 0) return entry;
+            if (crypto.isCiphertext(entry.apiKey)) return entry;
+            const copy = Object.assign({}, entry);
+            copy.apiKey = crypto.encrypt(entry.apiKey, this.dbPath);
+            return copy;
+        });
+    }
+
+    /**
+     * Inverse of _encryptModelEntries. Walks a models `_entries` array
+     * (or any array shape returned for the models category) and
+     * decrypts every recognized ciphertext apiKey in-place. Non-models
+     * categories pass through. Legacy plaintext rows (pre-5E) pass
+     * through too — isCiphertext() returns false on plaintext.
+     *
+     * Decryption failure on a single entry surfaces as a console.error
+     * and the apiKey is replaced with the literal '[decrypt-failed]'
+     * marker — we do NOT silently fall back to ciphertext (that would
+     * leak the encoded form to UI / downstream callers) and we do NOT
+     * throw (one corrupt row should not break the whole settings GET).
+     */
+    _decryptModelEntries(category, value) {
+        if (category !== 'models') return value;
+        if (!Array.isArray(value)) return value;
+        const crypto = require('../../shared/utils/settings-crypto');
+        return value.map((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+            if (typeof entry.apiKey !== 'string' || entry.apiKey.length === 0) return entry;
+            if (!crypto.isCiphertext(entry.apiKey)) return entry;
+            try {
+                const copy = Object.assign({}, entry);
+                copy.apiKey = crypto.decrypt(entry.apiKey, this.dbPath);
+                return copy;
+            } catch (err) {
+                console.error('[st8:persistence] models apiKey decrypt failed for entry', entry.id || '<no-id>', ':', err.message);
+                const copy = Object.assign({}, entry);
+                copy.apiKey = '[decrypt-failed]';
+                return copy;
+            }
+        });
+    }
 
     upsertSetting(category, key, value) {
         const stmt = this.db.prepare(`
             INSERT OR REPLACE INTO st8_settings (category, key, value, updatedAt)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         `);
-        return stmt.run(category, key, typeof value === 'string' ? value : JSON.stringify(value));
+        // Encrypt sensitive fields in models entries before persisting.
+        const persistedValue = this._encryptModelEntries(category, value);
+        return stmt.run(
+            category,
+            key,
+            typeof persistedValue === 'string' ? persistedValue : JSON.stringify(persistedValue)
+        );
     }
 
     getSetting(category, key) {
         const stmt = this.db.prepare('SELECT value FROM st8_settings WHERE category = ? AND key = ?');
         const row = stmt.get(category, key);
         if (!row) return null;
-        try { return JSON.parse(row.value); } catch { return row.value; }
+        let parsed;
+        try { parsed = JSON.parse(row.value); } catch { parsed = row.value; }
+        return this._decryptModelEntries(category, parsed);
     }
 
     getSettingsByCategory(category) {
@@ -639,7 +1305,9 @@ class St8Persistence {
         const rows = stmt.all(category);
         const result = {};
         for (const row of rows) {
-            try { result[row.key] = JSON.parse(row.value); } catch { result[row.key] = row.value; }
+            let parsed;
+            try { parsed = JSON.parse(row.value); } catch { parsed = row.value; }
+            result[row.key] = this._decryptModelEntries(category, parsed);
         }
         return result;
     }
@@ -650,9 +1318,24 @@ class St8Persistence {
         const result = {};
         for (const row of rows) {
             if (!result[row.category]) result[row.category] = {};
-            try { result[row.category][row.key] = JSON.parse(row.value); } catch { result[row.category][row.key] = row.value; }
+            let parsed;
+            try { parsed = JSON.parse(row.value); } catch { parsed = row.value; }
+            result[row.category][row.key] = this._decryptModelEntries(row.category, parsed);
         }
         return result;
+    }
+
+    /**
+     * Read a raw row WITHOUT decryption. Test-only — used by the
+     * encryption probe to verify that the at-rest representation is
+     * ciphertext. NEVER call this from production paths (the UI must
+     * see decrypted apiKeys; the indirection exists precisely so the
+     * raw form never leaks to non-test consumers).
+     */
+    _getRawSetting(category, key) {
+        const stmt = this.db.prepare('SELECT value FROM st8_settings WHERE category = ? AND key = ?');
+        const row = stmt.get(category, key);
+        return row ? row.value : null;
     }
 
     deleteSetting(category, key) {
@@ -733,11 +1416,29 @@ class St8Persistence {
         return stmt.all();
     }
 
-    storeAIContent(filepath, content) {
+    /**
+     * Append a new ai_content row. ai_content is an append-log (see the
+     * schema comment block above the table DDL) — each call is a fresh
+     * row, no upsert. The previous storeAIContent comment said "INSERT
+     * OR REPLACE" but there is no UNIQUE constraint on the table, so
+     * OR REPLACE was a no-op — rows accumulated regardless. Renamed
+     * to appendAIContent to make the semantics explicit.
+     */
+    appendAIContent(filepath, content) {
         const stmt = this.db.prepare(
-            'INSERT OR REPLACE INTO ai_content (filepath, content, reviewed, timestamp) VALUES (?, ?, 0, CURRENT_TIMESTAMP)'
+            'INSERT INTO ai_content (filepath, content, reviewed, timestamp) VALUES (?, ?, 0, CURRENT_TIMESTAMP)'
         );
         return stmt.run(filepath, content);
+    }
+
+    /**
+     * @deprecated Use appendAIContent. The old name implied upsert
+     * semantics that the table never supported; preserved as a thin
+     * alias so any future caller written against the documented API
+     * doesn't silently break.
+     */
+    storeAIContent(filepath, content) {
+        return this.appendAIContent(filepath, content);
     }
 
     getAIContent(filepath) {
@@ -833,8 +1534,56 @@ class St8Persistence {
     }
 }
 
+// ─── SHARED INSTANCE ─────────────────────────────────────────
+//
+// Module-level memoized accessor. Each call returns the SAME
+// initialized St8Persistence instance, opening better-sqlite3 + applying
+// PRAGMAs + running ST8_SCHEMA + introspecting drift exactly ONCE
+// across the server lifetime.
+//
+// Why this exists (ticket 7): app.js's HTTP handlers previously
+// constructed `new St8Persistence()` and called `initialize()` per
+// request, which re-opens the DB file, re-runs the CREATE TABLE IF NOT
+// EXISTS chain, and re-runs introspectSchema() on every API hit. Heavy
+// per-request cost for what is effectively a process-lifetime singleton.
+//
+// The accessor returns a Promise so the first caller can `await` the
+// initialization; subsequent callers receive the same resolved Promise
+// (or the cached instance if init already completed).
+//
+// closeSharedPersistence() exists for tests + the server.stop() shutdown
+// path so the DB handle is released cleanly on SIGINT.
+let _sharedPersistence = null;
+let _sharedInitPromise = null;
+
+async function getSharedPersistence() {
+    if (_sharedPersistence && _sharedPersistence.db) return _sharedPersistence;
+    if (_sharedInitPromise) return _sharedInitPromise;
+    _sharedInitPromise = (async () => {
+        const inst = new St8Persistence();
+        await inst.initialize();
+        _sharedPersistence = inst;
+        return inst;
+    })();
+    try {
+        return await _sharedInitPromise;
+    } finally {
+        _sharedInitPromise = null;
+    }
+}
+
+function closeSharedPersistence() {
+    if (_sharedPersistence) {
+        try { _sharedPersistence.close(); } catch (_) { /* already closed */ }
+        _sharedPersistence = null;
+    }
+    _sharedInitPromise = null;
+}
+
 // ─── EXPORTS ─────────────────────────────────────────────────
 
 module.exports = {
-    St8Persistence
+    St8Persistence,
+    getSharedPersistence,
+    closeSharedPersistence,
 };

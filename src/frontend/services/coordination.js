@@ -1,10 +1,22 @@
 /* ═══════════════════════════════════════════════════════════════
-   ST8 COORDINATION — Multi-LLM Manifest Synchronization
+   ST8 COORDINATION — Manifest Synchronization Service
    ═══════════════════════════════════════════════════════════════
 
-   Uses connection-state.json and ai-signal.toml as the coordination
-   layer between multiple LLMs. Both LLMs read the same manifest.
-   When one makes a fix, watcher fires, manifest updates, other LLM sees truth.
+   Loads the project manifest (connection-state.json) and exposes
+   change-comparison + AI context helpers built on top of it.
+
+   Refresh model (post Wave 4D): the service subscribes to the
+   backend mutation stream at /api/mutations (SSE) and reloads the
+   manifest on each FILE_AFTER_CHANGE event. The legacy 2s setInterval
+   polling has been removed — the SSE bus delivers the same signal
+   with <1s latency and zero idle round-trips.
+
+   Current consumers: the split-mode workspace ("standard" / "pretext-
+   review") starts the service when the right-hand file panel is
+   active and stops it on workspace switch. addListener() is exposed
+   for future surfaces (per-manifest-change subscribers); today the
+   loadManifest -> notifyListeners path runs even with zero listeners
+   so adding one later is a pure subscribe operation.
 
    Public API: window.St8Coordination
    ═══════════════════════════════════════════════════════════════ */
@@ -18,8 +30,15 @@ const coordinationState = {
     lastManifest: null,
     lastUpdate: null,
     listeners: [],
-    pollInterval: null,
-    pollMs: 2000
+    // Wave 4D ticket 2: legacy `pollInterval` (setInterval handle) replaced
+    // by an EventSource handle. Same semantic — "service is currently
+    // listening for manifest updates" — different transport.
+    mutationSource: null,
+    // Reconnect-on-error housekeeping. Kept tiny on purpose: this service
+    // is a courtesy refresher, not a critical channel (the main mutation
+    // stream in app.js owns user-visible toasts + constellation updates).
+    reconnectTimer: null,
+    reconnectDelay: 1000
 };
 
 // ─── MANIFEST LOADING ────────────────────────────────────────
@@ -53,28 +72,93 @@ function notifyListeners(manifest) {
     });
 }
 
-// ─── POLLING ─────────────────────────────────────────────────
+// ─── REFRESH (SSE-driven, post Wave 4D) ──────────────────────
+//
+// startPolling() retains its name for call-site compatibility with the
+// existing workspace-switch code in app.js, but the underlying mechanism
+// is now a /api/mutations EventSource. Each mutation event triggers
+// loadManifest(); we do not parse the event payload here because the
+// manifest is the source of truth for compareManifests / generateAiContext.
+
+function _openMutationSource(manifestPath) {
+    // EventSource is a browser global. In a non-browser context (tests
+    // running this file under node), it may be undefined — bail rather
+    // than throw so the service degrades to "initial fetch only".
+    if (typeof EventSource === 'undefined') {
+        console.warn('[st8:coordination] EventSource unavailable; skipping live refresh');
+        return null;
+    }
+    var src = new EventSource('/api/mutations');
+
+    src.onopen = function() {
+        coordinationState.reconnectDelay = 1000;
+        console.info('[st8:coordination] Mutation stream connected');
+    };
+
+    src.onmessage = function(event) {
+        try {
+            var data = JSON.parse(event.data);
+            // Skip the server's initial handshake frame
+            if (data && data.type === 'connected') return;
+            // Any real mutation = manifest is now stale; reload it.
+            loadManifest(manifestPath);
+        } catch (err) {
+            console.warn('[st8:coordination] Mutation parse failed:', err && err.message);
+        }
+    };
+
+    src.onerror = function() {
+        // Don't tear the service down — just log + schedule a single
+        // retry with linear backoff (capped). The user-facing mutation
+        // stream in app.js owns aggressive reconnect; we ride along.
+        console.warn('[st8:coordination] Mutation stream lost; retrying');
+        try { src.close(); } catch (_) {}
+        if (coordinationState.mutationSource === src) {
+            coordinationState.mutationSource = null;
+        }
+        clearTimeout(coordinationState.reconnectTimer);
+        coordinationState.reconnectTimer = setTimeout(function() {
+            coordinationState.reconnectDelay = Math.min(
+                coordinationState.reconnectDelay * 2, 30000
+            );
+            if (coordinationState.manifestPath) {
+                coordinationState.mutationSource = _openMutationSource(
+                    coordinationState.manifestPath
+                );
+            }
+        }, coordinationState.reconnectDelay);
+    };
+
+    return src;
+}
 
 function startPolling(manifestPath) {
     coordinationState.manifestPath = manifestPath;
-    
-    // Initial load
+
+    // Initial load — one-shot bootstrap so consumers have data
+    // before any mutation arrives. The SSE stream takes over from here.
     loadManifest(manifestPath);
-    
-    // Start polling
-    coordinationState.pollInterval = setInterval(function() {
-        loadManifest(manifestPath);
-    }, coordinationState.pollMs);
-    
-    console.info('[st8:coordination] Polling started:', manifestPath);
+
+    // Idempotent: tear down any prior stream before opening a new one.
+    if (coordinationState.mutationSource) {
+        try { coordinationState.mutationSource.close(); } catch (_) {}
+        coordinationState.mutationSource = null;
+    }
+    coordinationState.mutationSource = _openMutationSource(manifestPath);
+
+    console.info('[st8:coordination] Refresh stream opened:', manifestPath);
 }
 
 function stopPolling() {
-    if (coordinationState.pollInterval) {
-        clearInterval(coordinationState.pollInterval);
-        coordinationState.pollInterval = null;
-        console.info('[st8:coordination] Polling stopped');
+    if (coordinationState.mutationSource) {
+        try { coordinationState.mutationSource.close(); } catch (_) {}
+        coordinationState.mutationSource = null;
     }
+    if (coordinationState.reconnectTimer) {
+        clearTimeout(coordinationState.reconnectTimer);
+        coordinationState.reconnectTimer = null;
+    }
+    console.info('[st8:coordination] Refresh stream stopped');
 }
 
 // ─── LISTENER MANAGEMENT ─────────────────────────────────────

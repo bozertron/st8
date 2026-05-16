@@ -18,7 +18,51 @@
          GREEN / working   -> --gold  (#D4AF37)
          RED / broken      -> --cyan  (#1FBDEA — bug-juice)
          COMBAT (future)   -> --purple (#9D4EDD — agents-active)
-       Locked files get a red lock indicator above the building.
+       Locked files will get a red lock indicator above the building
+       (NOT YET IMPLEMENTED — see DEFERRAL NOTE below).
+       Roadmap pointer: docs/_pending-roadmap/louis-and-locking.md
+       Phase L2 ships the SSE lock-change event the dive-in subscribes
+       to; Phase L4 builds the Three.js 🔒 Sprite itself. Until L2 the
+       dive-in has no data source to ask "is this file locked?".
+
+   ─── DEFERRAL NOTE: red lock indicator ──────────────────────────
+   (louis-and-locking cluster ticket 0 — Wave 8A annotation;
+    originally identity-and-analysis ticket 12, Wave 3C)
+
+   The red lock indicator referenced in
+   /home/user/st8/docs/Sonic/CODE_CITY_BARRADEAU_BUILDER.md is a
+   cross-cluster feature that this cluster cannot ship in isolation.
+   It requires two upstream pieces neither of which exists today:
+
+     1. A locked-file STATE source on the data side. This is
+        louis-and-locking cluster Phase L1 territory: see
+        docs/_pending-roadmap/louis-and-locking.md — specifically
+        the `locked INTEGER DEFAULT 0` column addition to
+        file_registry, the lock-manager.js chmod primitive, and the
+        GET /api/locks endpoint. Until that lands, the dive-in has
+        no way to ask "is this file locked?" without inventing its
+        own lock semantics.
+
+     2. The 3D RENDER for the indicator (a red lock sprite or
+        billboarded mesh positioned above the building's max-height
+        particle envelope, with bloom/glow consistent with the rest
+        of the scene). This is frontend-experience cluster (Wave 7)
+        scope — it is a visual/interaction primitive, not an
+        identity-and-analysis concern.
+
+   Sequencing: Wave 7 (frontend) cannot implement the render until
+   Wave 8/louis ships the data source, so this dive-in comment
+   stays as documentary intent until BOTH clusters have shipped
+   their halves. When they do, the implementation is:
+   (a) GET /api/locks on `show(file)`, (b) if file.filepath is in
+   the response, attach a sprite at `building.position + (0, height
+   + offset, 0)` colored 0xFF3344, (c) listen for the LOCK_STATE
+   hook (defined in the louis roadmap Phase L1) to update mid-flight
+   via setStatus()'s sibling path.
+
+   Cross-cluster pointers:
+     - docs/_pending-roadmap/louis-and-locking.md (data source)
+     - docs/_pending-roadmap/frontend-experience.md (render layer)
 
    Source material:
      /home/user/st8/docs/Sonic/CODE_CITY_BARRADEAU_BUILDER.md
@@ -44,13 +88,23 @@ import { UnrealBloomPass } from './three/postprocessing/UnrealBloomPass.js';
 
 // ─── Constants ─────────────────────────────────────────────────
 
-const STATUS_COLOR = {
-  GREEN:  0xD4AF37,   // gold
-  YELLOW: 0xD4AF37,   // gold
-  RED:    0x1FBDEA,   // cyan (bug-juice)
-  COMBAT: 0x9D4EDD,   // purple
-  LOCKED: 0xC9748F,   // pink
+// Ticket 9 (Wave 7C): STATUS_COLOR lives in the shared single-source
+// module at /components/status-colors.js (loaded as a classic <script>
+// tag in index.html BEFORE the dive-in ESM module imports). We read
+// the INT table from window.St8StatusColors at module-init; falling
+// back to the historical inline hex values if the shared module is
+// missing (script tag dropped, load-order broken) so the dive-in is
+// still functional during local dev when index.html might be in flux.
+const STATUS_COLOR = (typeof window !== 'undefined' && window.St8StatusColors && window.St8StatusColors.INT) || {
+  GREEN:  0xD4AF37,
+  YELLOW: 0xD4AF37,
+  RED:    0x1FBDEA,
+  COMBAT: 0x9D4EDD,
+  LOCKED: 0xC9748F,
 };
+if (typeof window !== 'undefined' && !window.St8StatusColors) {
+  console.warn('[st8:dive-in] components/status-colors.js not loaded — using inline STATUS_COLOR fallback. Verify <script> load order in index.html.');
+}
 
 const EMERGENCE_COLOR = 0x1FBDEA;   // always emerge from cyan potential
 
@@ -272,7 +326,22 @@ const state = {
   animId: null,
   clock: null,
   currentFile: null,
+  // ─── Emergence animation state (ticket 11) ──────────────────
+  // BUILDING_CONFIG.emergenceMs governs the entrance animation per
+  // the founder's brief: "scatter -> position animation, teal ->
+  // status color". `emergence` is populated on each buildForFile()
+  // and consumed in the anim tick; null when no animation is active.
+  //   startTime    — performance.now() at emergence kickoff
+  //   targetColors — Float32Array of final per-particle colors
+  //   basePositions — Float32Array of final positions; scatter is
+  //                   derived by multiplying by SCATTER_FACTOR on
+  //                   tick(0) and interpolating back to *1.0 by
+  //                   tick(emergenceMs).
+  emergence: null,
 };
+
+const SCATTER_FACTOR = 3.0;   // how far the particles start from final pos
+const EMERGENCE_RESIZE_LISTENER = { fn: null };   // ticket 12 — stored ref for cleanup
 
 // ─── Materials ─────────────────────────────────────────────────
 
@@ -318,22 +387,23 @@ const LINE_MATERIAL = new THREE.LineBasicMaterial({
 
 function ensureOverlay() {
   if (state.overlay) return state.overlay;
+  // ─── Ticket 0 — overlay DOM built with class names only ──────
+  // All visual rules (positioning, colors, hover/active, responsive,
+  // prefers-reduced-motion) live in components/dive-in/dive-in.css.
+  // This builder only assigns identifiers and class names — the CSS
+  // file owns the look. Display toggling uses the .open class
+  // (see show/hide) instead of inline style.display.
   const overlay = document.createElement('div');
   overlay.id = 'dive-in-overlay';
   overlay.className = 'dive-in-overlay';
-  overlay.style.cssText = [
-    'position:fixed', 'inset:0', 'z-index:80',
-    'background:rgba(10,10,11,0.96)', 'backdrop-filter:blur(8px)',
-    '-webkit-backdrop-filter:blur(8px)', 'display:none',
-  ].join(';');
   overlay.innerHTML = [
-    '<div class="dive-in-header" style="position:absolute;top:24px;left:24px;color:rgba(212,175,55,0.85);font-family:\'Poiret One\',sans-serif;font-size:14px;letter-spacing:3px;text-transform:uppercase;">',
+    '<div class="dive-in-header">',
     '  <div id="dive-in-filepath"></div>',
-    '  <div id="dive-in-meta" style="margin-top:6px;opacity:0.5;font-size:11px;letter-spacing:2px;"></div>',
+    '  <div id="dive-in-meta"></div>',
     '</div>',
-    '<button id="dive-in-close" aria-label="Close dive-in" style="position:absolute;top:24px;right:24px;background:transparent;border:none;color:#D4AF37;font-size:32px;cursor:pointer;text-shadow:0 0 8px rgba(201,116,143,0.5);">◇</button>',
-    '<button id="dive-in-notes" style="position:absolute;bottom:32px;right:32px;background:transparent;border:1px solid rgba(201,116,143,0.5);color:#D4AF37;padding:10px 20px;font-family:\'Poiret One\',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:4px;text-shadow:0 0 6px rgba(201,116,143,0.4);">Notes / Make Ticket</button>',
-    '<div id="dive-in-canvas-host" style="position:absolute;inset:0;"></div>',
+    '<button id="dive-in-close" aria-label="Close dive-in">◇</button>',
+    '<button id="dive-in-notes">Notes / Make Ticket</button>',
+    '<div id="dive-in-canvas-host"></div>',
   ].join('');
   document.body.appendChild(overlay);
   overlay.querySelector('#dive-in-close').addEventListener('click', hide);
@@ -343,7 +413,8 @@ function ensureOverlay() {
     }
   });
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && state.overlay && state.overlay.style.display !== 'none') hide();
+    // Ticket 0 — display state lives in the .open class now, not inline style.
+    if (e.key === 'Escape' && state.overlay && state.overlay.classList.contains('open')) hide();
   });
   state.overlay = overlay;
   return overlay;
@@ -355,7 +426,7 @@ export function show(file) {
   if (!file) return;
   state.currentFile = file;
   const overlay = ensureOverlay();
-  overlay.style.display = 'block';
+  overlay.classList.add('open');
 
   // Header
   overlay.querySelector('#dive-in-filepath').textContent = file.filepath || file.filename || '';
@@ -366,22 +437,78 @@ export function show(file) {
 
   // Scene init or re-use
   if (!state.scene) initScene(overlay.querySelector('#dive-in-canvas-host'));
+  // ─── Ticket 17 — restore autoRotate on show ─────────────────
+  // hide() stops controls.autoRotate to spare GPU when the overlay
+  // isn't visible; resume the rotation here so the next dive-in
+  // session starts spinning again.
+  if (state.controls) state.controls.autoRotate = true;
   buildForFile(file);
   startAnim();
 }
 
 export function hide() {
   if (!state.overlay) return;
-  state.overlay.style.display = 'none';
+  state.overlay.classList.remove('open');
   stopAnim();
+  // ─── Ticket 17 — stop autoRotate while hidden ───────────────
+  // controls.autoRotate was previously left enabled; even with the
+  // anim loop stopped, a subsequent re-init would otherwise carry
+  // momentum-state forward. Disable explicitly; show() restores.
+  if (state.controls) state.controls.autoRotate = false;
   // We keep the scene alive between opens — cheap re-use, avoids
   // re-allocating Three.js resources. dispose() only on full destroy.
 }
 
-export function isOpen() {
-  return !!(state.overlay && state.overlay.style.display !== 'none');
+// ─── Destroy / teardown (ticket 12) ────────────────────────────
+// Full teardown path for HMR-reload or module-destroy scenarios.
+// Removes the resize listener registered in initScene(), tears down
+// the Three.js scene + DOM, and clears state. Not called in normal
+// hide()/show() cycles — those preserve the scene for cheap re-use.
+export function destroy() {
+  hide();
+  if (EMERGENCE_RESIZE_LISTENER.fn) {
+    window.removeEventListener('resize', EMERGENCE_RESIZE_LISTENER.fn);
+    EMERGENCE_RESIZE_LISTENER.fn = null;
+  }
+  if (state.points)   { state.points.geometry.dispose(); }
+  if (state.lines)    { state.lines.geometry.dispose(); }
+  if (state.particleMaterial) state.particleMaterial.dispose();
+  if (state.composer) state.composer.dispose && state.composer.dispose();
+  if (state.renderer) state.renderer.dispose();
+  if (state.overlay && state.overlay.parentNode) state.overlay.parentNode.removeChild(state.overlay);
+  state.overlay = null;
+  state.renderer = null;
+  state.scene = null;
+  state.camera = null;
+  state.controls = null;
+  state.composer = null;
+  state.points = null;
+  state.lines = null;
+  state.particleMaterial = null;
+  state.currentFile = null;
+  state.emergence = null;
 }
 
+export function isOpen() {
+  // Ticket 0 — overlay open-state is driven by the .open class.
+  return !!(state.overlay && state.overlay.classList.contains('open'));
+}
+
+// PERF NOTE — ticket 16 (Wave 7C, deferred):
+// setStatus calls buildForFile which fully tears down + rebuilds
+// the geometry (BarradeauBuilding + Delaunay etc.) just to swap
+// the color. The cheap path is to keep the builder + cache the
+// color BufferAttribute and rewrite in place. Acceptable today
+// because (a) status flips are rare (debug-time bug-juice → green
+// or vice-versa, not a hot loop), (b) the dive-in is one file at
+// a time so the cost is bounded by a single building's particle
+// count (typically <500), and (c) the visible cost is invisible
+// against the 2500ms emergence animation that follows.
+// Threshold for revisiting: ship the in-place color update when
+// setStatus is called >1Hz (LIFECYCLE_TRANSITION batch flow) OR
+// the rebuild is measurably stutter-visible (>50ms on commodity
+// hardware). See docs/_pending-roadmap/frontend-experience.md
+// "Dive-in setStatus in-place color update".
 export function setStatus(file, status) {
   if (!state.points || !state.currentFile) return;
   if (file.fingerprint !== state.currentFile.fingerprint) return;
@@ -424,13 +551,20 @@ function initScene(host) {
   state.particleMaterial = buildParticleMaterial();
   state.clock = new THREE.Clock();
 
-  window.addEventListener('resize', function() {
+  // ─── Resize listener (ticket 12) ────────────────────────────
+  // Store the handler reference so destroy() can call
+  // removeEventListener with the same function identity. Without
+  // this, an HMR reload or module-destroy leaves the listener
+  // attached and the now-orphan camera/renderer get poked on resize.
+  const onResize = function() {
     if (!host.clientWidth) return;
     camera.aspect = host.clientWidth / host.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(host.clientWidth, host.clientHeight);
     composer.setSize(host.clientWidth, host.clientHeight);
-  });
+  };
+  window.addEventListener('resize', onResize);
+  EMERGENCE_RESIZE_LISTENER.fn = onResize;
 }
 
 function buildForFile(file) {
@@ -442,15 +576,72 @@ function buildForFile(file) {
   const builder = new BarradeauBuilding(file).build();
   const colorHex = file.locked ? STATUS_COLOR.LOCKED : (STATUS_COLOR[file.status] || STATUS_COLOR.GREEN);
 
-  state.points = new THREE.Points(builder.getPointsGeometry(colorHex), state.particleMaterial);
+  const pointsGeom = builder.getPointsGeometry(colorHex);
+  state.points = new THREE.Points(pointsGeom, state.particleMaterial);
   state.lines  = new THREE.LineSegments(builder.getLinesGeometry(), LINE_MATERIAL);
   state.scene.add(state.points);
   state.scene.add(state.lines);
+
+  // ─── Kick off emergence animation (ticket 11) ─────────────
+  // Snapshot the target positions + colors, then overwrite the live
+  // attributes with the scattered-out / cyan-tinted starting state.
+  // The anim tick interpolates back over BUILDING_CONFIG.emergenceMs.
+  const targetPositions = new Float32Array(pointsGeom.attributes.position.array);
+  const targetColors    = new Float32Array(pointsGeom.attributes.color.array);
+  const emergeColor = new THREE.Color(EMERGENCE_COLOR);
+  const livePos = pointsGeom.attributes.position.array;
+  const liveCol = pointsGeom.attributes.color.array;
+  for (let i = 0; i < livePos.length; i += 3) {
+    livePos[i]     = targetPositions[i]     * SCATTER_FACTOR;
+    livePos[i + 1] = targetPositions[i + 1] * SCATTER_FACTOR;
+    livePos[i + 2] = targetPositions[i + 2] * SCATTER_FACTOR;
+    liveCol[i]     = emergeColor.r;
+    liveCol[i + 1] = emergeColor.g;
+    liveCol[i + 2] = emergeColor.b;
+  }
+  pointsGeom.attributes.position.needsUpdate = true;
+  pointsGeom.attributes.color.needsUpdate = true;
+  state.emergence = {
+    startTime: performance.now(),
+    targetPositions,
+    targetColors,
+  };
 
   // Center the camera target on the building's middle
   const midY = (builder.particles.length ? builder.particles.reduce((s,p)=>s+p.y,0) / builder.particles.length : 0);
   state.controls.target.set(0, midY, 0);
   state.controls.update();
+}
+
+// ─── Emergence tick (ticket 11) ─────────────────────────────
+// Interpolates the live position + color BufferAttributes from the
+// scattered/cyan starting snapshot back to the target geometry over
+// BUILDING_CONFIG.emergenceMs. Self-clears state.emergence on completion.
+function updateEmergence(nowMs) {
+  const e = state.emergence;
+  if (!e || !state.points) return;
+  const elapsed = nowMs - e.startTime;
+  const tRaw = Math.min(1, elapsed / BUILDING_CONFIG.emergenceMs);
+  // ease-out cubic for organic settle (matches the orbit-control damping feel)
+  const t = 1 - Math.pow(1 - tRaw, 3);
+  const livePos = state.points.geometry.attributes.position.array;
+  const liveCol = state.points.geometry.attributes.color.array;
+  const tgtPos  = e.targetPositions;
+  const tgtCol  = e.targetColors;
+  const emergeColor = new THREE.Color(EMERGENCE_COLOR);
+  const scaleStart = SCATTER_FACTOR;
+  const scale = scaleStart + (1 - scaleStart) * t;   // SCATTER → 1.0
+  for (let i = 0; i < livePos.length; i += 3) {
+    livePos[i]     = tgtPos[i]     * scale;
+    livePos[i + 1] = tgtPos[i + 1] * scale;
+    livePos[i + 2] = tgtPos[i + 2] * scale;
+    liveCol[i]     = emergeColor.r + (tgtCol[i]     - emergeColor.r) * t;
+    liveCol[i + 1] = emergeColor.g + (tgtCol[i + 1] - emergeColor.g) * t;
+    liveCol[i + 2] = emergeColor.b + (tgtCol[i + 2] - emergeColor.b) * t;
+  }
+  state.points.geometry.attributes.position.needsUpdate = true;
+  state.points.geometry.attributes.color.needsUpdate = true;
+  if (tRaw >= 1) state.emergence = null;
 }
 
 // ─── Animation loop ────────────────────────────────────────────
@@ -461,6 +652,7 @@ function startAnim() {
     state.animId = requestAnimationFrame(tick);
     const time = state.clock.getElapsedTime();
     if (state.particleMaterial) state.particleMaterial.uniforms.uTime.value = time;
+    if (state.emergence) updateEmergence(performance.now());
     if (state.controls) state.controls.update();
     if (state.composer) state.composer.render();
   }
@@ -476,4 +668,4 @@ function stopAnim() {
 
 // ─── Expose for non-ESM callers (app.js) ───────────────────────
 
-window.St8DiveIn = { show, hide, isOpen, setStatus };
+window.St8DiveIn = { show, hide, isOpen, setStatus, destroy };
