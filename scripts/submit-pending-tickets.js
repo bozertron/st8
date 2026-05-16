@@ -133,8 +133,22 @@ async function main() {
   const skipped = [];
   const perClusterCounts = {};
 
+  // Map verdict + status to statusAtCreation tag for SQL filtering.
+  // Distinct tags so `SELECT WHERE statusAtCreation = 'KICKBACK'` etc. works.
+  function deriveStatusTag(t) {
+    if (t.status === 'blocked')                  return 'BLOCKED';
+    if (t.verdict === 'ack')                     return 'EXECUTED-ACKED';
+    if (t.verdict === 'kickback')                return 'KICKBACK';
+    if (t.verdict === 'defer-confirmed' ||
+        t.verdict === 'defer-confirmed-upstream') return 'DEFERRED';
+    if (t.status === 'deferred')                 return 'DEFERRED-UNVERIFIED';
+    if (t.status === 'executed')                 return 'EXECUTED-UNVERIFIED';
+    return t.status || 'YELLOW';
+  }
+
   for (const tf of ticketFiles) {
-    const cluster = tf.replace(/\.json$/, '');
+    // Strip both .for-review.json (post-sprint state) and .json (pre-sprint).
+    const cluster = tf.replace(/\.for-review\.json$/, '').replace(/\.json$/, '');
     const raw = JSON.parse(fs.readFileSync(path.join(TICKETS_DIR, tf), 'utf8'));
     const arr = Array.isArray(raw) ? raw : (raw.tickets || []);
 
@@ -143,29 +157,42 @@ async function main() {
     let clusterErrors = 0;
 
     for (const t of arr) {
-      if (!t.filepath) {
+      // Schema drift across clusters: some tickets use `filepath`,
+      // server-api uses `file`. Tolerate both.
+      const rawPath = t.filepath || t.file || '';
+      const userNote = t.userNote || t.summary || t.proposed || '';
+      if (!rawPath) {
         clusterSkipped++;
-        skipped.push({ cluster, filepath: '(missing)', note: (t.userNote || '').slice(0, 80) });
+        skipped.push({ cluster, filepath: '(missing)', note: userNote.slice(0, 80) });
         continue;
       }
-      const file = fpByPath.get(t.filepath);
+      // Normalize absolute paths to repo-relative for registry lookup.
+      const filepathKey = rawPath.startsWith(REPO_ROOT + '/')
+        ? rawPath.slice(REPO_ROOT.length + 1)
+        : rawPath;
+      const file = fpByPath.get(filepathKey);
       if (!file) {
         clusterSkipped++;
-        skipped.push({ cluster, filepath: t.filepath, note: (t.userNote || '').slice(0, 80) });
+        skipped.push({ cluster, filepath: rawPath, note: userNote.slice(0, 80) });
         continue;
       }
       try {
+        const statusTag = deriveStatusTag(t);
         persistence.createTicket({
           fingerprint:      file.fingerprint,
           filepath:         file.filepath,
           sha256Hash:       file.sha256Hash,
-          statusAtCreation: t.status || 'YELLOW',
-          userNote:         `[${cluster}/${t.severity || 'med'}] ${t.userNote || ''}`,
+          statusAtCreation: statusTag,
+          userNote:         `[${cluster}/${t.severity || 'med'}] ${userNote}`,
           identityBundle: {
             cluster,
-            severity: t.severity || 'med',
-            originalStatus: t.status || null,
-            source: 'agent-fact-finding-wave',
+            severity:        t.severity || 'med',
+            verdict:         t.verdict || null,
+            executedBy:      t.executedBy || null,
+            commitHash:      t.commitHash || null,
+            reviewNote:      t.reviewNote || null,
+            originalStatus:  t.status || null,
+            source:          'sprint-31-waves',
           },
         });
         clusterInserted++;

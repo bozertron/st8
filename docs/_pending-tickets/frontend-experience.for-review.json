@@ -267,7 +267,7 @@
     "reviewedBy": "wave-7c-reviewer",
     "verdict": "ack",
     "reviewNote": "tests/frontend/constellation-destroy-guard.test.js: 6/6 pass on targeted run. Guard tightened to truthy-intermediate chain (state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof ... === 'function'). Source-text regression guard prevents revert to buggy typeof-chain pattern. Real bug fix with proper coverage."
-  }
+  },
   {
     "filepath": "/home/user/st8/src/frontend/index.html",
     "userNote": "`#shelf-content` is empty in the markup and never populated by `app.js`. The intent (per the carousel.css comment and the founder's batch-027 design) was for the lower 1/8 to host contextual content — LLM chat input, workspace nav, ticket badge. Right now it's just dead grid-center space between the two diamonds.",
