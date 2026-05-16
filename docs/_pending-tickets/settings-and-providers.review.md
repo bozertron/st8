@@ -35,3 +35,29 @@ Baseline before: 271 tests. After 5C: 292 tests. Delta: +21. Suite: 292 pass / 0
 
 ### Verdicts
 All six 5C tickets: ACK. No kickbacks. Safe to proceed to 5D (frontend LLM UI work, tickets 1/2/6).
+
+## Wave 5D Review
+
+Reviewer: wave-5d-reviewer
+Reviewed commits: a7f7073, 0d0f42b, 2f8fe89
+Baseline before: 292 tests. After 5D: 308 tests. Delta: +16. Suite: 308 pass / 0 fail / 0 skip / 0 todo.
+
+### Ticket 6 (getLLMProviders consumer / buildProviderOptions) — ACK
+- `buildProviderOptions(selectedId)` at settings.js:763 is a pure helper. It walks `LLM_PROVIDERS` via `.map()` and emits one `<option value="<id>"<sel>><name></option>` per registry entry — no hardcoded provider IDs, no enum duplication. Selected attribute applied only when `p.id === selectedId`.
+- Consumed inside `_renderEditEntryForm` (settings.js:427) for the provider field — live caller, registry no longer a dead export.
+- 4 new tests are real probes: (a) one option per provider with HTML-escaped name, (b) `selected` attribute applied to exactly one matching id, (c) unknown id → zero selected (graceful), (d) public `getLLMProviders()` returns the same list internal helper consumes (parity check).
+
+### Ticket 0 (real editEntry form) — ACK
+- `MODEL_ENTRY_SCHEMA` at settings.js:73 declares exactly the 7 documented fields: id, name, provider, model, apiKey, baseUrl, enabled. `ENTRY_SCHEMAS` map registers per-category schemas, extensible for future sirkits/shells editors.
+- **apiKey masking confirmed in SOURCE**: MODEL_ENTRY_SCHEMA line 78 has `type: 'password', sensitive: true`. Renderer branch at settings.js:435 emits `<input type="password" ... autocomplete="new-password" spellcheck="false" ...>` — all three masking attributes present.
+- **apiKey masking confirmed in TEST**: tests/frontend/settings-module.test.js:217 asserts both `apiKeyField.type === 'password'` and `apiKeyField.sensitive === true` as a "security invariant".
+- `editEntry` validates schema-registered + index-in-range; warns + returns on miss. Snapshots both `.snapshot` and `.draft` via `JSON.parse(JSON.stringify(...))` deep-clone — verified by the bleed test (mutate draft.apiKey, live entry untouched).
+- `updateEditField` writes draft only; verified by test that mutates `apiKey` to `'new-secret'` and asserts `entries.models[0].apiKey === ''`.
+- `cancelEdit` clears `editingEntry`, re-renders the list, does NOT POST — verified by test asserting fetchCalls has no POST after cancel.
+- `saveEntry` returns `Promise<boolean>`. Success path: optimistic `arr[i] = draft`, await `_persistArrayEntries` (POSTs `{category, key:'_entries', value: array}` shape), on `true` clear editingEntry + re-render. Failure path: revert `arr[editing.index] = prev`, call `_showEditError` with inline `.settings-edit-error` UI, return false. Test forces fetch to return `{ok:false, status:400}` and asserts (a) returned `false`, (b) live entry reverted to `'orig'`.
+- `unwrapArrayCategory` at settings.js:710 detects `{_entries:[...]}` shape and returns bare array so the `Array.isArray` branch in renderer fires. Verified by loadSettings round-trip test injecting the wrapped shape and asserting the unwrapped state. POJO categories (voidflow) untouched.
+- CSS: `.settings-edit-actions` + `.settings-edit-error` present at settings.css:221 and 227.
+- **MUTATION PROBE PASSED**: temporarily changed apiKey schema entry from `type: 'password'` to `type: 'text'`. Re-ran settings-module test file: 2 tests failed (test 15 "apiKey field is marked sensitive and uses type=password" AND test 16 "buildModelEntryFields resolves a full entry into typed field descriptors" which asserts `byKey.apiKey.type === 'password'`). Restored. Mutation probe genuinely catches a type weakening.
+
+### Verdicts
+Both 5D tickets: ACK. No kickbacks. Safe to proceed to 5E (backend LLM call route + apiKey crypto-at-rest, tickets 1 + 2). The frontend now feeds a real schema-aware editor with masked apiKey, validated provider, and proper revert-on-failure — backend can assume well-formed `{provider, apiKey, model}` entries arriving via the `_entries` array POST.
