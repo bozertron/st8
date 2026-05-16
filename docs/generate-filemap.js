@@ -2,7 +2,7 @@
 
 /**
  * generate-filemap.js — Auto-generates st8-filemap.md from the live codebase.
- * Run: node .planning/generate-filemap.js
+ * Run: node docs/generate-filemap.js
  */
 
 'use strict';
@@ -12,7 +12,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUT = path.join(ROOT, '.planning', 'st8-filemap.md');
+const OUT = path.join(ROOT, 'st8-filemap.md');
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -119,17 +119,6 @@ const srcSharedTypeFiles = fs.readdirSync(path.join(ROOT, 'src', 'shared', 'type
   .filter(f => f.endsWith('.js')).sort();
 const srcSharedUtilFiles = fs.readdirSync(path.join(ROOT, 'src', 'shared', 'utils'))
   .filter(f => f.endsWith('.js')).sort();
-
-// OGB (archived legacy files)
-const ogbTopFiles = fs.readdirSync(path.join(ROOT, 'OGB'))
-  .filter(f => fs.statSync(path.join(ROOT, 'OGB', f)).isFile()).sort();
-const ogbDirs = fs.readdirSync(path.join(ROOT, 'OGB'), { withFileTypes: true })
-  .filter(d => d.isDirectory()).map(d => d.name).sort();
-const ogbDirFiles = {};
-for (const dir of ogbDirs) {
-  ogbDirFiles[dir] = fs.readdirSync(path.join(ROOT, 'OGB', dir))
-    .filter(f => f.endsWith('.txt')).sort();
-}
 
 // ─── Gather data ────────────────────────────────────────────────
 
@@ -270,35 +259,16 @@ for (const f of srcSharedUtilFiles) {
 }
 md += `\n---\n\n`;
 
-// ─── OGB (Archived Legacy) ─────────────────────────────────────
-
-md += `## OGB/ — Archived Legacy Files\n\n`;
-md += `| Path | Lines |\n`;
-md += `|------|-------|\n`;
-for (const f of ogbTopFiles) {
-  const fp = path.join(ROOT, 'OGB', f);
-  md += `| \`OGB/${f}\` | ${fmt(lineCount(fp))} |\n`;
-}
-for (const dir of ogbDirs) {
-  for (const f of ogbDirFiles[dir]) {
-    const fp = path.join(ROOT, 'OGB', dir, f);
-    md += `| \`OGB/${dir}/${f}\` | ${fmt(lineCount(fp))} |\n`;
-  }
-}
-md += `\n---\n\n`;
-
 // ─── Non-Source ─────────────────────────────────────────────────
 
 md += `## Non-Source\n\n`;
 md += `| Path | Purpose |\n`;
 md += `|------|--------|\n`;
-md += `| \`.planning/\` | Planning documents and specs |\n`;
 md += `| \`.st8/\` | Runtime output (schema-cards/, gap-analysis.md) |\n`;
 md += `| \`.st8/schema-cards/\` | Per-file schema card JSON files |\n`;
 md += `| \`.archive/\` | Archived reference files |\n`;
 md += `| \`node_modules/\` | NPM dependencies |\n`;
 md += `| \`fonts/\` | Custom fonts (Monoton, Poiret One) |\n`;
-md += `| \`OGB/\` | Archived legacy files (pre-restructure) |\n`;
 md += `| \`docs/\` | Documentation, Sonic, particles.js, Insight Store |\n`;
 md += `| \`Louis/\` | Louis lock-em-up module |\n`;
 md += `| \`scripts/\` | Utility scripts |\n`;
@@ -415,4 +385,4 @@ md += `*End of file map.*\n`;
 
 fs.writeFileSync(OUT, md, 'utf8');
 console.log(`[filemap] Written to ${OUT}`);
-console.log(`[filemap] ${rootFiles.length} root + ${Object.values(srcFeaturesFiles).flat().length} features + ${srcFrontendFiles.length + Object.values(srcFrontendComponentFiles).flat().length + srcFrontendServiceFiles.length + srcFrontendStyleFiles.length} frontend + ${srcSharedTypeFiles.length + srcSharedUtilFiles.length} shared + ${ogbTopFiles.length + Object.values(ogbDirFiles).flat().length} OGB files indexed`);
+console.log(`[filemap] ${rootFiles.length} root + ${Object.values(srcFeaturesFiles).flat().length} features + ${srcFrontendFiles.length + Object.values(srcFrontendComponentFiles).flat().length + srcFrontendServiceFiles.length + srcFrontendStyleFiles.length} frontend + ${srcSharedTypeFiles.length + srcSharedUtilFiles.length} shared files indexed`);

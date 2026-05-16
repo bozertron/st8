@@ -9,13 +9,14 @@
 
 | File | Lines | Purpose | Dependencies |
 |------|-------|---------|--------------|
+| `CLAUDE.md` | 142 | - | - |
+| `PRE_FLIGHT.md` | 124 | - | - |
 | `README.md` | 278 | - | - |
 | `ai-signal.toml` | 3 | - | - |
-| `connection-state.json` | 1329 | - | - |
-| `package.json` | 28 | - | - |
-| `st8-filemap.md` | 383 | - | - |
+| `package.json` | 29 | - | - |
+| `st8-filemap.md` | 369 | - | - |
 | `st8.code-workspace` | 7 | - | - |
-| `st8_bible.md` | 2943 | - | persistence, fs |
+| `st8_bible.md` | 3194 | - | persistence, fs |
 | `start.js` | 148 | ST8 — Startup Script | path, fs, child_process, open |
 
 ---
@@ -25,27 +26,28 @@
 ### Core Top-Level
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `hook-registry.js` | 173 | hook-registry.js — Named hook system for ST8. | HookRegistry |
-| `notification-bus.js` | 126 | ST8 Notification Bus | NotificationBus |
+| `hook-registry.js` | 273 | hook-registry.js — Named hook system for ST8. | HookRegistry |
+| `notification-bus.js` | 174 | ST8 Notification Bus | NotificationBus |
 
 ### core/database
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `graph-persister.js` | 228 | src/commands/integr8/databasePersister.ts | DatabasePersister |
-| `persistence.js` | 840 | ST8 Persistence — SQLite Database Layer | St8Persistence |
-| `verify-persistence-fixes.js` | 153 | Verification script for persistence.js fixes | - |
+| `graph-persister.js` | 268 | GENERATED ARTIFACT — DO NOT HAND-EDIT. | DatabasePersister |
+| `persistence.js` | 1589 | ST8 Persistence — SQLite Database Layer | St8Persistence |
 
 ### core/hooks
 | File | Lines | Purpose |
 |------|-------|--------|
-| `default-subscribers.js` | 116 | default-subscribers.js — Registers st8's built-in modules as subscribers |
-| `force-checks.js` | 254 | force-checks.js — Cross-tool integrity verification. |
+| `default-subscribers.js` | 394 | default-subscribers.js — Registers st8's built-in modules as subscribers |
+| `force-checks.js` | 347 | force-checks.js — Cross-tool integrity verification. |
 
 ### core/server
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `app.js` | 1613 | ST8 Server — HTTP API for manifests | St8Server |
-| `main.js` | 453 | ST8 Backend — Main Entry Point | - |
+| `app.js` | 2654 | ST8 Server — HTTP API for manifests | St8Server |
+| `auth.js` | 155 | auth.js — minimum-viable shared-secret authentication for write | - |
+| `main.js` | 538 | ST8 Backend — Main Entry Point | - |
+| `route-manifest.js` | 180 | route-manifest.js — Machine-readable description of the st8 HTTP API. | - |
 
 ---
 
@@ -55,11 +57,13 @@
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
 | `gap-analyzer.js` | 652 | gapAnalyzer.js — 6-Dimension Gap Analysis Engine | GapAnalyzer |
+| `insight-store-populator.js` | 165 | insight-store-populator.js — Walks file_registry after each indexer | - |
 | `insight-store.js` | 361 | src/commands/insightStore.ts | InsightStore |
-| `intent-seeder.js` | 519 | ST8 Intent Seeder — Auto-generate intent from AST + heuristics | IntentSeeder |
+| `intent-seeder.js` | 608 | ST8 Intent Seeder — Auto-generate intent from AST + heuristics | IntentSeeder |
 | `path-generator.js` | 858 | src/commands/integr8/pathGenerator.ts | - |
 | `relationship-analyzer.js` | 923 | src/commands/integr8/relationshipAnalyzer.ts | - |
 | `report-generator.js` | 283 | src/commands/integr8/reportGenerator.ts | - |
+| `signal-path-adapter.js` | 338 | signal-path-adapter.js — Bridge between st8's live persistence | - |
 
 ### graph/
 | File | Lines | Purpose | Key Classes |
@@ -70,16 +74,16 @@
 ### indexing/
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `background-indexer.js` | 811 | src/commands/backgroundIndexer.ts | BackgroundIndexer |
-| `command-parser.js` | 270 | C:\orchestr8\scripts\prd src\commandParser.ts | - |
-| `data-ingestion.js` | 1101 | src/commands/integr8/dataIngestion.ts | - |
-| `indexer.js` | 483 | ST8 Indexer — Backend CLI Script | - |
-| `overview.js` | 349 | C:\orchestr8\scripts\prd src\overview.ts | - |
-| `parser-persistence.js` | 294 | src/commands/parserPersistence.ts | ParserPersistence |
-| `route-parser.js` | 312 | - | - |
-| `store-parser.js` | 340 | - | - |
-| `type-parser.js` | 255 | C:\orchestr8\scripts\prd src\typeParser.ts | - |
-| `ui-parser.js` | 250 | C:\orchestr8\scripts\prd src\uiParser.ts | - |
+| `background-indexer.js` | 852 | src/commands/backgroundIndexer.ts | BackgroundIndexer |
+| `command-parser.js` | 305 | command-parser — Tauri command + frontend invoke() extractor. | - |
+| `data-ingestion.js` | 1223 | src/commands/integr8/dataIngestion.ts | - |
+| `indexer.js` | 534 | ST8 Indexer — Backend CLI Script | - |
+| `overview.js` | 386 | C:\orchestr8\scripts\prd src\overview.ts | - |
+| `parser-persistence.js` | 334 | src/commands/parserPersistence.ts | ParserPersistence |
+| `route-parser.js` | 342 | - | - |
+| `store-parser.js` | 377 | - | - |
+| `type-parser.js` | 287 | C:\orchestr8\scripts\prd src\typeParser.ts | - |
+| `ui-parser.js` | 286 | C:\orchestr8\scripts\prd src\uiParser.ts | - |
 
 ### integr8/
 | File | Lines | Purpose | Key Classes |
@@ -91,7 +95,12 @@
 ### lifecycle/
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `bruno-oscar.js` | 185 | Bruno & Oscar — Automatic File Lifecycle Management | BrunoOscar |
+| `bruno-oscar.js` | 256 | Bruno & Oscar — Automatic File Lifecycle Management | BrunoOscar |
+
+### llm/
+| File | Lines | Purpose | Key Classes |
+|------|-------|---------|-------------|
+| `dispatcher.js` | 98 | llm/dispatcher.js — provider-agnostic dispatch (Wave 5E, ticket 1). | - |
 
 ### prd/
 | File | Lines | Purpose | Key Classes |
@@ -102,22 +111,22 @@
 ### schema-cards/
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `emitter.js` | 230 | ST8 Schema Card Emitter | SchemaCardEmitter |
-| `manifest-generator.js` | 170 | ST8 Manifest Generator | - |
+| `emitter.js` | 265 | ST8 Schema Card Emitter | SchemaCardEmitter |
+| `manifest-generator.js` | 211 | ST8 Manifest Generator | - |
 | `printer.js` | 294 | ST8 Schema Card Printer — Human-Readable Fallback | SchemaCardPrinter |
 
 ### search/
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `sonic-client.js` | 566 | SonicClient - Lightweight TCP client for Sonic search backend | SonicChannel, SonicClient |
-| `sonic-daemon.js` | 288 | sonic-daemon.js — Manages the Sonic search daemon process lifecycle. | - |
-| `sonic-indexer.js` | 445 | src/commands/sonicIndexer.ts | SonicIndexer |
-| `sonic-queries.js` | 658 | src/commands/sonicQueries.ts | SonicQueries |
+| `sonic-client.js` | 594 | SonicClient - Lightweight TCP client for Sonic search backend | SonicChannel, SonicClient |
+| `sonic-daemon.js` | 630 | sonic-daemon.js — Manages the Sonic search daemon process lifecycle. | - |
+| `sonic-indexer.js` | 453 | src/commands/sonicIndexer.ts | SonicIndexer |
+| `sonic-queries.js` | 680 | src/commands/sonicQueries.ts | SonicQueries |
 
 ### watcher/
 | File | Lines | Purpose | Key Classes |
 |------|-------|---------|-------------|
-| `file-watcher.js` | 139 | ST8 File Watcher | FileWatcher |
+| `file-watcher.js` | 203 | ST8 File Watcher | FileWatcher |
 
 ---
 
@@ -126,33 +135,34 @@
 ### Top-Level
 | File | Lines | Purpose |
 |------|-------|--------|
-| `app.js` | 970 | escapeHtml utility (was script block 2) |
-| `index.html` | 179 | - |
+| `app.js` | 1232 | escapeHtml utility (was script block 2) |
+| `index.html` | 255 | - |
 
 ### Components
 
 **constellation/**
 | File | Lines | Purpose |
 |------|-------|--------|
-| `constellation.js` | 286 | - |
-| `particles.lib.js` | 1540 | - |
+| `constellation.js` | 315 | - |
+| `particles.lib.js` | 1574 | - |
 
 **dive-in/**
 | File | Lines | Purpose |
 |------|-------|--------|
-| `dive-in.js` | 479 | - |
+| `dive-in.css` | 157 | - |
+| `dive-in.js` | 671 | - |
 
 **file-explorer/**
 | File | Lines | Purpose |
 |------|-------|--------|
 | `file-explorer.css` | 283 | - |
-| `file-explorer.js` | 748 | - |
+| `file-explorer.js` | 766 | - |
 
 **graph-viewer/**
 | File | Lines | Purpose |
 |------|-------|--------|
 | `graph-viewer.css` | 109 | - |
-| `graph-viewer.js` | 456 | Try to load D3 from CDN |
+| `graph-viewer.js` | 585 | OFFLINE-FIRST (Wave 5H ticket 4): |
 
 **notifications/**
 | File | Lines | Purpose |
@@ -167,32 +177,33 @@
 **settings/**
 | File | Lines | Purpose |
 |------|-------|--------|
-| `settings.css` | 219 | - |
-| `settings.js` | 374 | Canonical list of provider IDs that a `models` entry can declare via its |
+| `settings.css` | 237 | - |
+| `settings.js` | 820 | Canonical list of provider IDs that a `models` entry can declare via its |
 
 **terminal/**
 | File | Lines | Purpose |
 |------|-------|--------|
 | `terminal.css` | 244 | - |
-| `terminal.js` | 1086 | - |
+| `terminal.js` | 1149 | - |
 
 ### Services
 | File | Lines | Purpose |
 |------|-------|--------|
-| `coordination.js` | 210 | - |
+| `coordination.js` | 294 | - |
+| `settings-reader.js` | 152 | - |
 
 ### Styles
 | File | Lines | Purpose |
 |------|-------|--------|
 | `base.css` | 23 | - |
-| `carousel.css` | 230 | - |
+| `carousel.css` | 258 | - |
 | `chat.css` | 36 | - |
 | `dock.css` | 91 | - |
 | `file-list.css` | 117 | - |
 | `fonts.css` | 17 | - |
 | `notes-popup.css` | 124 | - |
 | `panels.css` | 77 | - |
-| `tokens.css` | 41 | - |
+| `tokens.css` | 43 | - |
 | `void.css` | 102 | - |
 
 ---
@@ -203,45 +214,17 @@
 | File | Lines | Purpose |
 |------|-------|--------|
 | `integr8-types.js` | 82 | src/commands/integr8/types.ts |
-| `st8-types.js` | 281 | ST8 Types — Canonical Type Definitions |
+| `st8-types.js` | 290 | ST8 Types — Canonical Type Definitions |
 
 ### Utils
 | File | Lines | Purpose |
 |------|-------|--------|
-| `ast-parser.js` | 1065 | src/utils/astParser.ts |
-| `ground-plane.js` | 267 | src/utils/groundPlane.ts |
+| `ast-parser.js` | 1102 | src/utils/astParser.ts |
+| `birth-timestamp.js` | 176 | birth-timestamp — identity-preserving birthTimestamp derivation |
+| `ground-plane.js` | 273 | src/utils/groundPlane.ts |
 | `io-chan.js` | 395 | src/utils/ioChan.ts |
 | `safe-fs.js` | 598 | src/utils/safeFs.ts |
-
----
-
-## OGB/ — Archived Legacy Files
-
-| Path | Lines |
-|------|-------|
-| `OGB/coordination.js.txt` | 210 |
-| `OGB/file-explorer.js.txt` | 748 |
-| `OGB/graph-visualizer.js.txt` | 456 |
-| `OGB/phreak-terminal.js.txt` | 1086 |
-| `OGB/settings-reader.js.txt` | 113 |
-| `OGB/settings-ui.js.txt` | 339 |
-| `OGB/st8.html.txt` | 2587 |
-| `OGB/backend/brunoOscar.js.txt` | 185 |
-| `OGB/backend/fileWatcher.js.txt` | 139 |
-| `OGB/backend/gapAnalyzer.js.txt` | 651 |
-| `OGB/backend/index.js.txt` | 435 |
-| `OGB/backend/indexer.js.txt` | 482 |
-| `OGB/backend/intentSeeder.js.txt` | 510 |
-| `OGB/backend/manifestGenerator.js.txt` | 172 |
-| `OGB/backend/notificationBus.js.txt` | 126 |
-| `OGB/backend/persistence.js.txt` | 704 |
-| `OGB/backend/prdGenerator.js.txt` | 200 |
-| `OGB/backend/schemaCardEmitter.js.txt` | 209 |
-| `OGB/backend/schemaCardPrinter.js.txt` | 294 |
-| `OGB/backend/server.js.txt` | 1430 |
-| `OGB/backend/st8-types.js.txt` | 281 |
-| `OGB/backend/templateEngine.js.txt` | 120 |
-| `OGB/backend/verify-persistence-fixes.js.txt` | 153 |
+| `settings-crypto.js` | 227 | settings-crypto.js — symmetric encryption layer for at-rest sensitive |
 
 ---
 
@@ -249,13 +232,11 @@
 
 | Path | Purpose |
 |------|--------|
-| `.planning/` | Planning documents and specs |
 | `.st8/` | Runtime output (schema-cards/, gap-analysis.md) |
 | `.st8/schema-cards/` | Per-file schema card JSON files |
 | `.archive/` | Archived reference files |
 | `node_modules/` | NPM dependencies |
 | `fonts/` | Custom fonts (Monoton, Poiret One) |
-| `OGB/` | Archived legacy files (pre-restructure) |
 | `docs/` | Documentation, Sonic, particles.js, Insight Store |
 | `Louis/` | Louis lock-em-up module |
 | `scripts/` | Utility scripts |
