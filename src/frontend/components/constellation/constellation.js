@@ -268,7 +268,13 @@
   }
 
   function destroy() {
-    if (state.pJS && typeof state.pJS.fn && typeof state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function') {
+    // Ticket 19: the previous guard used `typeof state.pJS.fn` and
+    // `typeof state.pJS.fn.vendors` — typeof returns a non-empty string
+    // even for `undefined` (the string `"undefined"`), so those two
+    // checks were always truthy and only the trailing `typeof ... ===
+    // 'function'` actually gated the call. Tightened to real truthy
+    // checks on the intermediates plus the function-type check.
+    if (state.pJS && state.pJS.fn && state.pJS.fn.vendors && typeof state.pJS.fn.vendors.destroypJS === 'function') {
       try { state.pJS.fn.vendors.destroypJS(); } catch (_) {}
     }
     state.pJS = null;
