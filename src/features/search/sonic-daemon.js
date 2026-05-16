@@ -419,26 +419,55 @@ async function start(options = {}) {
   return { ok: true, available: true };
 }
 
+/**
+ * Stop the Sonic daemon. SIGTERM first, then SIGKILL after SHUTDOWN_GRACE_MS
+ * if the child has not exited.
+ *
+ * Wave 5B ticket 10: was a synchronous spin-wait (`while (Date.now() - start
+ * < SHUTDOWN_GRACE_MS && !child.killed) {}`), which burned CPU and blocked
+ * the event loop for up to 1.5s on every shutdown. Now async: SIGTERM, race
+ * `child.once('exit')` against a setTimeout, fall back to SIGKILL if the
+ * timer wins.
+ *
+ * Returns a promise that resolves when the child is gone (or never existed).
+ * Synchronous callers (exit handlers) can still call it; they'll fire-and-
+ * forget the promise and the process is exiting anyway so the residual await
+ * doesn't matter.
+ */
 function stop() {
   const child = _state.process;
   if (!child || child.killed) {
     _state.process = null;
     _state.available = false;
-    return;
+    return Promise.resolve();
   }
   try {
     child.kill('SIGTERM');
   } catch (_) {}
-  // Best-effort grace window for clean shutdown
-  const start = Date.now();
-  while (Date.now() - start < SHUTDOWN_GRACE_MS && !child.killed) {
-    // Spin briefly — node's spawn child doesn't expose a sync wait.
-  }
-  try {
-    if (!child.killed) child.kill('SIGKILL');
-  } catch (_) {}
-  _state.process = null;
-  _state.available = false;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { child.removeListener('exit', onExit); } catch (_) {}
+      try {
+        if (!child.killed && child.exitCode === null) child.kill('SIGKILL');
+      } catch (_) {}
+      _state.process = null;
+      _state.available = false;
+      resolve();
+    };
+    const onExit = () => finish();
+    const timer = setTimeout(finish, SHUTDOWN_GRACE_MS);
+    // Don't keep the event loop alive just for the grace timer; if nothing
+    // else is pending, exit handlers will still fire SIGKILL on real exit.
+    if (typeof timer.unref === 'function') timer.unref();
+    child.once('exit', onExit);
+    // Edge case: child already exited between our check and listener attach.
+    if (child.exitCode !== null || child.signalCode !== null) finish();
+  });
 }
 
 function isAvailable() {
