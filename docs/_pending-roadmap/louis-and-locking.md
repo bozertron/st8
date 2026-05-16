@@ -50,13 +50,18 @@ The smallest possible vertical slice that proves the design out.
   ~100 LOC. Rides `st8.sqlite`; no separate DB.
 
 - **Add `HOOKS.LOCK_CHANGED`** to `src/core/hook-registry.js` (canonical
-  map). Payload: `{ fingerprint, filepath, locked }`. Register two default
-  subscribers in `src/core/hooks/default-subscribers.js`:
+  map). Payload: `{ fingerprint, filepath, locked }`. Register three default
+  subscribers in `src/core/hooks/default-subscribers.js` (audit-trail
+  decision per Wave 8A, ticket 15 — see component doc):
   - P=10 `regenerate-protected-file` — writes
     `~/.louis-control/protected-files.txt` from current SQLite state.
   - P=20 `lock-mutation-log` — INSERTs a `mutationType = 'LOCK'` row into
     `file_mutation_log` (finally fires the long-declared LOCK enum,
-    bible §line 1617).
+    bible §line 1617). Per-file timeline surface.
+  - P=30 `lock-activity-log` — INSERTs a row into `activity_log`
+    (`source = 'LOUIS'`, `action = 'LOCK'|'UNLOCK'`,
+    `targetFingerprint`, `details = JSON`). Cross-cutting timeline
+    surface; complements the per-file mutation row.
 
 - **Add three routes to `src/core/server/app.js`:**
   - `POST /api/lock { path }` — resolve filepath via `file_registry`, call

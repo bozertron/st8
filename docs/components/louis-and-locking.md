@@ -451,12 +451,47 @@ captured concept). Specifically:
 - **No defined behavior** for "the file no longer exists on disk but is
   still marked `locked = 1` in SQLite." Decide on every `LOCK_CHANGED`
   fire: drop the row, or keep it as a tombstone?
-- **No spec for the lock-history log.** Louis writes one
-  (`~/.louis-control/lock-history.log`). st8 already has
-  `file_mutation_log` and `activity_log`. The right merge is probably:
-  emit a `mutationType = 'LOCK'` row into `file_mutation_log` on every
-  lock-change (the LOCK enum value is already declared in the type system
-  but never written — see bible §line 1617's "Defined-but-never-fired").
+- **Lock-history audit trail — DECIDED (Wave 8A, ticket 15).**
+  Louis writes one (`~/.louis-control/lock-history.log`). st8 already
+  has `file_mutation_log` and `activity_log` — both reachable from the
+  default subscriber pipeline. **Decision: st8 reuses its existing
+  audit surfaces; no separate `lock-history.log` file.**
+
+  Specifically, when Phase L1's `HOOKS.LOCK_CHANGED` subscriber chain
+  ships, the audit trail rides two existing tables:
+
+  - **`file_mutation_log`** (per-file timeline) — the P=20
+    `lock-mutation-log` subscriber INSERTs a row with
+    `mutationType = 'LOCK'`, `fingerprint = <file>`, `actor` set per
+    the existing actor convention (DEVELOPER / AGENT-N / SYSTEM), and
+    `metadata = JSON.stringify({ locked: true|false })`. The LOCK enum
+    value is already declared in the mutation-type set but has never
+    been written (bible §line 1617's "Defined-but-never-fired");
+    `LOCK_CHANGED` is the natural firing site.
+  - **`activity_log`** (cross-cutting timeline) — already takes
+    `targetFingerprint` + `source` + `action` + `details`. A second
+    P=30 subscriber (`lock-activity-log`) writes
+    `{ source: 'LOUIS', action: 'LOCK'|'UNLOCK',
+       targetFingerprint, details: JSON }` for the higher-level "what
+    happened in the system, regardless of which file" view.
+
+  Rationale for picking (a) over a separate flat-file log:
+  - **No new persistence surface.** Two SQLite tables already have
+    everything Louis's flat log carried (timestamps, target, actor,
+    free-form details).
+  - **Queryable.** "Show me every lock event in the last 24h" is one
+    SQL line; same query against a text log needs a parser.
+  - **Travels with `st8.sqlite`.** Backups, exports, and the existing
+    schema-drift detector cover lock history for free.
+  - **Single source of truth.** A separate `~/.louis-control/lock-history.log`
+    written alongside SQLite would diverge on any crash/race between
+    the two writes.
+
+  The `~/.louis-control/protected-files.txt` file is **not** an audit
+  log — it is the ABI between st8 and the out-of-process git
+  pre-commit hook. That file stays (regenerated from SQLite on every
+  `LOCK_CHANGED` per the L1 design), but it is not the lock-history
+  audit trail.
 
 ---
 

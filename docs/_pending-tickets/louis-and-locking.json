@@ -99,6 +99,8 @@
     "filepath": "/home/user/st8/src/core/hooks/default-subscribers.js",
     "userNote": "Forward-looking — open question on lock-history audit trail. Louis writes ~/.louis-control/lock-history.log line-by-line. st8 already has file_mutation_log (with mutationType enum that INCLUDES 'LOCK' but never fires it — see bible line 1617's 'Defined-but-never-fired' note). Right merge: a LOCK_CHANGED default subscriber that INSERTs a row into file_mutation_log with mutationType='LOCK', actor=(future) 'DEVELOPER'|'AGENT'|'SYSTEM'. Removes the need for a separate lock-history.log inside ~/.louis-control. Decide before Phase L1 lands so the hook-firing path is right the first time.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-8a-executor",
+    "wave8aOutcome": "DECIDED: option (a) — st8 reuses existing audit surfaces; no separate lock-history.log file. Recorded in docs/components/louis-and-locking.md 'Known unknowns' section (the bullet titled 'Lock-history audit trail — DECIDED (Wave 8A, ticket 15)'). The decision binds two existing tables: (1) file_mutation_log gets a LOCK row per change via the P=20 lock-mutation-log subscriber (finally firing the long-declared LOCK enum value), (2) activity_log gets a parallel row via a P=30 lock-activity-log subscriber for the cross-cutting timeline. Both tables exist today at persistence.js:117 (file_mutation_log) and persistence.js:129 (activity_log) with the right schema (targetFingerprint, action, source, details, timestamp). The Phase L1 hook-firing path is now spec'd, no further open question. No source edit needed in default-subscribers.js this wave — the subscribers themselves are L1 work; this ticket only had to PICK the audit-surface strategy, which is now done."
   }
 ]
