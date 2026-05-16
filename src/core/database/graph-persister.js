@@ -80,6 +80,15 @@ const os = __importStar(require("os"));
  * Linux: ~/.local/share/com.scaffolder.app/scaffolder_data.sqlite
  * macOS: ~/Library/Application Support/com.scaffolder.app/scaffolder_data.sqlite
  * Windows: %APPDATA%/com.scaffolder.app/scaffolder_data.sqlite
+ *
+ * Wave 5B ticket 6 note: ground-plane.js renamed APP_ID to 'com.st8.app' to
+ * match founder guidance ("st8 is its own thing"). This function intentionally
+ * still points at 'com.scaffolder.app' because (a) InsightStore (compiled-from-TS,
+ * risky to edit) and the legacy integr8 pipeline write to scaffolder_data.sqlite
+ * at this path — renaming would orphan existing on-disk insight data on every
+ * developer's machine, and (b) this is the *database file location*, not the
+ * st8 identity. A future migration ticket can introduce a getSharedDatabasePath
+ * v2 that reads from com.st8.app and migrates rows on first boot.
  */
 function getSharedDatabasePath() {
     const platform = os.platform();

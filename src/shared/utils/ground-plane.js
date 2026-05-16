@@ -55,7 +55,13 @@ const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const safeFs_js_1 = require("./safe-fs.js");
 // ─── Constants ───────────────────────────────────────────────────────────────
-const APP_ID = 'com.scaffolder.app';
+// Wave 5B ticket 6: renamed from 'com.scaffolder.app' (maestro-era identifier).
+// Founder guidance: "st8 is its own thing; maestro should not influence any
+// decisions for st8." The cross-tool ground-plane bridge to MAESTRO was never
+// built and is now documented as a future P2 (see docs/_pending-roadmap/
+// sonic-and-search.md). st8 owns this identifier; if a future bridge is built,
+// the symmetric counterpart will explicitly choose its own exchange directory.
+const APP_ID = 'com.st8.app';
 function getDefaultPaths() {
     const dataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
     const cacheHome = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache');
