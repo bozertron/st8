@@ -61,3 +61,49 @@ Baseline before: 292 tests. After 5D: 308 tests. Delta: +16. Suite: 308 pass / 0
 
 ### Verdicts
 Both 5D tickets: ACK. No kickbacks. Safe to proceed to 5E (backend LLM call route + apiKey crypto-at-rest, tickets 1 + 2). The frontend now feeds a real schema-aware editor with masked apiKey, validated provider, and proper revert-on-failure — backend can assume well-formed `{provider, apiKey, model}` entries arriving via the `_entries` array POST.
+
+## Wave 5E Review
+
+Reviewer: wave-5e-reviewer
+Reviewed commits: 8e806ea (encryption), cdfae98 (route)
+Baseline before: 308 tests. After 5E: 337 tests. Delta: +29. Suite: 337 pass / 0 fail / 0 skip / 0 todo.
+
+### Ticket 2 (apiKey encryption at rest) — ACK
+- `src/shared/utils/settings-crypto.js` uses aes-256-gcm via `crypto.createCipheriv`. 12B random IV (line 126), 16B authTag retrieved via `cipher.getAuthTag()` (line 129). Format `ivB64:tagB64:ctB64` (line 130) — matches the prompt spec exactly.
+- `ensureKey()` (line 78) generates 32B random key, writes tmp+rename with explicit `mode: 0o600` (line 105), defensive `chmodSync(..., 0o600)` after (line 106) for FS where mode-on-write was ignored. Cache keyed by absolute path so multi-temp-dir tests don't collide.
+- `isCiphertext()` does shape check + canonical base64 round-trip (lines 199-200) — rejects `foo:bar:baz`-style strings that have 3 colon-separated segments but aren't actual base64. Verified by test at settings-encryption.test.js:68.
+- Persistence seam at persistence.js:1198 (`_encryptModelEntries`) and :1225 (`_decryptModelEntries`) intercepts only category='models'. `upsertSetting` (line 1252) encrypts on write, `getSetting` / `getSettingsByCategory` / `getAllSettings` symmetrically decrypt on read. Non-models pass through verbatim — verified by test 7.
+- Corrupt ciphertext surfaces literal `'[decrypt-failed]'` rather than throwing (persistence.js:1240) — one bad row cannot DoS `/api/settings`. Verified by test 8.
+- **LIVE DB PROBE**: fresh DB at `/tmp/st8-5e-probe/.st8/st8.sqlite`. Wrote entry with `apiKey='sk-ant-PROBE-KEY-MUST-BE-CIPHERTEXT'`, then read raw row via better-sqlite3 readonly. RAW ROW: `[{"id":"a",...,"apiKey":"IGpUd/6aI6GpemA3:jaHRzAFq5zXoWQRak8h7qw==:UK659F4hA5ZdLKQmlOiq3mrv/N6m7kGmUqdBXx/ZuhUgFyc="}]`. **PLAINTEXT FOUND: false**. The literal apiKey is absent from the on-disk row.
+- **KEY FILE MODE PROBE**: `stat -c '%a' /tmp/st8-5e-probe/.st8/.st8/encryption.key` → **600**. Note: keyPathFor places the key at `<dbDir>/.st8/encryption.key`, so when dbPath itself contains `.st8/` the key lands at `.st8/.st8/encryption.key`. Functional but the doubled `.st8/` is mildly awkward — not a kickback (it matches the documented behavior).
+- Idempotency test at settings-encryption.test.js:149 re-upserts an already-ciphertext entry and asserts no double-encryption. The `isCiphertext()` gate at persistence.js:1205 short-circuits before re-encrypt.
+- Targeted tests: 9/9 pass.
+
+### Ticket 1 (/api/llm-call route + adapters) — ACK
+- Route handler at app.js:2317 (`_handleLlmCall`): method check (405), auth gate via `auth.checkRequest` (401 on miss), 8KB body cap → 413 (line 2346), JSON parse → 400, entryId+prompt validation → 400, load via `persistence.getSettingsByCategory('models')` (the decrypt seam), 404 on missing id, dispatch via `src/features/llm/dispatcher.js`, response status mapped from `result.status`.
+- Adapters at `src/features/llm/providers/anthropic.js` and `openai.js` both use `globalThis.fetch` (anthropic.js:71, openai.js:71) — Node 18+ built-in, no SDK deps. URL/headers/body match documented Anthropic + OpenAI shapes. Network failures surface as `{ok:false, status:0, error}` not silent.
+- Dispatcher at `src/features/llm/dispatcher.js`: SUPPORTED_PROVIDERS = anthropic + openai; STUB_PROVIDERS = google + ollama + lmstudio + openrouter + custom return 501 with a roadmap pointer (lines 80-88). Verified by providers-adapters.test.js:224 which also asserts NO fetch is called for stub providers (line 239).
+- Env-var fallback at dispatcher.js:62 — empty entry.apiKey reads from `process.env[PROVIDER_ENV_KEYS[provider]]`.
+- Tests use `globalThis.fetch` override (route test line 95-97 installs + returns restore). NO real network calls — verified by reading both test files.
+- **DECRYPT-ROUTING PROBE in test**: llm-call-route.test.js:183-234. Pre-condition assertion at line 197: `rawRow.indexOf(PLAINTEXT_KEY) === -1` (raw DB row does NOT contain plaintext). Post-call assertion at line 232: `captured.init.headers['x-api-key'] === PLAINTEXT_KEY` (the mocked-fetch saw the decrypted key). Real two-sided probe.
+- **MUTATION PROBE PASSED**: temporarily replaced `getSettingsByCategory('models')` in app.js:2378 with `_getRawSetting('models', '_entries')` (bypassing decrypt). Re-ran llm-call-route.test.js: test 7 (happy-path decrypt-routing probe) FAILED — mocked fetch saw the ciphertext, not PLAINTEXT_KEY. Restored. The decrypt step is genuinely load-bearing.
+- Adapter + route tests: 20/20 pass.
+
+### Verdicts
+Both 5E tickets: ACK. No kickbacks. No deferrals at the ticket level (5 deferred providers are correctly stubbed to 501 with a live roadmap pointer to P1.2 — verified the dispatcher returns the right shape and tests assert no fetch fires).
+
+## Cluster Summary
+
+Settings-and-providers cluster — 10 tickets total across 3 sub-waves:
+
+- **5C**: 6 ack / 0 kickback / 0 defer (lock-step assertion, type coercion, migration map, theme audit, category enum, promise<boolean> revert)
+- **5D**: 2 ack / 0 kickback / 0 defer (real editEntry form, buildProviderOptions consumer)
+- **5E**: 2 ack / 0 kickback / 0 defer (apiKey encryption at rest, /api/llm-call route + adapters)
+
+**Cluster total: 10 ack / 0 kickback / 0 defer.**
+
+Tests: 271 (pre-cluster) → 337 (post-5E). Delta: +66 across the cluster.
+
+End-to-end story now complete: user opens settings → fills out a models entry via the schema-aware editor → apiKey lands ciphertext on disk → POSTs to /api/llm-call → backend decrypts → routes to provider adapter → real fetch to anthropic/openai → response surfaces in UI. Five providers are stubbed at 501 with a roadmap pointer for future drops. No work was deferred outside the cluster's own roadmap (P1.2, P2.3) — those pointers are live and verified.
+
+Cluster ready to close.
