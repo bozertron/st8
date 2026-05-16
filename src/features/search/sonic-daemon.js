@@ -112,6 +112,15 @@ const SHUTDOWN_GRACE_MS = 1500;
 const SONIC_PASSWORD_FILENAME = 'sonic.password';
 const SONIC_PASSWORD_BYTES = 32; // 64-hex-char secret
 
+// Wave 5B ticket 5: broken-pipe panic recovery.
+// Upstream Sonic v1.4.9 panics on broken-pipe (Rust daemon dies when a
+// client disconnects mid-PUSH). When the spawned child exits unexpectedly
+// (not via our stop()), we auto-restart with exponential backoff and cap
+// at MAX_PANIC_RESTARTS attempts. After the cap, we give up and let the
+// daemon stay unavailable until the next manual start().
+const MAX_PANIC_RESTARTS = 3;
+const PANIC_BACKOFF_MS = [1000, 5000, 30000]; // 1s, 5s, 30s
+
 // ─── State (singleton) ──────────────────────────────────────────
 
 let _state = {
@@ -121,10 +130,18 @@ let _state = {
   restartCount: 0,
   storePath: null,
   lastError: null,
+  // Wave 5B ticket 5
+  panicRestartCount: 0,
+  panicGaveUp: false,
+  lastTargetDir: null,
 };
 
 let _exitHandlerInstalled = false;
 let _binaryEnsuredExecutable = false;
+// Wave 5B ticket 5: set to true when stop() is called intentionally so
+// the panic-recovery exit handler does not interpret a normal SIGTERM
+// from us as an unexpected crash.
+let _intentionalStop = false;
 
 // Wave 5A ticket 4: previously `fs.chmodSync(SONIC_BINARY, 0o755)` ran on every
 // start(). The binary only needs the executable bit set once (post-clone or
@@ -297,6 +314,52 @@ async function waitForHealth() {
   return false;
 }
 
+/**
+ * Wave 5B ticket 5: schedule a panic-recovery restart after Sonic exits
+ * unexpectedly. Uses an exponential backoff schedule (PANIC_BACKOFF_MS)
+ * capped at MAX_PANIC_RESTARTS. After the cap, marks `panicGaveUp` and
+ * stays unavailable; callers can call start() manually to reset.
+ *
+ * Test seam: returns the scheduled setTimeout handle (or null) so unit
+ * tests can assert backoff timing without waiting in real time.
+ */
+function schedulePanicRestart() {
+  if (_state.panicGaveUp) return null;
+  if (_state.panicRestartCount >= MAX_PANIC_RESTARTS) {
+    _state.panicGaveUp = true;
+    console.warn(
+      `[sonic-daemon] Sonic panicked ${_state.panicRestartCount} times; giving up. ` +
+      `Running in SQLite-only mode. Call start() to retry.`
+    );
+    return null;
+  }
+  const backoffMs = PANIC_BACKOFF_MS[_state.panicRestartCount] || PANIC_BACKOFF_MS[PANIC_BACKOFF_MS.length - 1];
+  _state.panicRestartCount++;
+  console.warn(
+    `[sonic-daemon] Sonic exited unexpectedly (likely broken-pipe panic). ` +
+    `Attempt ${_state.panicRestartCount}/${MAX_PANIC_RESTARTS} after ${backoffMs}ms backoff.`
+  );
+  const timer = setTimeout(() => {
+    // Re-spawn using the last targetDir we knew about.
+    const targetDir = _state.lastTargetDir;
+    if (!targetDir) return;
+    start({ targetDir }).catch((err) => {
+      console.warn(`[sonic-daemon] Panic-recovery start() threw: ${err && err.message}`);
+    });
+  }, backoffMs);
+  if (typeof timer.unref === 'function') timer.unref();
+  return timer;
+}
+
+/**
+ * Test helper — reset the panic-restart counter. Used by tests that
+ * exercise the cap without waiting for a manual successful start().
+ */
+function _resetPanicState() {
+  _state.panicRestartCount = 0;
+  _state.panicGaveUp = false;
+}
+
 function installExitHandlers() {
   if (_exitHandlerInstalled) return;
   _exitHandlerInstalled = true;
@@ -322,6 +385,9 @@ async function start(options = {}) {
   if (_state.available && _state.process && !_state.process.killed) {
     return { ok: true, available: true };
   }
+  // Wave 5B ticket 5: each start clears the intentional-stop flag so the
+  // exit handler treats subsequent unexpected exits as panics.
+  _intentionalStop = false;
 
   // Binary check
   if (!fs.existsSync(SONIC_BINARY)) {
@@ -375,6 +441,9 @@ async function start(options = {}) {
     return { ok: false, reason: 'store_mkdir_failed', available: false };
   }
   _state.storePath = storePath;
+  // Wave 5B ticket 5: remember target dir so panic-restart can pass it
+  // through without callers needing to re-supply it.
+  _state.lastTargetDir = targetDir;
 
   // Wave 5A ticket 9: ensure a per-instance auth password lives at
   // .st8/sonic.password. We patch the canonical sonic.cfg's
@@ -437,6 +506,13 @@ async function start(options = {}) {
       _state.process = null;
       _state.available = false;
       _state.lastError = signal ? `signal:${signal}` : `exit:${code}`;
+      // Wave 5B ticket 5: broken-pipe panic recovery. If exit was NOT
+      // initiated by us (intentionalStop), attempt to auto-restart with
+      // exponential backoff. Cap at MAX_PANIC_RESTARTS to prevent an
+      // infinite respawn loop if Sonic is fundamentally broken.
+      if (!_intentionalStop) {
+        schedulePanicRestart();
+      }
     }
   });
 
@@ -456,6 +532,10 @@ async function start(options = {}) {
   _state.available = true;
   _state.since = new Date().toISOString();
   _state.lastError = null;
+  // Wave 5B ticket 5: a successful start clears the panic counter; the
+  // next unexpected exit gets a fresh restart budget.
+  _state.panicRestartCount = 0;
+  _state.panicGaveUp = false;
   installExitHandlers();
   console.log(`[sonic-daemon] Sonic running on ${SONIC_HOST}:${SONIC_PORT} (pid ${child.pid}, store ${storePath})`);
   return { ok: true, available: true };
@@ -483,6 +563,9 @@ function stop() {
     _state.available = false;
     return Promise.resolve();
   }
+  // Wave 5B ticket 5: mark intentional so the exit handler does not
+  // interpret our SIGTERM as a panic and schedule a restart.
+  _intentionalStop = true;
   try {
     child.kill('SIGTERM');
   } catch (_) {}
@@ -499,6 +582,9 @@ function stop() {
       } catch (_) {}
       _state.process = null;
       _state.available = false;
+      // Wave 5B ticket 5: clear the intentional flag once the child is
+      // gone so the next start() can recover panic detection.
+      _intentionalStop = false;
       resolve();
     };
     const onExit = () => finish();
@@ -536,4 +622,9 @@ module.exports = {
   getStatus,
   validateSonicConfig,
   ensureSonicPassword,
+  // Wave 5B ticket 5: panic-recovery test seams
+  schedulePanicRestart,
+  _resetPanicState,
+  // Wave 5B ticket 3: lifecycle test seams
+  _getState: () => ({ ..._state }),
 };

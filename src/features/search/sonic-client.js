@@ -447,7 +447,17 @@ class SonicClient {
                 return response === 'OK';
             }
             catch (err) {
-                console.warn('[SonicClient] Push failed:', err.message);
+                // Wave 5B ticket 5: defense-in-depth against upstream Sonic's
+                // broken-pipe panic. If the socket reset mid-PUSH, force the
+                // ingest channel disconnected so the next push() attempts a
+                // clean re-connect rather than reusing a half-dead handle.
+                // EPIPE/ECONNRESET surface as errors here; we treat any
+                // mid-command failure as a potential broken-pipe scenario.
+                const msg = (err && err.message) || '';
+                if (/EPIPE|ECONNRESET|Connection lost|Not connected/i.test(msg)) {
+                    try { yield this.ingestChannel.disconnect(); } catch (_) { /* best-effort */ }
+                }
+                console.warn('[SonicClient] Push failed:', msg);
                 return false; // Graceful fallback
             }
         });
