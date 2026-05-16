@@ -103,7 +103,13 @@
     "filepath": "src/core/server/main.js",
     "userNote": "SINGLE-TARGET LIMIT: FileWatcher is constructed once at line 209 with the single targetDir from argv. Multi-target setups (e.g. monorepos where the frontend and a sibling backend repo both want indexing) are unsupported. The FileWatcher class itself accepts only one root in its constructor. To extend: either (a) accept multiple --watch args and spin up N watchers, or (b) extend FileWatcher to accept a roots array and configure chokidar with the array form chokidar.watch([...]). Document the limitation in the meantime.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "deferred",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4b-executor",
+    "actionsTaken": "DEFERRED to roadmap. Multi-target watcher is roadmap-scale work: (a) FileWatcher constructor must accept roots[] and pass the array form to chokidar.watch(); (b) main.js argv parser must accept repeated --watch <dir> or a comma-separated list; (c) manifest writer (writeManifests + connection-state.json shape) needs per-root keyed output OR a flattened single-manifest with root-prefixed filepaths; (d) the shared St8Persistence handle must partition file_registry rows by root (today filepath is relative-to-single-targetDir — multi-root would collide); (e) /api/mutations SSE channel needs root tagging so multi-root subscribers can filter. The existing roadmap entry at docs/_pending-roadmap/lifecycle-and-eventing.md (Priority 3: 'Multiple-target-dir support in the watcher') already captures the design surface; this defer adds nothing structurally new. No source change in Wave 4B — the work is correctly sized as its own future batch, not a sub-wave extra.",
+    "filesChanged": [],
+    "commitHash": null,
+    "residualConcerns": "Roadmap pointer: docs/_pending-roadmap/lifecycle-and-eventing.md — 'Priority 3 — Multiple-target-dir support in the watcher'. Single-target remains the supported mode."
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",
