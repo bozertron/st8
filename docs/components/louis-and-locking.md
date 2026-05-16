@@ -14,6 +14,7 @@ directory in the st8 tree today; the closest things on disk are:
 | Louis design / Path C plan | `st8_bible.md:2527-2610` | The captured design — not yet implemented |
 | Stale comment | `src/frontend/components/dive-in/dive-in.js:21` | `Locked files get a red lock indicator above the building.` — referenced but never drawn |
 | Constellation color slot | `src/frontend/components/constellation/constellation.js` (`STATUS_COLOR.LOCKED`) | `{r:201, g:116, b:143}` pink — already reserved; nothing flips files into the LOCKED bucket yet |
+| Shared color tokens | `src/frontend/components/status-colors.js` (single-source `STATUS_COLOR` since Wave 7C ticket 9) | Both constellation and dive-in now read `STATUS_COLOR.LOCKED` from `window.St8StatusColors`; `statusColor(file)` already honors `file.locked` first (overrides RED/GREEN). Pre-wired and waiting for the L1 data source. |
 | LOCKED enum | `src/core/database/persistence.js:57,60` and bible §status enums | `FileStatus = ...LOCKED...`, `LifecyclePhase = ...LOCKED...` — declared, never written |
 
 The **Louis directory itself is not on disk** in this working copy — the

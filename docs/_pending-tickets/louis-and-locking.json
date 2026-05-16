@@ -51,7 +51,9 @@
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
     "userNote": "No code change needed — STATUS_COLOR.LOCKED already reserves the --pink token ({r:201, g:116, b:143}). This ticket exists only to flag: when Phase L2 wires the SSE 'lock-change' event into the constellation, the implementation must call window.St8Constellation.updateFileStatus(fingerprint, 'LOCKED'), and statusColor(file) must check file.locked before file.status (per frontend-experience.md:326 'Locked overrides status'). Verify both behaviors hold once the lock SSE wiring lands.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-8a-executor",
+    "wave8aOutcome": "Annotated. Confirmed STATUS_COLOR.LOCKED is fully wired post-Wave-7C: src/frontend/components/status-colors.js is the single-source module exposing INT/HEX/RGB tables (LOCKED: 0xC9748F = --pink, 'louis-protected'). Both constellation.js and dive-in.js read from window.St8StatusColors with inline fallbacks. statusColor(file) at status-colors.js:89,95 already returns LOCKED.INT/RGB when file.locked is truthy — locked overrides status. The data side (file.locked truthy) is the only thing missing; that's Phase L1. Cross-link added to louis-and-locking.md touchpoint table."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/file-explorer/file-explorer.js",
