@@ -140,7 +140,10 @@
       "file": "src/frontend/components/graph-viewer/graph-viewer.js",
       "lineHint": "357-438 (showGraphPopup)",
       "summary": "showGraphPopup() appends a .graph-popup-overlay to document.body; close is only the diamond button. No Escape key close, no focus trap, no aria-modal \u2014 inconsistent with .panel-overlay (used by PRD wizard) which sets role='dialog' aria-modal='true'.",
-      "proposed": "Migrate showGraphPopup to the same .panel-overlay pattern used by the PRD wizard, or add an Escape handler + aria attributes."
+      "proposed": "Migrate showGraphPopup to the same .panel-overlay pattern used by the PRD wizard, or add an Escape handler + aria attributes.",
+      "status": "executed",
+      "executedBy": "wave-5i-executor",
+      "actionsTaken": "Added the four standard a11y enhancements to showGraphPopup() in src/frontend/components/graph-viewer/graph-viewer.js. (1) ARIA dialog semantics: role='dialog', aria-modal='true', aria-label='Connection graph', aria-labelledby='graph-popup-title'; close button gains aria-label='Close connection graph'. (2) Escape key closes via document-scoped capture-phase keydown listener (handles e.preventDefault + stopPropagation so the global ESC-to-slide-to-st8 handler in app.js does not also fire). (3) Focus trap on Tab / Shift+Tab cycles through focusable buttons (close diamond, 4 filter buttons, RESET ZOOM) inside the overlay; wraps last->first on Tab and first->last on Shift+Tab. (4) Initial focus set to the close button on open; return-focus on close restored to document.activeElement at open time (captured as `opener`). Replaced inline onclick='...remove()' on close button and inline onclick on RESET ZOOM with addEventListener wires so the close path always runs focus return + keydown listener cleanup. Overlay gains tabindex=-1 as a focus-trap fallback when no focusable children render. Tests: tests/frontend/graph-popup-a11y.test.js \u2014 7 cases covering ARIA attrs, initial focus, Escape close + focus return, close-button click, Tab forward wrap, Shift+Tab backward wrap, and keydown-listener removal (no-leak)."
     },
     {
       "id": "FRONT-006",
