@@ -1761,10 +1761,12 @@ class St8Server {
                 const { notificationBus } = require('../notification-bus');
                 const persistence = new St8Persistence();
 
-                persistence.initialize().then(() => {
+                persistence.initialize().then(async () => {
                     try {
                         const bruno = new BrunoOscar(persistence, notificationBus);
-                        const result = bruno.runBrunoCall(threshold);
+                        // Wave 4B ticket 10: runBrunoCall is now async (it
+                        // awaits HOOKS.LIFECYCLE_TRANSITION subscribers).
+                        const result = await bruno.runBrunoCall(threshold);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify(result));
                     } finally {
@@ -1816,10 +1818,11 @@ class St8Server {
                 const { notificationBus } = require('../notification-bus');
                 const persistence = new St8Persistence();
 
-                persistence.initialize().then(() => {
+                persistence.initialize().then(async () => {
                     try {
                         const oscar = new BrunoOscar(persistence, notificationBus);
-                        const result = oscar.runOscarHouse(gracePeriod);
+                        // Wave 4B ticket 10: runOscarHouse is now async.
+                        const result = await oscar.runOscarHouse(gracePeriod);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify(result));
                     } finally {

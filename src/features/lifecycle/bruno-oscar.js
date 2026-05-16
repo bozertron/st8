@@ -9,6 +9,20 @@
 
 'use strict';
 
+// Lazy-required so a test or alt-config can construct BrunoOscar without
+// pulling the hook-registry singleton. Required at first publish call.
+let _hookRegistryCache = null;
+function _getHookRegistry() {
+    if (_hookRegistryCache) return _hookRegistryCache;
+    try {
+        _hookRegistryCache = require('../../core/hook-registry');
+    } catch (err) {
+        console.warn('[bruno-oscar] hook-registry unavailable:', err.message);
+        _hookRegistryCache = null;
+    }
+    return _hookRegistryCache;
+}
+
 class BrunoOscar {
     constructor(persistence, notificationBus) {
         this.persistence = persistence;
@@ -18,10 +32,36 @@ class BrunoOscar {
     }
 
     /**
-     * Run Bruno's Call — scan for stale files and flag them.
-     * Called on every session start.
+     * Fire HOOKS.LIFECYCLE_TRANSITION for a brunoStatus transition.
+     * Lazy-require + try/catch keeps the hook fire from blocking the
+     * primary brunoStatus mutation if the registry is somehow broken.
+     * Wave 4B ticket 10.
      */
-    runBrunoCall(threshold) {
+    async _fireLifecycleTransition(file, oldPhase, newPhase) {
+        try {
+            const reg = _getHookRegistry();
+            if (!reg) return;
+            const { hookRegistry, HOOKS } = reg;
+            await hookRegistry.execute(HOOKS.LIFECYCLE_TRANSITION, {
+                file: { fingerprint: file.fingerprint, filepath: file.filepath },
+                oldPhase,
+                newPhase,
+            });
+        } catch (err) {
+            console.error(`[bruno-oscar] LIFECYCLE_TRANSITION fire failed (${oldPhase}->${newPhase}):`, err.message);
+        }
+    }
+
+    /**
+     * Run Bruno's Call — scan for stale files and flag them.
+     * Wired as a HOOKS.INDEX_START subscriber in default-subscribers.js
+     * so it fires on every session start (Wave 4B ticket 9). Also
+     * callable directly via POST /api/bruno-call.
+     *
+     * Async because each transition fires HOOKS.LIFECYCLE_TRANSITION
+     * (Wave 4B ticket 10) which awaits subscribers.
+     */
+    async runBrunoCall(threshold) {
         const t = threshold || this.STALE_THRESHOLD;
         const staleFiles = this.persistence.getStaleFiles(t);
         const flagged = [];
@@ -39,6 +79,12 @@ class BrunoOscar {
                     actor: 'BRUNO',
                     sessionsSinceAccess: file.sessionsSinceAccess
                 });
+
+                // Wave 4B ticket 10: fire LIFECYCLE_TRANSITION for the
+                // active → flagged brunoStatus change. The hook header in
+                // hook-registry.js explicitly reserves this for "bruno+oscar
+                // territory."
+                await this._fireLifecycleTransition(file, 'active', 'flagged');
 
                 flagged.push({
                     filepath: file.filepath,
@@ -63,8 +109,11 @@ class BrunoOscar {
     /**
      * Archive flagged files to Oscar's House.
      * Files will be auto-deleted after grace period.
+     *
+     * Async because each archive fires HOOKS.LIFECYCLE_TRANSITION
+     * (Wave 4B ticket 10) which awaits subscribers.
      */
-    runOscarHouse(gracePeriod) {
+    async runOscarHouse(gracePeriod) {
         const gp = gracePeriod || this.GRACE_PERIOD;
         const flaggedStmt = this.persistence.db.prepare(
             "SELECT * FROM file_registry WHERE brunoStatus = 'flagged'"
@@ -74,6 +123,15 @@ class BrunoOscar {
 
         for (const file of flaggedFiles) {
             try {
+                // Wave 4B ticket 11: if the flagged file has an `associatedWith`
+                // parent on disk, fold the child's content into the parent BEFORE
+                // archive. The append is best-effort — a missing parent or read
+                // error logs and continues with archive (the "fold" is a courtesy,
+                // not an archive prerequisite). Returns false silently when
+                // associatedWith is unset, so files without a parent take the
+                // identical archive path as before.
+                this._appendToParent(file);
+
                 this.persistence.archiveFile(file.filepath);
                 this.persistence.setExpiryDate(file.filepath, gp);
 
@@ -84,6 +142,10 @@ class BrunoOscar {
                     actor: 'OSCAR',
                     expiryDate: new Date(Date.now() + gp * 86400000).toISOString()
                 });
+
+                // Wave 4B ticket 10: fire LIFECYCLE_TRANSITION for the
+                // flagged → archived brunoStatus change.
+                await this._fireLifecycleTransition(file, 'flagged', 'archived');
 
                 archived.push({
                     filepath: file.filepath,
@@ -120,8 +182,11 @@ class BrunoOscar {
     /**
      * Handle an event being triggered.
      * Un-archives files with matching event triggers.
+     *
+     * Async because each un-archive fires HOOKS.LIFECYCLE_TRANSITION
+     * (Wave 4B ticket 10) — the inverse of runOscarHouse's flagged→archived.
      */
-    onEventTriggered(event) {
+    async onEventTriggered(event) {
         const stmt = this.persistence.db.prepare(
             'SELECT * FROM file_registry WHERE eventTrigger = ?'
         );
@@ -142,6 +207,12 @@ class BrunoOscar {
                     actor: 'BRUNO',
                     triggeredBy: event
                 });
+
+                // Wave 4B ticket 10: fire LIFECYCLE_TRANSITION for the
+                // archived → active brunoStatus change (file may also
+                // have been 'flagged' if event triggered before oscar
+                // ran, but the un-archive path is the same).
+                await this._fireLifecycleTransition(file, 'archived', 'active');
 
                 console.log(`[bruno] Un-archived ${file.filepath} (triggered by: ${event})`);
             } catch (err) {
