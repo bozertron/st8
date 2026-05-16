@@ -322,7 +322,7 @@ function registerDefaultSubscribers(registry) {
       } catch (_) { /* AST parse failed — emit with empty imports/exports */ }
 
       const lastMutation = persistence.getLastMutation(file.fingerprint);
-      emitter.emitCard(
+      const emittedCard = emitter.emitCard(
         file,
         astResult,
         { importedBy: [], imports: [] },
@@ -334,6 +334,13 @@ function registerDefaultSubscribers(registry) {
             : { type: '', actor: '', timestamp: '' },
         }
       );
+      // Wave 4C ticket 16: capture the emitted card on ctx so the
+      // P=30 SSE-broadcaster subscriber can attach it to the
+      // notification-bus publish event. That activates the printer
+      // fallback (notification-bus.publish → printer.printCard) which
+      // had been structurally dormant — setPrinter was wired in
+      // main.js but no publisher ever attached a schemaCard property.
+      ctx.schemaCard = emittedCard;
     } catch (cardErr) {
       console.error(`[st8] Failed to emit schema card for ${file.filepath} (${change.type}):`, cardErr.message);
     }
@@ -350,12 +357,20 @@ function registerDefaultSubscribers(registry) {
     if (!file || !mutation) return;
     try {
       const { notificationBus } = require('../notification-bus');
+      // Wave 4C ticket 16: forward the freshly-emitted card (set by
+      // the P=20 schema-card-emitter subscriber above) on the publish
+      // event. Activates the printer fallback in
+      // notification-bus.publish (printer.printCard → .txt fallback in
+      // .planning/st8_identity_system/). Falls back to null if the
+      // P=20 emit failed — notification-bus.publish guards on the
+      // event.schemaCard property before invoking the printer.
       notificationBus.publish({
         fingerprint: file.fingerprint,
         filepath: file.filepath,
         mutationType: mutation.mutationType,
         actor: mutation.actor,
         sha256Hash: mutation.sha256Hash,
+        schemaCard: ctx.schemaCard || null,
       });
     } catch (err) {
       console.error('[st8] SSE broadcast failed:', err.message);

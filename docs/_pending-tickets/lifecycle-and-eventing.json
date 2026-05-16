@@ -208,6 +208,15 @@
     "filepath": "src/core/notification-bus.js",
     "userNote": "DORMANT PRINTER CHAIN: setPrinter is called from main.js:92, but the publish() path only invokes printer.printCard when the event carries a schemaCard property — no current publisher attaches that property. main.js emits schema cards out-of-band via emitter.emitCard. Either wire the watcher branches to attach the card (single point of card emission) OR remove the printer hook from publish() and call printer.printCard directly from the emitter path. Today the conditional is structurally dead.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4c-executor",
+    "actionsTaken": "Audit verdict: outcome (c) — accidentally dead, now wired correctly. setPrinter(printer) is called in src/core/server/main.js:252; notification-bus.publish() guards on `if (this.printer && event.schemaCard)`. Before this ticket, NO publisher attached a schemaCard property to the event — the FILE_AFTER_CHANGE P=30 SSE-broadcaster subscriber published with only fingerprint/filepath/mutationType/actor/sha256Hash. The schema-card-emitter P=20 subscriber DOES emit the card but threw the return value away, so the printer chain was structurally dormant. Wire-up: (1) Captured emitter.emitCard()'s return value into ctx.schemaCard inside the P=20 subscriber, (2) P=30 subscriber now publishes `schemaCard: ctx.schemaCard || null` so the printer's printCard guard fires on every watcher CREATE/EDIT (DELETE path is unchanged — the P=20 subscriber returns early without emitting for unlinks, ctx.schemaCard stays null, printer guard skips). Test: tests/core/hooks/file-after-change-printer-wire.test.js fires the REAL FILE_AFTER_CHANGE chain (real HookRegistry + real registerDefaultSubscribers + real SchemaCardEmitter + real notificationBus singleton with a stub printer) and asserts (a) EDIT path invokes printer.printCard once with the correct fingerprint+filepath, (b) DELETE path does NOT invoke the printer. Mutation probe confirmed: replacing `ctx.schemaCard = emittedCard;` with a no-op flipped the EDIT test from pass to fail (got 0 calls instead of 1) — exactly the target failure. Also added 4 unit-level probes in tests/core/notification-bus.test.js covering printCard fires/skips on schemaCard present/absent/null and the throw-catch isolation (printer crash does not abort the EventEmitter step that ran before it). INDEX_COMPLETE printer path (printAllFromCards via P=20 subscriber in default-subscribers.js:157) was already wired separately at batch-time and remains untouched — this ticket addresses ONLY the per-file watcher notification path.",
+    "filesChanged": [
+      "src/core/hooks/default-subscribers.js",
+      "tests/core/notification-bus.test.js",
+      "tests/core/hooks/file-after-change-printer-wire.test.js"
+    ],
+    "residualConcerns": "The printer.printCard runs synchronously inside publish() — a slow filesystem (.txt write to .planning/st8_identity_system/) will block the publish loop for a few ms per change. Acceptable today (single-target, single-watcher), but if Multi-target lands (deferred ticket 12) the cumulative latency on a large flush warrants a queue. Out of scope for Wave 4C."
   }
 ]

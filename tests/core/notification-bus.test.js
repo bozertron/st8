@@ -152,3 +152,84 @@ test('ticket 7 — multiple clients independent cleanup', async (t) => {
     while (ctx.bus.sseClients.size !== 0 && Date.now() < deadline2) await sleep(20);
     assert.equal(ctx.bus.sseClients.size, 0);
 });
+
+// ─── TICKET 16 — printer chain wiring ───────────────────────
+// Audit verdict: outcome (c) accidentally dead → wired correctly.
+// The schema-card emitter (FILE_AFTER_CHANGE P=20) already produces a
+// card via emitter.emitCard(); the SSE broadcaster (P=30) now attaches
+// that card to the notification-bus publish event so the printer
+// fallback fires. End-to-end coverage of the wire-up lives in
+// tests/core/hooks/file-after-change-printer-wire.test.js.
+
+test('ticket 16 — printer.printCard fires when event carries schemaCard', async (t) => {
+    const bus = new NotificationBus();
+    const calls = [];
+    bus.setPrinter({
+        printCard: (card) => { calls.push(card); return '/tmp/fake.txt'; },
+    });
+
+    bus.publish({
+        mutationType: 'EDIT',
+        filepath: 'x.js',
+        actor: 'WATCHER',
+        fingerprint: 'fp-1',
+        schemaCard: { fingerprint: 'fp-1', filepath: 'x.js' },
+    });
+
+    assert.equal(calls.length, 1, 'printCard must fire once');
+    assert.equal(calls[0].fingerprint, 'fp-1');
+});
+
+test('ticket 16 — printer.printCard skipped when event omits schemaCard', async (t) => {
+    const bus = new NotificationBus();
+    const calls = [];
+    bus.setPrinter({ printCard: (card) => { calls.push(card); } });
+
+    bus.publish({
+        mutationType: 'EDIT',
+        filepath: 'x.js',
+        actor: 'WATCHER',
+        fingerprint: 'fp-1',
+    });
+
+    assert.equal(calls.length, 0, 'no schemaCard → no printer call');
+});
+
+test('ticket 16 — printer.printCard skipped when schemaCard is null', async (t) => {
+    // The Wave-4C wire-up passes schemaCard: ctx.schemaCard || null
+    // when the P=20 emitter failed. The publish() guard must treat
+    // null the same as missing — no printer call.
+    const bus = new NotificationBus();
+    const calls = [];
+    bus.setPrinter({ printCard: (card) => { calls.push(card); } });
+
+    bus.publish({
+        mutationType: 'EDIT',
+        filepath: 'x.js',
+        actor: 'WATCHER',
+        fingerprint: 'fp-1',
+        schemaCard: null,
+    });
+
+    assert.equal(calls.length, 0, 'null schemaCard → no printer call');
+});
+
+test('ticket 16 — printer throw is caught, does not abort publish chain', async (t) => {
+    const bus = new NotificationBus();
+    let emitterFired = false;
+    bus.on('mutation', () => { emitterFired = true; });
+    bus.setPrinter({
+        printCard: () => { throw new Error('printer broke'); },
+    });
+
+    // Should not throw to caller.
+    bus.publish({
+        mutationType: 'EDIT',
+        filepath: 'x.js',
+        actor: 'WATCHER',
+        fingerprint: 'fp-1',
+        schemaCard: { fingerprint: 'fp-1', filepath: 'x.js' },
+    });
+
+    assert.equal(emitterFired, true, 'emitter must still have fired (runs before printer)');
+});
