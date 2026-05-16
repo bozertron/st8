@@ -27,7 +27,9 @@
     "filepath": "/home/user/st8/docs/components/louis-and-locking.md",
     "userNote": "Document the boundary explicitly so future contributors do not over-scope the port. The founder chose Path C (Warden only) and explicitly excluded Connie (database-to-LLM converter) and Carl (LLM chat context generator) from st8 integration. Without this written down, a well-meaning agent reading lock_em_up_louis_v2.py top-to-bottom might 'helpfully' port all 1463 lines. The 'Out of scope' section of louis-and-locking.md states this — verify it stays in place and survives future doc rewrites.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-8a-executor",
+    "wave8aOutcome": "Added a new top-level 'Scope boundary — Path C, Warden only (Wave 8A, ticket 3)' section in docs/components/louis-and-locking.md, immediately before the existing 'Out of scope' section. It contains: (1) IN-scope table — eight Warden pieces with their Phase L1–L4 placements and target file paths, (2) OUT-of-scope table — Connie / Carl / PyQt6 GUI / Path A / Path B / region locking / per-lock attribution / Python audit, each with a 'why excluded' column and a 'where it stays' column, (3) a 'Why this section exists' subsection that codifies the reviewer protocol (reject out-of-scope tickets pointing here, or escalate to founder). The previous 'Out of scope' bullet list is preserved unchanged after the new section, so nothing is lost — the new section is additive and more structured."
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",

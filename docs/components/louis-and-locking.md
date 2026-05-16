@@ -528,6 +528,67 @@ the Three.js sprite.
 
 ---
 
+## Scope boundary — Path C, Warden only (Wave 8A, ticket 3)
+
+The founder picked **Path C** out of the three integration paths
+documented in bible §batch 021. Path C is "port just the Warden core
+(~140 lines) + build a new st8 panel UI." This subsection makes the
+IN-scope / OUT-of-scope split explicit so future contributors (human
+or agent) do not over-port.
+
+### IN scope for st8 (the Warden)
+
+These pieces ARE the louis-and-locking work in st8. Phase pointers
+refer to `docs/_pending-roadmap/louis-and-locking.md`.
+
+| Piece | Phase | Where it lives in st8 |
+|---|---|---|
+| `chmod` primitive (lock/unlock/isWritable/bulk) | L1 | `src/features/locks/lock-manager.js` (NEW) |
+| SQLite lock state (`locked` column + accessors) | L1 | `src/core/database/persistence.js` + `src/features/locks/lock-state.js` (NEW) |
+| `HOOKS.LOCK_CHANGED` + audit-log subscribers | L1 | `src/core/hook-registry.js` + `src/core/hooks/default-subscribers.js` |
+| Backend routes `/api/lock`, `/api/unlock`, `/api/locks` | L1 | `src/core/server/app.js` |
+| Settings-mounted lock-panel UI | L2 | `src/frontend/components/lock-panel/` (NEW) |
+| SSE `lock-change` event + constellation pink + explorer 🔒 badge | L2 | existing `/api/mutations` stream + constellation + file-explorer |
+| Git pre-commit hook + installer + `protected-files.txt` regenerator | L3 | `src/features/locks/git-hook-installer.js` (NEW) + `scripts/git-hooks/{pre-commit,install.sh}` |
+| Dive-in 🔒 sprite (red lock indicator above buildings) | L4 | `src/frontend/components/dive-in/dive-in.js` |
+
+That is the entire IN-scope surface. Anything not on this list is
+either (a) already done by st8 in some other way, or (b) explicitly
+out of scope per the table below.
+
+### OUT of scope for st8
+
+| Piece | Why excluded | Where it stays |
+|---|---|---|
+| **🎨 Connie** (database → LLM-friendly format converter) | Overlaps with st8's schema cards, PRD generator, and file-context-bundle pieces. Porting it would create two ways to do the same thing in st8 with subtle differences. | Stays in `Louis/lock_em_up_louis_v2.py` standalone. |
+| **📚 Carl** (LLM chat context generator) | Single-shot snapshot tool; st8's collaboration loop is incremental and persistent. Different product shape. | Stays in `Louis/lock_em_up_louis_v2.py` standalone. |
+| **The PyQt6 GUI itself** | st8's UI is a web panel. The standalone Louis app continues to exist for users who want an OS-level desktop tool. | `Louis/lock_em_up_louis_v2.py` continues to ship. |
+| **Path A (subprocess shell-out)** | Drags PyQt6 in as a runtime dependency even for headless st8 use. Slow per call. | Rejected — see bible §batch 021. |
+| **Path B (full 1463-line Node port)** | Massive rewrite of features (Connie, Carl, the tabbed GUI) that st8 does not need. | Rejected — see bible §batch 021. |
+| **Region-level locking** (lock specific line ranges) | `chmod` cannot do anything finer than file granularity; region locks need a different mechanism (annotated regions / mutation-handler advisory layer). | Deferred indefinitely. Separate feature if ever needed. |
+| **Per-lock attribution / multi-agent ownership** | MVP is anonymous (mirrors Louis). | Deferred to a follow-up wave when agent tagging matures (see Priority 2 in roadmap). |
+| **Audit / bug-hunt of `lock_em_up_louis_v2.py`** | The Python source is a separate product; its bugs do not affect the Node port. | Out-of-tree — see "Louis-standalone tool boundary" below. |
+
+### Why this section exists
+
+Without it, a well-meaning agent reading
+`Louis/lock_em_up_louis_v2.py` top-to-bottom might "helpfully" port
+all 1463 lines, drag PyQt6-equivalent web widgets into st8, or file
+tickets against Connie's database-converter logic. Path C exists
+precisely because the founder did not want any of that.
+
+If a future ticket proposes work outside the IN-scope table above,
+the reviewer should either:
+
+- Reject the ticket as out-of-scope and point at this section, or
+- Escalate to the founder for an explicit scope expansion (which
+  would update this table).
+
+The Wave 8A executor confirmed this section is in place; the boundary
+must survive future doc rewrites.
+
+---
+
 ## Out of scope
 
 These are explicitly **not** part of the Louis-in-st8 work:
