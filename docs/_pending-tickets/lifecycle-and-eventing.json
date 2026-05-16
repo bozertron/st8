@@ -3,7 +3,13 @@
     "filepath": "src/core/server/main.js",
     "userNote": "STRUCTURAL DEBT: the onFileChange callback at lines 207-419 is the ~215-line inline orchestration that HOOK-ARCHITECTURE-RESEARCH §6 explicitly flagged as the biggest pre-hook procedural seam left in the codebase. HOOKS.FILE_BEFORE_CHANGE and HOOKS.FILE_AFTER_CHANGE are declared in hook-registry.js with documented payloads but have zero publishers. This is what those hooks were defined for. Splitting the add/change/unlink branches into FILE_BEFORE_CHANGE + FILE_AFTER_CHANGE subscribers is the natural next batch — it unlocks per-file plugins (Louis lock checks, real-time UI mirrors, audit listeners) without patching main.js for every new concern.",
     "severity": "high",
-    "status": "RED"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4a-executor",
+    "actionsTaken": "Resolved upstream by Wave 2B — see hooks ticket 6. The new onFileChange wrapper is 69 lines (40 LOC of real code) with two FILE_AFTER_CHANGE subscribers (schema-card-emitter P=20, sse-broadcaster P=30). Confirmed via `git log --oneline --grep='decompose 215-line'` → commit 13ec011 'refactor(hooks): decompose 215-line onFileChange into FILE_BEFORE/AFTER hooks'. The onFileChange callback in src/core/server/main.js now fires HOOKS.FILE_BEFORE_CHANGE (line 411) and HOOKS.FILE_AFTER_CHANGE (line 431), with the add/change/unlink dispatch reduced to a thin orchestrator. The named hook constants now have real publishers and Louis lock checks / real-time UI mirrors / audit listeners can subscribe without patching main.js. No Wave 4A code change required.",
+    "filesChanged": [],
+    "commitHash": "13ec011",
+    "residualConcerns": null
   },
   {
     "filepath": "src/frontend/app.js",
