@@ -575,28 +575,11 @@
         if (window.St8Coordination) {
           window.St8Coordination.startPolling('/api/connection-state.json');
         }
-        // Unload void-engine if it was loaded
-        if (window.unloadVoidEngine) window.unloadVoidEngine();
-      } else if (wsType === 'pretext-dev') {
-        // Activate pretext development mode — load void-engine
-        voidEl.classList.remove('split-mode');
-        // Remove right panel if exists
-        const rightPanel = voidEl.querySelector('.void-right-panel');
-        if (rightPanel) rightPanel.remove();
-        // Stop coordination polling
-        if (window.St8Coordination) {
-          window.St8Coordination.stopPolling();
-        }
-        // Load void-engine for pretext workspace
-        if (window.loadVoidEngine) {
-          window.loadVoidEngine().then(() => {
-            console.info('[st8] void-engine loaded for pretext-dev workspace');
-          }).catch(err => {
-            console.error('[st8] failed to load void-engine:', err);
-          });
-        }
       } else {
-        // Deactivate split mode (standard workspace)
+        // Deactivate split mode (standard workspace; also catches
+        // legacy 'pretext-dev' workspace value — void-engine was
+        // retired to a separate project, so pretext-dev now degrades
+        // gracefully to standard mode. See index.html header comment).
         voidEl.classList.remove('split-mode');
         // Remove right panel
         const rightPanel = voidEl.querySelector('.void-right-panel');
@@ -605,8 +588,6 @@
         if (window.St8Coordination) {
           window.St8Coordination.stopPolling();
         }
-        // Unload void-engine if it was loaded
-        if (window.unloadVoidEngine) window.unloadVoidEngine();
       }
     };
 
