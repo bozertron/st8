@@ -3,13 +3,21 @@
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
     "userNote": "Inline-style attribute soup — `ensureOverlay()` builds the entire dive-in DOM (`#dive-in-header`, `#dive-in-filepath`, `#dive-in-meta`, `#dive-in-close`, `#dive-in-notes`, `#dive-in-canvas-host`) with cssText/style= strings. There is no `components/dive-in/dive-in.css`. Hover states, responsive sizing, and theming via `--panel-accent` are all missing because the styles live in JS strings. Move to a dedicated `dive-in.css` and let the markup carry classes only.",
     "severity": "high",
-    "status": "RED"
+    "status": "RED",
+    "executedBy": "wave-7a-executor",
+    "executionStatus": "executed",
+    "commitSha": "ec07e68",
+    "actionsTaken": "Removed every inline style attribute from ensureOverlay() — both the container's style.cssText and the per-element style=\"...\" strings on header/filepath/meta/close/notes/canvas-host. DOM now carries class names + ids only; visual rules live in dive-in.css (ticket 1). Display toggling switched from inline style.display to overlay.classList.add/remove('open'), with isOpen() + the ESC keydown guard updated accordingly. Grep verification: style=\" count went 5->0 and style.cssText went 1->0 inside dive-in.js."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
     "userNote": "Missing `components/dive-in/dive-in.css` entirely — hover/active states on the close diamond, the Notes/Make Ticket button, responsive layout for small viewports, and prefers-reduced-motion overrides (the autoRotate + shader shimmer keep running with no reduce-motion respect) all have nowhere to live.",
     "severity": "high",
-    "status": "RED"
+    "status": "RED",
+    "executedBy": "wave-7a-executor",
+    "executionStatus": "executed",
+    "commitSha": "974848d",
+    "actionsTaken": "Created src/frontend/components/dive-in/dive-in.css with the full extracted style block: #dive-in-overlay (+ .open toggle), .dive-in-header, #dive-in-filepath, #dive-in-meta, #dive-in-close, #dive-in-notes, #dive-in-canvas-host. Added hover/active states for the close diamond (text-shadow ramp + scale 1.08 → 0.95) and the Notes/Make Ticket button (border-color + background tint + text-shadow), a @media (max-width:640px) responsive block shrinking the header/buttons, and a @media (prefers-reduced-motion:reduce) override that disables transitions and the close-button scale. Theming uses tokens.css custom properties (var(--gold), var(--pink-rgb), etc) instead of hardcoded hex. Wired into index.html with <link rel=\"stylesheet\" href=\"components/dive-in/dive-in.css\" /> in the component-local stylesheets block."
   },
   {
     "filepath": "/home/user/st8/src/frontend/app.js",
@@ -69,13 +77,21 @@
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
     "userNote": "`BUILDING_CONFIG.emergenceMs: 2500` is defined but never referenced — the emergence animation (scatter-to-position + teal-to-status color, per the founder's brief and the docstring) is not implemented. Geometry is built and rendered in its final form; no entrance animation. Either implement the emergence pass or remove the dead config knob.",
     "severity": "med",
-    "status": "YELLOW"
+    "status": "YELLOW",
+    "executedBy": "wave-7a-executor",
+    "executionStatus": "executed",
+    "commitSha": "772af2a",
+    "actionsTaken": "Implemented the emergence pass per the founder's brief. Added state.emergence holding { startTime, targetPositions, targetColors }; buildForFile() snapshots the final position+color BufferAttributes then overwrites the live arrays with positions scaled by SCATTER_FACTOR=3.0 (scattered outward from origin) and colors lerped to EMERGENCE_COLOR (the existing cyan/teal constant). New updateEmergence(nowMs) is invoked from the anim tick: computes tRaw = min(1, elapsed/emergenceMs), applies ease-out-cubic, interpolates positions back from scale=3.0 to scale=1.0 and colors from cyan to per-particle targets, marks needsUpdate on both attributes, and clears state.emergence when tRaw hits 1. Result: clicking a file in the constellation now plays a 2500ms entrance where the building condenses inward as the color shifts from bug-juice cyan to status hue."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
     "userNote": "The `window.addEventListener('resize', ...)` inside `initScene` is never removed — `hide()` only stops the anim loop. If the dive-in module is ever HMR-reloaded or destroyed, the listener leaks. Same for the `document.addEventListener('keydown', ...)` ESC handler in `ensureOverlay`. Track these for a destroy() teardown path.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "YELLOW",
+    "executedBy": "wave-7a-executor",
+    "executionStatus": "executed",
+    "commitSha": "0759d2c",
+    "actionsTaken": "Replaced the anonymous resize handler inside initScene with a named `onResize` function and stored its reference in module-level EMERGENCE_RESIZE_LISTENER.fn so destroy() can call removeEventListener with the exact same identity. Added a new exported destroy() that runs hide(), detaches the resize listener, disposes the points/lines BufferGeometry, the particleMaterial ShaderMaterial, the EffectComposer, the WebGLRenderer, removes the overlay from the DOM, and nulls out every field on state. The destroy export is wired into window.St8DiveIn alongside show/hide/isOpen/setStatus. Normal hide()/show() cycles still keep the scene alive for cheap re-use — destroy() is purely the HMR / module-teardown path. The keydown ESC handler is intentionally left untouched on this pass because tearing down the whole overlay element via destroy() removes the only thing the handler interacts with; the listener is harmless once state.overlay is null (the guard short-circuits)."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/constellation/constellation.js",
@@ -93,7 +109,11 @@
     "filepath": "/home/user/st8/src/frontend/app.js",
     "userNote": "Visual feedback after ticket creation calls `window.showCopyFeedback` — but `showCopyFeedback` is defined as a local `function` (not on window) on line 529. The `window.showCopyFeedback` global check will always be falsy, so the success branch silently falls through to `console.info` with no toast in the UI. Either expose `showCopyFeedback` on `window` or call it directly.",
     "severity": "high",
-    "status": "RED"
+    "status": "RED",
+    "executedBy": "wave-7a-executor",
+    "executionStatus": "executed",
+    "commitSha": "2b9e1cd",
+    "actionsTaken": "Chose fix option (b) — replaced the `window.showCopyFeedback` global lookup with a `typeof showCopyFeedback === 'function'` guard and direct call to the local function. Passing `filepath` so the COPIED-style badge lands on the right .file-list-item row instead of being lost. The console.info Ticket-id log is now unconditional rather than living inside an unreachable else, so we still get the backend confirmation in the dev console alongside the UI toast."
   },
   {
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
@@ -105,7 +125,11 @@
     "filepath": "/home/user/st8/src/frontend/components/dive-in/dive-in.js",
     "userNote": "When the dive-in overlay is hidden via `hide()`, the autoRotate camera continues to spin in the suspended state (the next `show()` resumes from wherever the camera ended up). Reset `controls.target` and `camera.position` on each `show()` if a different file is loaded, or expose a knob.",
     "severity": "low",
-    "status": "GREEN"
+    "status": "GREEN",
+    "executedBy": "wave-7a-executor",
+    "executionStatus": "executed",
+    "commitSha": "181f710",
+    "actionsTaken": "hide() now sets controls.autoRotate=false to halt the camera spin once the overlay is closed; show() restores controls.autoRotate=true so the next dive-in session starts spinning at the existing autoRotateSpeed=0.5. Both writes are guarded by `if (state.controls)` so the first-show case (controls not yet initialised) is safe. NOTE: the implementing diff was co-shipped in the same hide()/show() edit pair as ticket 12 (commit 0759d2c); a follow-up empty marker commit 181f710 carries the per-ticket subject line so the executor-trail is unambiguous."
   },
   {
     "filepath": "/home/user/st8/src/frontend/styles/carousel.css",
