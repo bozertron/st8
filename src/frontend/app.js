@@ -740,11 +740,16 @@
       }).then(function(r) { return r.json(); }).then(function(data) {
         if (data && data.ok) {
           // Visual feedback: toast + close the popup.
-          if (window.showCopyFeedback) {
-            window.showCopyFeedback('Ticket #' + data.id + ' opened — phreak> will see it');
-          } else {
-            console.info('[st8] Ticket #' + data.id + ' created');
+          // Note: showCopyFeedback is a local function in this closure (NOT on
+          // window). The previous `window.showCopyFeedback` check was always
+          // falsy, silently swallowing the success toast. Call the local fn
+          // directly. showCopyFeedback targets a `.file-list-item[data-path=X]`
+          // — pass the filepath so the COPIED-style badge lands on the right
+          // row in the explorer's file list.
+          if (typeof showCopyFeedback === 'function') {
+            showCopyFeedback(filepath);
           }
+          console.info('[st8] Ticket #' + data.id + ' created');
           const overlay = document.querySelector('.notes-popup-overlay');
           if (overlay) overlay.remove();
         } else {
