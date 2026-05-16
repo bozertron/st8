@@ -1,12 +1,12 @@
 [
   {
     "filepath": "/home/user/st8/lib",
-    "userNote": "Empty directory tree (lib/, lib/utils/, lib/commands/, lib/commands/integr8/) — the originals were retired to OGB in batch 019 but the dirs were never rmdir'd. Cosmetic clutter at repo root. stage-originals.js deletes files but not empty parent dirs.",
+    "userNote": "Empty directory tree (lib/, lib/utils/, lib/commands/, lib/commands/integr8/) \u2014 the originals were retired to OGB in batch 019 but the dirs were never rmdir'd. Cosmetic clutter at repo root. stage-originals.js deletes files but not empty parent dirs.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
     "executedBy": "wave-6a-executor",
-    "actionsTaken": "Resolved upstream by bbfa7cc (chore(originals): stage 46 migrated originals into OGB/ as .txt snapshots — batch 019). Verified: `ls lib/` returns 'No such file or directory'.",
+    "actionsTaken": "Resolved upstream by bbfa7cc (chore(originals): stage 46 migrated originals into OGB/ as .txt snapshots \u2014 batch 019). Verified: `ls lib/` returns 'No such file or directory'.",
     "filesChanged": [],
     "commitHash": "bbfa7cc",
     "residualConcerns": null,
@@ -66,7 +66,7 @@
     "status": "executed",
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
-    "actionsTaken": "Deleted backend/ entirely via `git rm -r backend/`. Pre-check: grepped src/, tests/, scripts/ for `backend/SCHEMA-CARD`, `backend/SECURITY-AUDIT`, `backend/package.json` — only documentary references in st8_bible.md L2390, docs/components/refactor-toolkit.md (history), docs/_pending-roadmap/refactor-toolkit.md L16 (which explicitly says 'Delete backend/package.json'). No source/script/test code imports backend/. Git history retains all 3 files. Tests stay 373/373.",
+    "actionsTaken": "Deleted backend/ entirely via `git rm -r backend/`. Pre-check: grepped src/, tests/, scripts/ for `backend/SCHEMA-CARD`, `backend/SECURITY-AUDIT`, `backend/package.json` \u2014 only documentary references in st8_bible.md L2390, docs/components/refactor-toolkit.md (history), docs/_pending-roadmap/refactor-toolkit.md L16 (which explicitly says 'Delete backend/package.json'). No source/script/test code imports backend/. Git history retains all 3 files. Tests stay 373/373.",
     "filesChanged": [
       "backend/SCHEMA-CARD-EMITTER-REPORT.md",
       "backend/SECURITY-AUDIT-H1.md",
@@ -119,7 +119,7 @@
     "status": "executed",
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
-    "actionsTaken": "Deleted as part of backend/ cleanup. Verified no scripts cd into backend/ — repo-root package.json has been authoritative since batch 010. Roadmap doc explicitly authorized deletion.",
+    "actionsTaken": "Deleted as part of backend/ cleanup. Verified no scripts cd into backend/ \u2014 repo-root package.json has been authoritative since batch 010. Roadmap doc explicitly authorized deletion.",
     "filesChanged": [
       "backend/package.json"
     ],
@@ -136,7 +136,7 @@
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
     "executedBy": "wave-6a-executor",
-    "actionsTaken": "Resolved upstream by 93ffd40 (chore: archive 14 outdated root .md indexes — master cleanup commit). Verified: `ls 0_MASTER_INDEX.md` returns 'No such file or directory'; commit stats show -235 lines deleted from 0_MASTER_INDEX.md.",
+    "actionsTaken": "Resolved upstream by 93ffd40 (chore: archive 14 outdated root .md indexes \u2014 master cleanup commit). Verified: `ls 0_MASTER_INDEX.md` returns 'No such file or directory'; commit stats show -235 lines deleted from 0_MASTER_INDEX.md.",
     "filesChanged": [],
     "commitHash": "93ffd40",
     "residualConcerns": null,
@@ -146,7 +146,7 @@
   },
   {
     "filepath": "/home/user/st8/0_FRONTEND_INDEX.md",
-    "userNote": "Stale planning doc — references the original 6 root-level frontend .js files (file-explorer.js, phreak-terminal.js, etc.) that moved to src/frontend/components/ in batch 012 and were retired to OGB in batch 019.",
+    "userNote": "Stale planning doc \u2014 references the original 6 root-level frontend .js files (file-explorer.js, phreak-terminal.js, etc.) that moved to src/frontend/components/ in batch 012 and were retired to OGB in batch 019.",
     "severity": "medium",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -176,7 +176,7 @@
   },
   {
     "filepath": "/home/user/st8/0_BACKEND_INDEX.md",
-    "userNote": "Stale — backend/ directory contains only 3 non-code files now; the 14 .js files documented here have all moved to src/.",
+    "userNote": "Stale \u2014 backend/ directory contains only 3 non-code files now; the 14 .js files documented here have all moved to src/.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -191,7 +191,7 @@
   },
   {
     "filepath": "/home/user/st8/0_LIB_UTILS_INDEX.md",
-    "userNote": "Stale — lib/utils/ is empty; all 4 utilities moved to src/shared/utils/ in batch 001.",
+    "userNote": "Stale \u2014 lib/utils/ is empty; all 4 utilities moved to src/shared/utils/ in batch 001.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -206,7 +206,7 @@
   },
   {
     "filepath": "/home/user/st8/0_LIB_COMMANDS_INDEX.md",
-    "userNote": "Stale — lib/commands/ and lib/commands/integr8/ are empty; all 20 files moved into src/features/ across batches 002/006/007/008/017.",
+    "userNote": "Stale \u2014 lib/commands/ and lib/commands/integr8/ are empty; all 20 files moved into src/features/ across batches 002/006/007/008/017.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
@@ -313,22 +313,26 @@
     "filepath": "/home/user/st8/st8_bible.md",
     "userNote": "Bible has no top-of-file index. 2943 lines as of batch 027 with 27 batch entries scattered between L1712 and L2868. Finding 'where is batch 014 documented?' requires grep. Add a TOC anchor block at the top with line numbers for each major section + each batch.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-6c-executor",
+    "actionsTaken": "Added a Table of Contents at the top of st8_bible.md covering both major sections (26 entries) and the Refactor Batch Log (27 entries, one per batch, each with batch number, kebab-cased topic, one-line goal, and starting line number). Total 53 indexed jump points. See st8_bible.md lines 9-79."
   },
   {
     "filepath": "/home/user/st8/scripts/signal-tests/check-invariants.js",
-    "userNote": "Tier 1 signal tests (schema contracts at internal handoffs e.g. indexer→manifestGenerator, parserPersistence→graphPersister) were deferred in batch 021 because Tier 2 + Tier 6 cover most of what Tier 1 would. Re-evaluate only if a regression slips past both. Tracking this here so it isn't forgotten.",
+    "userNote": "Tier 1 signal tests (schema contracts at internal handoffs e.g. indexer\u2192manifestGenerator, parserPersistence\u2192graphPersister) were deferred in batch 021 because Tier 2 + Tier 6 cover most of what Tier 1 would. Re-evaluate only if a regression slips past both. Tracking this here so it isn't forgotten.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-6c-executor",
+    "actionsTaken": "Added Tier 1 schema-contract signal tests at tests/scripts/signal-tests/tier-1-schema-contracts.test.js. 9 probes across 3 handoffs: H1 indexer\u2192manifest-generator (3 probes \u2014 required field surface, consumer-reads-only-producer-fields, end-to-end shape), H2 parser-persistence\u2192graph-persister (3 probes \u2014 node_type enum coverage of parser entity kinds, ProjectFiles INSERT column contract, edge_type enum coverage), H3 St8SchemaCard \u2194 manifest-generator load-bearing omissions (3 probes \u2014 canonical shape carries lifecyclePhase + birthTimestamp, projection omits both, fingerprint round-trip preserves birthTimestamp). Mutation probe verified: renaming `fingerprint:` key to `fp_test:` in manifest-generator caused P1.3 to fail; restore returned to 9/9 pass."
   },
   {
     "filepath": "/home/user/st8/scripts/migration/check-conventions.js",
-    "userNote": "Orphan-detection (check #6) over-reports for frontend files loaded via <script src> from src/frontend/index.html. Today the script skips src/frontend/ entirely (line 336) so this is latent — but if anyone ever adds a <script src='src/features/...'> include directly to the HTML shell, it will be reported as orphan. Make the skip-list configurable, or scan index.html for <script src> tags and treat those as 'referenced'.",
+    "userNote": "Orphan-detection (check #6) over-reports for frontend files loaded via <script src> from src/frontend/index.html. Today the script skips src/frontend/ entirely (line 336) so this is latent \u2014 but if anyone ever adds a <script src='src/features/...'> include directly to the HTML shell, it will be reported as orphan. Make the skip-list configurable, or scan index.html for <script src> tags and treat those as 'referenced'.",
     "severity": "low",
     "status": "executed",
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
-    "actionsTaken": "Added collectHtmlScriptRefs() that parses src/frontend/index.html (and any future HTML shells) for <script src='...'> tags and resolves them to absolute paths, seeding the 'referenced' set in checkOrphans. Removed the blanket src/frontend/ skip — now a frontend file is only suppressed if it's actually referenced (from HTML or from a require()), or it's in the expectedOrphans allowlist, or it lives under src/frontend/vendor/. Exported collectHtmlScriptRefs + checkOrphans for unit tests and gated main() behind require.main === module. Added tests/scripts/migration/check-conventions.test.js (5 cases): script-tag parsing, CDN/absolute-URL skip, missing-file no-throw, ref-vs-non-ref classification, and an integration check that real components in index.html aren't orphans. Verified: `node check-conventions.js` reports 11 orphans (the known-residual non-frontend cases), DOWN from 16 — the 5 file-explorer/terminal/graph-viewer/settings/coordination files previously masked by the blanket skip are now correctly seen as referenced.",
+    "actionsTaken": "Added collectHtmlScriptRefs() that parses src/frontend/index.html (and any future HTML shells) for <script src='...'> tags and resolves them to absolute paths, seeding the 'referenced' set in checkOrphans. Removed the blanket src/frontend/ skip \u2014 now a frontend file is only suppressed if it's actually referenced (from HTML or from a require()), or it's in the expectedOrphans allowlist, or it lives under src/frontend/vendor/. Exported collectHtmlScriptRefs + checkOrphans for unit tests and gated main() behind require.main === module. Added tests/scripts/migration/check-conventions.test.js (5 cases): script-tag parsing, CDN/absolute-URL skip, missing-file no-throw, ref-vs-non-ref classification, and an integration check that real components in index.html aren't orphans. Verified: `node check-conventions.js` reports 11 orphans (the known-residual non-frontend cases), DOWN from 16 \u2014 the 5 file-explorer/terminal/graph-viewer/settings/coordination files previously masked by the blanket skip are now correctly seen as referenced.",
     "filesChanged": [
       "scripts/migration/check-conventions.js",
       "tests/scripts/migration/check-conventions.test.js"
@@ -336,17 +340,17 @@
     "commitHash": "0fd0e2f",
     "residualConcerns": null,
     "verdict": "ack",
-    "reviewNote": "Verified: read collectHtmlScriptRefs() + checkOrphans(), confirmed HTML-aware reference seeding replaces blanket src/frontend/ skip. Ran `node scripts/migration/check-conventions.js` — Orphan modules: 11 (matches claim, down from 16). Targeted tests pass 5/5. main() correctly gated by require.main === module. Tests 398/398.",
+    "reviewNote": "Verified: read collectHtmlScriptRefs() + checkOrphans(), confirmed HTML-aware reference seeding replaces blanket src/frontend/ skip. Ran `node scripts/migration/check-conventions.js` \u2014 Orphan modules: 11 (matches claim, down from 16). Targeted tests pass 5/5. main() correctly gated by require.main === module. Tests 398/398.",
     "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/scripts/migration/verify.js",
-    "userNote": "Browser-only detection relies on the manifest's `client: true` flag (line 163). If someone forgets to set it on a frontend file move, verify.js tries to require() the module, which throws on window/document references. The batch 017 both-broken-identically check (line 176-186) mitigates this to a WARN-pass — but it's noisy and conceals real regressions in the same file. Consider auto-detecting client modules by path prefix (anything under src/frontend/) instead of trusting the flag.",
+    "userNote": "Browser-only detection relies on the manifest's `client: true` flag (line 163). If someone forgets to set it on a frontend file move, verify.js tries to require() the module, which throws on window/document references. The batch 017 both-broken-identically check (line 176-186) mitigates this to a WARN-pass \u2014 but it's noisy and conceals real regressions in the same file. Consider auto-detecting client modules by path prefix (anything under src/frontend/) instead of trusting the flag.",
     "severity": "medium",
     "status": "executed",
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
-    "actionsTaken": "Added detectBrowserOnly(absPath) parse heuristic that strips block + line comments and scans for direct member access against browser globals: window, document, navigator, location, localStorage, sessionStorage, history.{pushState,replaceState,back,forward}, customElements, HTMLElement, plus `typeof window|document|navigator` guards. Anchored each pattern on a non-word char so lookalikes like myWindow/documentation don't trigger. Wired into the isClient decision: `m.client === true || heuristicBrowser`. Emits a hint line when manifest.client is missing but the heuristic fires, so reviewers see the auto-detection in the log. Exported detectBrowserOnly for tests, guarded main() with require.main === module. Added tests/scripts/migration/verify.test.js (12 cases) covering each pattern, comment-aware negatives, lookalike negatives, missing-file no-throw, plus integration probes against src/frontend/app.js (positive) and src/core/hook-registry.js (negative). Known limitation documented inline: SQL string literals containing documentary 'window.X' references will false-positive — harmless because verify.js then runs `node --check` instead of require() (downgrade, never upgrade).",
+    "actionsTaken": "Added detectBrowserOnly(absPath) parse heuristic that strips block + line comments and scans for direct member access against browser globals: window, document, navigator, location, localStorage, sessionStorage, history.{pushState,replaceState,back,forward}, customElements, HTMLElement, plus `typeof window|document|navigator` guards. Anchored each pattern on a non-word char so lookalikes like myWindow/documentation don't trigger. Wired into the isClient decision: `m.client === true || heuristicBrowser`. Emits a hint line when manifest.client is missing but the heuristic fires, so reviewers see the auto-detection in the log. Exported detectBrowserOnly for tests, guarded main() with require.main === module. Added tests/scripts/migration/verify.test.js (12 cases) covering each pattern, comment-aware negatives, lookalike negatives, missing-file no-throw, plus integration probes against src/frontend/app.js (positive) and src/core/hook-registry.js (negative). Known limitation documented inline: SQL string literals containing documentary 'window.X' references will false-positive \u2014 harmless because verify.js then runs `node --check` instead of require() (downgrade, never upgrade).",
     "filesChanged": [
       "scripts/migration/verify.js",
       "tests/scripts/migration/verify.test.js"
@@ -361,16 +365,18 @@
     "filepath": "/home/user/st8/OGB",
     "userNote": "Batch 019 documents OGB cleanup as 'founder-driven destruction' but provides no automated tooling. After founder destroys OGB/ contents, empty subdirectories remain (OGB/, OGB/backend/, OGB/lib/utils/, OGB/lib/commands/, OGB/lib/commands/integr8/, OGB/src/frontend/services/). Need a cleanup-empty-dirs helper that walks bottom-up and removes empty dirs.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-6c-executor",
+    "actionsTaken": "Built scripts/migration/ogb-destroy.js with companion tests at tests/scripts/migration/ogb-destroy.test.js (6 probes). Tool flow: (1) inventory OGB/ files+dirs, (2) Invariant A \u2014 grep src/, tests/, scripts/, start.js, package.json for any live require/import into OGB/ (excludes own file and pure comment lines); aborts exit 1 with hits if any found, (3) plan preview in --dry-run default mode, (4) under --yes, writes timestamped tar.gz backup to .st8/ogb-backup/ before any rm, then removes files, then bottom-up rmdirs the now-empty subdirectories, then OGB/ itself. Founder still pulls the trigger via --yes; this script provides the safety net."
   },
   {
     "filepath": "/home/user/st8/scripts/migration/manifest.json",
-    "userNote": "manifest.json is OVERWRITTEN each batch — there's no audit trail of what each batch's manifest contained (description, generatedAt, the specific move list at decision-time). move-history.json captures the successful from/to pairs but loses the description + per-batch metadata. Mitigation: archive each batch's manifest.json under scripts/migration/manifest-history/<batch-name>.json on successful verify.",
+    "userNote": "manifest.json is OVERWRITTEN each batch \u2014 there's no audit trail of what each batch's manifest contained (description, generatedAt, the specific move list at decision-time). move-history.json captures the successful from/to pairs but loses the description + per-batch metadata. Mitigation: archive each batch's manifest.json under scripts/migration/manifest-history/<batch-name>.json on successful verify.",
     "severity": "medium",
     "status": "executed",
     "executedAt": "2026-05-16T00:00:00Z",
     "executedBy": "wave-6b-executor",
-    "actionsTaken": "Implemented variant (a) from the wave-6b prompt: append-only manifest-history.jsonl that captures one self-contained JSON record per batch — batch, description, generatedAt, verifiedAt (write-time ISO), gitCommit (short SHA), moves[], plus optional notes and followUps. Wired appendManifestHistory() into verify.js's success path (fail === 0) so each clean batch verification writes its own audit record. Idempotency key is (batch name, moves signature) — re-running verify after later commits land cannot duplicate a batch's record. Added scripts/migration/backfill-manifest-history.js which walks `git log --diff-filter=AM scripts/migration/manifest.json --reverse`, runs `git show <sha>:scripts/migration/manifest.json` at each commit, parses, and appends. Source for backfill: all 12 batch commits in the master tree (ab4d038 shared → 9cca4b8 background-indexer). Entries added to history: 12, covering 46 file moves across shared, core-database, lifecycle-watcher, schema-cards, prd, analysis, integr8-core, indexing-parsers, indexing-engine, server-and-entry, frontend-components, background-indexer. Added tests/scripts/migration/manifest-history.test.js (8 cases): line/JSON shape, idempotency (same commit AND later commit), distinct-batches, optional fields, missing-file, malformed-line tolerance, plus an integration check that the real repo backfill contains all 12 expected batches.",
+    "actionsTaken": "Implemented variant (a) from the wave-6b prompt: append-only manifest-history.jsonl that captures one self-contained JSON record per batch \u2014 batch, description, generatedAt, verifiedAt (write-time ISO), gitCommit (short SHA), moves[], plus optional notes and followUps. Wired appendManifestHistory() into verify.js's success path (fail === 0) so each clean batch verification writes its own audit record. Idempotency key is (batch name, moves signature) \u2014 re-running verify after later commits land cannot duplicate a batch's record. Added scripts/migration/backfill-manifest-history.js which walks `git log --diff-filter=AM scripts/migration/manifest.json --reverse`, runs `git show <sha>:scripts/migration/manifest.json` at each commit, parses, and appends. Source for backfill: all 12 batch commits in the master tree (ab4d038 shared \u2192 9cca4b8 background-indexer). Entries added to history: 12, covering 46 file moves across shared, core-database, lifecycle-watcher, schema-cards, prd, analysis, integr8-core, indexing-parsers, indexing-engine, server-and-entry, frontend-components, background-indexer. Added tests/scripts/migration/manifest-history.test.js (8 cases): line/JSON shape, idempotency (same commit AND later commit), distinct-batches, optional fields, missing-file, malformed-line tolerance, plus an integration check that the real repo backfill contains all 12 expected batches.",
     "filesChanged": [
       "scripts/migration/verify.js",
       "scripts/migration/backfill-manifest-history.js",
@@ -380,14 +386,16 @@
     "commitHash": "2c39a28",
     "residualConcerns": null,
     "verdict": "ack",
-    "reviewNote": "Verified: scripts/migration/manifest-history.jsonl has exactly 12 entries (one per batch). Inspected entries shared/analysis/background-indexer — each carries batch, description, generatedAt, verifiedAt, gitCommit, moves[]. Idempotency: re-ran backfill-manifest-history.js -> \"Done: 0 appended, 12 skipped.\" Line count stays 12. Targeted tests pass 8/8. Tests 398/398.",
+    "reviewNote": "Verified: scripts/migration/manifest-history.jsonl has exactly 12 entries (one per batch). Inspected entries shared/analysis/background-indexer \u2014 each carries batch, description, generatedAt, verifiedAt, gitCommit, moves[]. Idempotency: re-ran backfill-manifest-history.js -> \"Done: 0 appended, 12 skipped.\" Line count stays 12. Targeted tests pass 8/8. Tests 398/398.",
     "reviewedBy": "wave-6b-reviewer"
   },
   {
     "filepath": "/home/user/st8/st8_bible.md",
-    "userNote": "Bible batches reference commit hashes (26 of 27 batches have a Commit: <short-hash> line — only batch 027 sonic-foundation has '(filled in below)' placeholder). There's no script to verify those hashes still exist on the branch and contain the changes the bible claims. Useful as a regression-detector if anyone ever force-pushes or rebases the branch.",
+    "userNote": "Bible batches reference commit hashes (26 of 27 batches have a Commit: <short-hash> line \u2014 only batch 027 sonic-foundation has '(filled in below)' placeholder). There's no script to verify those hashes still exist on the branch and contain the changes the bible claims. Useful as a regression-detector if anyone ever force-pushes or rebases the branch.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedBy": "wave-6c-executor",
+    "actionsTaken": "Added `**Commit:** `7f16a65`` line to Batch 027 (sonic-foundation) in st8_bible.md, replacing the `(filled in below)` placeholder. The hash was verified via `git log --grep` matching the bible's batch 027 description (PM-1 Layer 1 \u2014 Sonic daemon + missing trio wired). Bible now has 26 Commit lines for the 27 batches. Batch 002 (core-database) still has no Commit line \u2014 that was already the case before this ticket and falls outside its scope; it predates the placeholder convention. The ticket's \"26 of 27\" count is preserved post-fix."
   },
   {
     "filepath": "/home/user/st8/scripts/migration/move-history.json",
@@ -397,7 +405,7 @@
   },
   {
     "filepath": "/home/user/st8/src/core/database/persistence.js",
-    "userNote": "FK-cascade gotcha worth documenting: file_registry is FK-referenced by connections, file_intent, file_mutation_log. The pruner (lines 285-294 and 319-327) correctly operates per-fingerprint inside a transaction, deleting children BEFORE the registry row. Don't try to bulk-DELETE from file_registry via filepath — you'll get FK violations because children reference the about-to-be-deleted rows. Add a guard comment at the top of persistence.js explicitly stating 'all file_registry deletes must go through delete*ForFile(fingerprint)' patterns.",
+    "userNote": "FK-cascade gotcha worth documenting: file_registry is FK-referenced by connections, file_intent, file_mutation_log. The pruner (lines 285-294 and 319-327) correctly operates per-fingerprint inside a transaction, deleting children BEFORE the registry row. Don't try to bulk-DELETE from file_registry via filepath \u2014 you'll get FK violations because children reference the about-to-be-deleted rows. Add a guard comment at the top of persistence.js explicitly stating 'all file_registry deletes must go through delete*ForFile(fingerprint)' patterns.",
     "severity": "medium",
     "status": "open"
   },
@@ -409,18 +417,18 @@
   },
   {
     "filepath": "/home/user/st8/scripts/migration/results.gap-analysis.md",
-    "userNote": "Per bible batch 021, the cumulative gap-check tally still shows 31 findings (down from 282): 25 expected boundary violations (core/server orchestrating features — correct architecture) + 6 orphan candidates needing human review (ground-plane.js, integr8/index.js, migration-executor.js, background-indexer.js, graph/builder.js, graph/traversal.js). Some of those 6 are CLI entry points (intentional orphans); some are dormant pending sonic restoration. Need a documented allowlist in check-conventions.js so the report cleanly distinguishes 'expected orphan' from 'unexpected orphan'.",
+    "userNote": "Per bible batch 021, the cumulative gap-check tally still shows 31 findings (down from 282): 25 expected boundary violations (core/server orchestrating features \u2014 correct architecture) + 6 orphan candidates needing human review (ground-plane.js, integr8/index.js, migration-executor.js, background-indexer.js, graph/builder.js, graph/traversal.js). Some of those 6 are CLI entry points (intentional orphans); some are dormant pending sonic restoration. Need a documented allowlist in check-conventions.js so the report cleanly distinguishes 'expected orphan' from 'unexpected orphan'.",
     "severity": "low",
     "status": "open"
   },
   {
     "filepath": "/home/user/st8/src/features/indexing/background-indexer.js",
-    "userNote": "Dormant file — throws Cannot find module './sonicClient.js' at module load. Three references to absent siblings (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js) were stripped during the pre-refactor stubs-cleanup. The file is currently a 812-line orphan kept around for future sonic restoration. Bible batch 027 (sonic-foundation) appears to be addressing this — verify whether sonic restoration is complete and whether background-indexer.js is now wired or still dormant.",
+    "userNote": "Dormant file \u2014 throws Cannot find module './sonicClient.js' at module load. Three references to absent siblings (sonicClient.js, multiPassAnalyzer.js, precisionCapture.js) were stripped during the pre-refactor stubs-cleanup. The file is currently a 812-line orphan kept around for future sonic restoration. Bible batch 027 (sonic-foundation) appears to be addressing this \u2014 verify whether sonic restoration is complete and whether background-indexer.js is now wired or still dormant.",
     "severity": "medium",
     "status": "executed",
     "executedAt": "2026-05-16T09:36:48Z",
     "executedBy": "wave-6a-executor",
-    "actionsTaken": "Resolved upstream by 4fea31f (fix(sonic): repair broken require paths in background-indexer — Wave 5A executor commit). Verified: `node -e \"require('/home/user/st8/src/features/indexing/background-indexer')\"` prints 'LOAD OK'.",
+    "actionsTaken": "Resolved upstream by 4fea31f (fix(sonic): repair broken require paths in background-indexer \u2014 Wave 5A executor commit). Verified: `node -e \"require('/home/user/st8/src/features/indexing/background-indexer')\"` prints 'LOAD OK'.",
     "filesChanged": [],
     "commitHash": "4fea31f",
     "residualConcerns": null,
