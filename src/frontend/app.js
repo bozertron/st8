@@ -294,6 +294,32 @@
     });
 
     // ─── PRD WIZARD ─────────────────────────────────────────
+    //
+    // DESIGN DECISION (Wave 5I, ticket FRONT-006):
+    //   The PRD wizard remains a modal `.panel-overlay#overlay-prd-wizard`
+    //   rather than a 4th carousel slide. The frontend wave previously
+    //   chose this and the founder's stance is "strip legacy UI, don't
+    //   add to it." Promoting the wizard to a permanent carousel column
+    //   would require:
+    //     - a 4th slide track in `panels-strip` (currently 3-target:
+    //       explorer | st8 | phreak — see SLIDE_TARGETS above)
+    //     - new diamond-key bindings, shelf icon, and visibility gating
+    //       (hide unless INDEX has run)
+    //     - moving `loadTemplatesForWizard` + the generation flow into
+    //       its own mounted component, mirroring explorer/phreak.
+    //   None of that is needed for the current launch surface.
+    //
+    //   Trade-off:
+    //   - Modal isolates the wizard from the carousel and lets users
+    //     keep their explorer context while configuring a PRD.
+    //   - `file-explorer.js:350` calls `window.openPRDWizard()` directly,
+    //     a coupling we accept: if the wizard ever moves to a slide,
+    //     this global function will become a `slideTo('prd')` wrapper
+    //     and the call site does NOT need to change.
+    //
+    //   Deferred to roadmap: `docs/_pending-roadmap/server-api-and-legacy-frontend.md`
+    //   item P3.3 — "Migrate PRD wizard into the carousel pattern".
+    //
     window.openPRDWizard = function() {
       document.getElementById('overlay-prd-wizard').classList.add('open');
       loadTemplatesForWizard();
