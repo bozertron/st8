@@ -106,6 +106,78 @@ ensureBinaryExecutable();
 
 // ─── Helpers ────────────────────────────────────────────────────
 
+/**
+ * Wave 5A ticket 8: validate the canonical sonic.cfg against the daemon's
+ * expectations before spawning. Catches MAESTRO-side config drift (renamed
+ * sections, port change, removed ${SONIC_STORE_PATH} substitution) at boot
+ * rather than at first query.
+ *
+ * Returns { ok: boolean, reason?: string, details?: string }.
+ *
+ * Required fields (all must be present in the template):
+ *   - [server], [channel], [store], [store.kv], [store.fst] section headers
+ *   - inet = "<host>:<port>"  — port must equal SONIC_PORT (1491)
+ *   - auth_password = "..."   — value not checked, presence required
+ *   - ${SONIC_STORE_PATH} substitution must appear at least twice
+ *     (once for store.kv path, once for store.fst path)
+ */
+function validateSonicConfig(configPath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(configPath, 'utf8');
+  } catch (err) {
+    return { ok: false, reason: 'config_read_failed', details: err.message };
+  }
+
+  const requiredSections = ['[server]', '[channel]', '[store]', '[store.kv]', '[store.fst]'];
+  const missingSections = requiredSections.filter((s) => !raw.includes(s));
+  if (missingSections.length > 0) {
+    return {
+      ok: false,
+      reason: 'config_missing_sections',
+      details: `Missing sections: ${missingSections.join(', ')}`,
+    };
+  }
+
+  // inet must declare the expected port. The host can be IPv4 or IPv6;
+  // the daemon rewrites it to 127.0.0.1 in the runtime config either way.
+  const inetMatch = raw.match(/^\s*inet\s*=\s*"([^"]+)"/m);
+  if (!inetMatch) {
+    return { ok: false, reason: 'config_missing_inet', details: 'No inet = "host:port" line found' };
+  }
+  const portMatch = inetMatch[1].match(/:(\d+)$/);
+  if (!portMatch) {
+    return { ok: false, reason: 'config_inet_unparseable', details: `Could not parse port from "${inetMatch[1]}"` };
+  }
+  const declaredPort = parseInt(portMatch[1], 10);
+  if (declaredPort !== SONIC_PORT) {
+    return {
+      ok: false,
+      reason: 'config_port_mismatch',
+      details: `sonic.cfg declares port ${declaredPort}; daemon expects ${SONIC_PORT}`,
+    };
+  }
+
+  // auth_password presence (value not asserted; ticket 9 handles rotation).
+  if (!/^\s*auth_password\s*=\s*"[^"]*"/m.test(raw)) {
+    return { ok: false, reason: 'config_missing_auth_password', details: 'No auth_password line found' };
+  }
+
+  // ${SONIC_STORE_PATH} substitution — required twice (kv + fst). The daemon
+  // sets SONIC_STORE_PATH in the spawn env; if the template doesn't
+  // reference it, the spawned Sonic will write to a wrong location.
+  const subCount = (raw.match(/\$\{SONIC_STORE_PATH\}/g) || []).length;
+  if (subCount < 2) {
+    return {
+      ok: false,
+      reason: 'config_missing_store_path_subst',
+      details: `\${SONIC_STORE_PATH} appears ${subCount} time(s); expected at least 2 (store.kv + store.fst)`,
+    };
+  }
+
+  return { ok: true };
+}
+
 function pingPort(host, port, timeoutMs = 500) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -179,6 +251,16 @@ async function start(options = {}) {
     _state.lastError = 'config_missing';
     console.warn(`[sonic-daemon] Sonic template config not found at ${SONIC_TEMPLATE_CONFIG} — running in SQLite-only mode`);
     return { ok: false, reason: 'config_missing', available: false };
+  }
+
+  // Wave 5A ticket 8: validate sonic.cfg against expectations. Catches
+  // MAESTRO-side config drift before we spawn Sonic with a config that
+  // would silently break queries.
+  const cfgValidation = validateSonicConfig(SONIC_TEMPLATE_CONFIG);
+  if (!cfgValidation.ok) {
+    _state.lastError = cfgValidation.reason;
+    console.warn(`[sonic-daemon] sonic.cfg validation failed: ${cfgValidation.reason} — ${cfgValidation.details}. Running in SQLite-only mode.`);
+    return { ok: false, reason: cfgValidation.reason, available: false, details: cfgValidation.details };
   }
 
   // Ensure binary is executable. The module-load helper already ran once,
@@ -312,4 +394,4 @@ function getStatus() {
   };
 }
 
-module.exports = { start, stop, isAvailable, getStatus };
+module.exports = { start, stop, isAvailable, getStatus, validateSonicConfig };
