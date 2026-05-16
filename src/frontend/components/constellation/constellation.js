@@ -126,8 +126,14 @@
       console.warn('[st8:constellation] target element not found');
       return;
     }
+    // Ticket 5: explicit guard on the particles.js global contract.
+    // particles.lib.js is loaded as a classic <script> in index.html
+    // and produces exactly two side-effect globals: window.particlesJS
+    // (function) and window.pJSDom (Array). The full contract is
+    // documented at the top of components/constellation/particles.lib.js.
+    // We're the sole consumer; fail soft if either is missing.
     if (typeof window.particlesJS !== 'function') {
-      console.warn('[st8:constellation] particles.lib.js not loaded — did the <script src> drop?');
+      console.warn('[st8:constellation] window.particlesJS missing — components/constellation/particles.lib.js not loaded (script tag dropped, or load order broken). See particles.lib.js header for the global contract.');
       return;
     }
     state.targetEl = targetEl;

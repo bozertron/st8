@@ -7,6 +7,40 @@
 /* v2.0.0
 /* ----------------------------------------------- */
 
+/* ═══════════════════════════════════════════════════════════════
+   ST8 GLOBAL-CONTRACT NOTE (ticket 5, Wave 7C)
+   ═══════════════════════════════════════════════════════════════
+   This file is the UNMODIFIED upstream particles.js v2.0.0 vendored
+   verbatim (do not edit below this block — patches diverge from the
+   upstream MIT-licensed source and break drop-in updates).
+
+   It is loaded as a classic <script> tag in index.html and produces
+   exactly two global side-effects:
+
+     window.particlesJS(tag_id, params)
+         Mounts a particles instance on the element with id=tag_id.
+         Returns nothing; the instance is pushed onto window.pJSDom.
+
+     window.pJSDom                       (Array)
+         Array of { pJS, ... } entries, one per particlesJS() call.
+         constellation.js reaches into pJSDom[i].pJS.particles.array
+         to attach per-particle file metadata and to recolor via the
+         status mapping.
+
+   Consumer contract — constellation.js is the SOLE consumer in st8.
+   It guards both globals at init (`typeof window.particlesJS !==
+   'function'` + `Array.isArray(window.pJSDom)`) and fails soft with
+   a console.warn if either is missing (e.g. <script> load order
+   broken, library removal). The destroy() path tears down via
+   `pJS.fn.vendors.destroypJS()` behind a tightened guard (ticket 19).
+
+   Migration pointer — wrapping particles.js behind a thin adapter
+   module (`mountParticles(host, config) → { particles, destroy,
+   on(event, fn) }`) is on the roadmap as P3 "Particles.js adapter
+   module" (docs/_pending-roadmap/frontend-experience.md). Until that
+   ships, this is the canonical global-contract documentation.
+   ═══════════════════════════════════════════════════════════════ */
+
 var pJS = function(tag_id, params){
 
   var canvas_el = document.querySelector('#'+tag_id+' > .particles-js-canvas-el');
