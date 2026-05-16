@@ -311,7 +311,22 @@ const state = {
   animId: null,
   clock: null,
   currentFile: null,
+  // ─── Emergence animation state (ticket 11) ──────────────────
+  // BUILDING_CONFIG.emergenceMs governs the entrance animation per
+  // the founder's brief: "scatter -> position animation, teal ->
+  // status color". `emergence` is populated on each buildForFile()
+  // and consumed in the anim tick; null when no animation is active.
+  //   startTime    — performance.now() at emergence kickoff
+  //   targetColors — Float32Array of final per-particle colors
+  //   basePositions — Float32Array of final positions; scatter is
+  //                   derived by multiplying by SCATTER_FACTOR on
+  //                   tick(0) and interpolating back to *1.0 by
+  //                   tick(emergenceMs).
+  emergence: null,
 };
+
+const SCATTER_FACTOR = 3.0;   // how far the particles start from final pos
+const EMERGENCE_RESIZE_LISTENER = { fn: null };   // ticket 12 — stored ref for cleanup
 
 // ─── Materials ─────────────────────────────────────────────────
 
@@ -481,15 +496,72 @@ function buildForFile(file) {
   const builder = new BarradeauBuilding(file).build();
   const colorHex = file.locked ? STATUS_COLOR.LOCKED : (STATUS_COLOR[file.status] || STATUS_COLOR.GREEN);
 
-  state.points = new THREE.Points(builder.getPointsGeometry(colorHex), state.particleMaterial);
+  const pointsGeom = builder.getPointsGeometry(colorHex);
+  state.points = new THREE.Points(pointsGeom, state.particleMaterial);
   state.lines  = new THREE.LineSegments(builder.getLinesGeometry(), LINE_MATERIAL);
   state.scene.add(state.points);
   state.scene.add(state.lines);
+
+  // ─── Kick off emergence animation (ticket 11) ─────────────
+  // Snapshot the target positions + colors, then overwrite the live
+  // attributes with the scattered-out / cyan-tinted starting state.
+  // The anim tick interpolates back over BUILDING_CONFIG.emergenceMs.
+  const targetPositions = new Float32Array(pointsGeom.attributes.position.array);
+  const targetColors    = new Float32Array(pointsGeom.attributes.color.array);
+  const emergeColor = new THREE.Color(EMERGENCE_COLOR);
+  const livePos = pointsGeom.attributes.position.array;
+  const liveCol = pointsGeom.attributes.color.array;
+  for (let i = 0; i < livePos.length; i += 3) {
+    livePos[i]     = targetPositions[i]     * SCATTER_FACTOR;
+    livePos[i + 1] = targetPositions[i + 1] * SCATTER_FACTOR;
+    livePos[i + 2] = targetPositions[i + 2] * SCATTER_FACTOR;
+    liveCol[i]     = emergeColor.r;
+    liveCol[i + 1] = emergeColor.g;
+    liveCol[i + 2] = emergeColor.b;
+  }
+  pointsGeom.attributes.position.needsUpdate = true;
+  pointsGeom.attributes.color.needsUpdate = true;
+  state.emergence = {
+    startTime: performance.now(),
+    targetPositions,
+    targetColors,
+  };
 
   // Center the camera target on the building's middle
   const midY = (builder.particles.length ? builder.particles.reduce((s,p)=>s+p.y,0) / builder.particles.length : 0);
   state.controls.target.set(0, midY, 0);
   state.controls.update();
+}
+
+// ─── Emergence tick (ticket 11) ─────────────────────────────
+// Interpolates the live position + color BufferAttributes from the
+// scattered/cyan starting snapshot back to the target geometry over
+// BUILDING_CONFIG.emergenceMs. Self-clears state.emergence on completion.
+function updateEmergence(nowMs) {
+  const e = state.emergence;
+  if (!e || !state.points) return;
+  const elapsed = nowMs - e.startTime;
+  const tRaw = Math.min(1, elapsed / BUILDING_CONFIG.emergenceMs);
+  // ease-out cubic for organic settle (matches the orbit-control damping feel)
+  const t = 1 - Math.pow(1 - tRaw, 3);
+  const livePos = state.points.geometry.attributes.position.array;
+  const liveCol = state.points.geometry.attributes.color.array;
+  const tgtPos  = e.targetPositions;
+  const tgtCol  = e.targetColors;
+  const emergeColor = new THREE.Color(EMERGENCE_COLOR);
+  const scaleStart = SCATTER_FACTOR;
+  const scale = scaleStart + (1 - scaleStart) * t;   // SCATTER → 1.0
+  for (let i = 0; i < livePos.length; i += 3) {
+    livePos[i]     = tgtPos[i]     * scale;
+    livePos[i + 1] = tgtPos[i + 1] * scale;
+    livePos[i + 2] = tgtPos[i + 2] * scale;
+    liveCol[i]     = emergeColor.r + (tgtCol[i]     - emergeColor.r) * t;
+    liveCol[i + 1] = emergeColor.g + (tgtCol[i + 1] - emergeColor.g) * t;
+    liveCol[i + 2] = emergeColor.b + (tgtCol[i + 2] - emergeColor.b) * t;
+  }
+  state.points.geometry.attributes.position.needsUpdate = true;
+  state.points.geometry.attributes.color.needsUpdate = true;
+  if (tRaw >= 1) state.emergence = null;
 }
 
 // ─── Animation loop ────────────────────────────────────────────
@@ -500,6 +572,7 @@ function startAnim() {
     state.animId = requestAnimationFrame(tick);
     const time = state.clock.getElapsedTime();
     if (state.particleMaterial) state.particleMaterial.uniforms.uTime.value = time;
+    if (state.emergence) updateEmergence(performance.now());
     if (state.controls) state.controls.update();
     if (state.composer) state.composer.render();
   }
