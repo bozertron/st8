@@ -22,6 +22,59 @@ const MANIFEST_PATH = path.join(__dirname, 'manifest.json');
 const HISTORY_PATH = path.join(__dirname, 'move-history.json');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+/**
+ * Heuristic: does this file behave like browser-only code?
+ *
+ * Returns true if any line that is NOT a comment-only line references one
+ * of the browser globals (window, document, navigator, location,
+ * localStorage, sessionStorage) directly. We avoid full AST parsing to
+ * keep this dependency-free and fast; the false-negative cost is low
+ * because the manifest's `client: true` flag remains the primary
+ * signal — this is just a defence-in-depth fallback for when someone
+ * forgets to set the flag.
+ *
+ * Notes:
+ *   - "window." / "document." / etc. with a property access count.
+ *   - "typeof window" / "typeof document" checks count too — pure type
+ *     guards typically appear inside isomorphic libs, but if a module
+ *     bothers to write them, it's expecting a browser path.
+ *   - Lines starting with `//` or wrapped in `/* ... *​/` blocks are
+ *     stripped before scanning.
+ */
+function detectBrowserOnly(absPath) {
+  let text;
+  try {
+    text = fs.readFileSync(absPath, 'utf8');
+  } catch (_) {
+    return false;
+  }
+  // Strip block comments greedily — non-greedy across newlines via [\s\S].
+  const noBlock = text.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Drop full-line `//` comments. Inline trailing `//` comments are
+  // a corner case but acceptable false positives.
+  const lines = noBlock.split('\n').filter((l) => !/^\s*\/\//.test(l));
+  const haystack = lines.join('\n');
+  // Browser globals as standalone identifiers followed by `.` or `[` (member access),
+  // or appearing in `typeof X` checks. Anchoring on a non-word char on the left
+  // avoids false positives like `myWindow.foo` or `documentation`.
+  const patterns = [
+    /(^|[^\w$])window\s*[.\[]/,
+    /(^|[^\w$])document\s*[.\[]/,
+    /(^|[^\w$])navigator\s*[.\[]/,
+    /(^|[^\w$])location\s*[.\[]/,
+    /(^|[^\w$])localStorage\s*[.\[]/,
+    /(^|[^\w$])sessionStorage\s*[.\[]/,
+    /(^|[^\w$])history\s*\.\s*(pushState|replaceState|back|forward)\b/,
+    /\btypeof\s+(window|document|navigator)\b/,
+    /(^|[^\w$])customElements\s*[.\[]/,
+    /(^|[^\w$])HTMLElement\b/,
+  ];
+  for (const pat of patterns) {
+    if (pat.test(haystack)) return true;
+  }
+  return false;
+}
+
 function appendBatchToHistory(manifest) {
   // After every fully-passing verify, record this batch in move-history.json
   // so future batches' rewriters can find these files at their new locations.
@@ -160,7 +213,17 @@ function main() {
       return res;
     }
 
-    const isClient = m.client === true;
+    // Browser-only detection: trust manifest.client first, then fall back
+    // to a parse heuristic so a forgotten flag doesn't cause a misleading
+    // "require threw" failure. We auto-detect on the destination file
+    // (post-move) because that's the canonical location going forward;
+    // if it looks browser-only, treat both sides as client (the original
+    // pre-move file is by definition the same source).
+    const heuristicBrowser = detectBrowserOnly(toAbs) || detectBrowserOnly(fromAbs);
+    const isClient = m.client === true || heuristicBrowser;
+    if (!m.client && heuristicBrowser) {
+      console.log(`      (auto-detected browser-only via parse heuristic — manifest.client flag not set)`);
+    }
     const origRes = isClient ? probeClientSyntaxOnly(fromAbs) : probe(fromAbs);
     const newRes = isClient ? probeClientSyntaxOnly(toAbs) : probe(toAbs);
 
@@ -255,4 +318,10 @@ function main() {
   process.exit(fail > 0 ? 1 : 0);
 }
 
-main();
+// Expose internals for unit tests. The CLI behaviour is preserved by the
+// `require.main === module` guard — main() only runs when invoked directly.
+module.exports = { detectBrowserOnly };
+
+if (require.main === module) {
+  main();
+}

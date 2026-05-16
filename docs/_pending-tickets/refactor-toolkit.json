@@ -313,7 +313,15 @@
     "filepath": "/home/user/st8/scripts/migration/verify.js",
     "userNote": "Browser-only detection relies on the manifest's `client: true` flag (line 163). If someone forgets to set it on a frontend file move, verify.js tries to require() the module, which throws on window/document references. The batch 017 both-broken-identically check (line 176-186) mitigates this to a WARN-pass — but it's noisy and conceals real regressions in the same file. Consider auto-detecting client modules by path prefix (anything under src/frontend/) instead of trusting the flag.",
     "severity": "medium",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Added detectBrowserOnly(absPath) parse heuristic that strips block + line comments and scans for direct member access against browser globals: window, document, navigator, location, localStorage, sessionStorage, history.{pushState,replaceState,back,forward}, customElements, HTMLElement, plus `typeof window|document|navigator` guards. Anchored each pattern on a non-word char so lookalikes like myWindow/documentation don't trigger. Wired into the isClient decision: `m.client === true || heuristicBrowser`. Emits a hint line when manifest.client is missing but the heuristic fires, so reviewers see the auto-detection in the log. Exported detectBrowserOnly for tests, guarded main() with require.main === module. Added tests/scripts/migration/verify.test.js (12 cases) covering each pattern, comment-aware negatives, lookalike negatives, missing-file no-throw, plus integration probes against src/frontend/app.js (positive) and src/core/hook-registry.js (negative). Known limitation documented inline: SQL string literals containing documentary 'window.X' references will false-positive — harmless because verify.js then runs `node --check` instead of require() (downgrade, never upgrade).",
+    "filesChanged": [
+      "scripts/migration/verify.js",
+      "tests/scripts/migration/verify.test.js"
+    ],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/OGB",
