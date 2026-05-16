@@ -223,6 +223,25 @@ charming but undocumented. Either:
 - Hidden-files toggle in file-explorer.js (`LS_SHOW_HIDDEN` undefined,
   no button wires it).
 
+### P3.7 — BULK_INDEXED hook (defer of BOOT-001 / Wave 5G ticket 15)
+
+`main.js` fires `HOOKS.FILE_INDEXED` once per file inside the Pass-1
+upsert loop, awaiting each fire sequentially. Today there are ZERO
+default subscribers — Wave 2B measured the entire 281-file fire chain at
+0.82 ms (sub-millisecond per fire) because `HookRegistry.execute()`
+short-circuits when no handlers and no `.on()` listeners exist. The
+await chain is NOT a bottleneck on the current path.
+
+**Trigger to revisit:** any subscriber that blocks > 5 ms per fire
+(file-level Louis lock checks, real-time UI updates, embedding
+generation) turns this loop into a serialised hot path. At that point
+add a `BULK_INDEXED` hook fired ONCE after Pass 1 with
+`{files, targetDir, persistence}` so bulk consumers can amortise their
+work, and keep per-file consumers on `FILE_INDEXED` with a documented
+per-fire perf budget. The fire site in `main.js` carries an inline
+comment preserving the measurement so a future contributor doesn't
+optimise prematurely (Wave 5G ticket 15).
+
 ---
 
 ## Priority distribution
@@ -231,7 +250,8 @@ charming but undocumented. Either:
 - **P2:** 7 items (D3 bundling, renderFileList decoupling, OpenAPI,
   body-size backfill, traversal audit, readJsonBody helper, manifest
   freshness)
-- **P3:** 6 items (REST conventions, rate-limit/auth, PRD wizard,
-  error-banner hoist, phone metaphor, dead-constant cleanup)
+- **P3:** 7 items (REST conventions, rate-limit/auth, PRD wizard,
+  error-banner hoist, phone metaphor, dead-constant cleanup, BULK_INDEXED
+  hook defer)
 
-Total: 15 roadmap items.
+Total: 16 roadmap items.

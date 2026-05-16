@@ -285,6 +285,22 @@ async function main() {
         // Per file, fire FILE_INDEXED so subscribers can react as each file's
         // identity lands in the registry — this is the "identification built
         // into the indexer" hook point (HOOK-ARCHITECTURE-RESEARCH §6).
+        //
+        // PERF NOTE (Wave 2B + Wave 5G ticket 15): the await below is
+        // sequential — each FILE_INDEXED fire is awaited before the next
+        // file is upserted. With ZERO default subscribers this is a no-op
+        // path; HookRegistry.execute() short-circuits to {ok:0,fail:0} when
+        // both _hooks map and EventEmitter listenerCount are empty, saving
+        // Promise allocation + microtask flush. Wave 2B measured the
+        // entire 281-file fire chain at 0.82 ms (sub-millisecond per
+        // fire). Conclusion: DO NOT parallelise this loop unless a future
+        // subscriber introduces a real per-file bottleneck. Parallelism
+        // here would break ordered persistence reads (subscribers may
+        // observe the DB after each upsert) and would NOT save measurable
+        // wall-clock on the current zero-subscriber path. When the first
+        // subscriber blocks > 5 ms per fire this becomes a real
+        // bottleneck — at that point batch via a BULK_INDEXED hook
+        // (sketch in docs/_pending-roadmap/server-api-and-legacy-frontend.md).
         for (const file of result.files) {
             persistence.upsertFile({
                 fingerprint: file.fingerprint,     // NOW uses stable identity

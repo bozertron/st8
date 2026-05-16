@@ -205,7 +205,10 @@
       "file": "src/core/server/main.js",
       "lineHint": "128-158 (Pass 1 upsert loop)",
       "summary": "FILE_INDEXED fires synchronously inside the per-file await loop. If any subscriber registers I/O (Louis lock check, real-time UI) it serialises the indexer. No subscribers exist today but the hot loop is a tripwire.",
-      "proposed": "Document the perf contract for FILE_INDEXED subscribers (must be < 5ms or registered async) OR change main.js to fire BULK_INDEXED with the file array after Pass 1."
+      "proposed": "Document the perf contract for FILE_INDEXED subscribers (must be < 5ms or registered async) OR change main.js to fire BULK_INDEXED with the file array after Pass 1.",
+      "status": "deferred-to-roadmap",
+      "executedBy": "wave-5g-executor",
+      "actionsTaken": "Deferred per Wave 5G prompt with the Wave 2B measurement preserved on-disk. The fire chain was measured at 0.82 ms TOTAL across 281 files (sub-millisecond per fire) because HookRegistry.execute() short-circuits when both the _hooks map and EventEmitter listenerCount are empty. With ZERO default subscribers on FILE_INDEXED today, parallelising the loop would (a) save no measurable wall-clock, (b) break ordered DB reads for any subscriber that observes the registry after each upsert, and (c) introduce non-determinism without solving a real problem. Two changes shipped instead of code: (1) inline comment block at the fire site in src/core/server/main.js (Pass-1 loop) carrying the Wave 2B measurement, the do-not-parallelise reasoning, and the trigger condition (any subscriber blocking > 5 ms per fire turns this into a real bottleneck — at that point add BULK_INDEXED). (2) New roadmap entry P3.7 in docs/_pending-roadmap/server-api-and-legacy-frontend.md with the same trigger + sketch of the BULK_INDEXED contract so when a real subscriber arrives the next contributor has the design context already written. Priority distribution updated from 15 → 16 items in the roadmap footer. NO CODE BEHAVIOUR CHANGE."
     },
     {
       "id": "FRONT-007",
