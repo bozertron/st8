@@ -63,25 +63,45 @@
     "filepath": "/home/user/st8/backend",
     "userNote": "Directory still exists with 3 non-code files: SCHEMA-CARD-EMITTER-REPORT.md, SECURITY-AUDIT-H1.md, package.json. All 14 backend .js files moved to src/ and staged to OGB in batch 019. Founder explicitly noted in bible batch 019 that these 3 files were 'left for separate decision'.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Deleted backend/ entirely via `git rm -r backend/`. Pre-check: grepped src/, tests/, scripts/ for `backend/SCHEMA-CARD`, `backend/SECURITY-AUDIT`, `backend/package.json` — only documentary references in st8_bible.md L2390, docs/components/refactor-toolkit.md (history), docs/_pending-roadmap/refactor-toolkit.md L16 (which explicitly says 'Delete backend/package.json'). No source/script/test code imports backend/. Git history retains all 3 files. Tests stay 373/373.",
+    "filesChanged": ["backend/SCHEMA-CARD-EMITTER-REPORT.md", "backend/SECURITY-AUDIT-H1.md", "backend/package.json"],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/backend/SCHEMA-CARD-EMITTER-REPORT.md",
     "userNote": "Stale report from when schema card emitter lived in backend/. The emitter is now at src/features/schema-cards/emitter.js. Decide: move to docs/, delete (git has history), or leave as-is. Bible batch 019 explicitly tabled this for founder decision.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Deleted as part of backend/ cleanup. Git retains full history; this is a stale report against backend/schemaCardEmitter.js (now src/features/schema-cards/emitter.js). The current emitter has its own Wave 2C/3B docs.",
+    "filesChanged": ["backend/SCHEMA-CARD-EMITTER-REPORT.md"],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/backend/SECURITY-AUDIT-H1.md",
     "userNote": "Stale audit report in old backend/ location. Same fate-decision needed as SCHEMA-CARD-EMITTER-REPORT.md.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Deleted as part of backend/ cleanup. Git retains full history; the audit was against pre-refactor backend/ code that no longer exists at those paths. Wave 1/2 hardening (FK pragma, schema drift detector, X-St8-Secret auth) supersede the audit's findings.",
+    "filesChanged": ["backend/SECURITY-AUDIT-H1.md"],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/backend/package.json",
     "userNote": "Stale package.json in old backend/ directory. The active package.json is at repo root. Likely safe to delete but worth confirming no internal tooling cd's into backend/.",
     "severity": "low",
-    "status": "open"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-6b-executor",
+    "actionsTaken": "Deleted as part of backend/ cleanup. Verified no scripts cd into backend/ — repo-root package.json has been authoritative since batch 010. Roadmap doc explicitly authorized deletion.",
+    "filesChanged": ["backend/package.json"],
+    "residualConcerns": null
   },
   {
     "filepath": "/home/user/st8/0_MASTER_INDEX.md",
