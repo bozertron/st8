@@ -40,7 +40,7 @@
     "filesChanged": [
       "src/features/watcher/file-watcher.js"
     ],
-    "commitHash": "PENDING",
+    "commitHash": "d780c31",
     "residualConcerns": null
   },
   {
@@ -95,7 +95,15 @@
     "filepath": "src/features/watcher/file-watcher.js",
     "userNote": "BROAD IGNORES: the ignored-globs list at lines 55-72 includes '**/*.json' and '**/*.toml'. This is to prevent the manifest writer's own output (connection-state.json, ai-signal.toml) from triggering the watcher, but it also ignores user code config files (package.json, tsconfig.json, pyproject.toml). Tighten to specific basenames (connection-state.json, ai-signal.toml) plus the .st8/** glob already present, OR rely solely on the indexer's batch-026 SELF_WRITTEN_BASENAMES guard. Today a package.json change does not trigger re-index.",
     "severity": "low",
-    "status": "YELLOW"
+    "status": "executed",
+    "executedAt": "2026-05-16T00:00:00Z",
+    "executedBy": "wave-4a-executor",
+    "actionsTaken": "Audit verdict: scope DOWN. The broad `**/*.json` + `**/*.toml` ignores were over-scoped after Wave 2B + batch 026: (a) the indexer already has SELF_WRITTEN_BASENAMES = {'connection-state.json', 'ai-signal.toml'} at src/features/indexing/indexer.js:166 that skips those basenames at index time, (b) main.js's CODE_EXTENSIONS filter still includes `.json` (so JSON files are legitimate code targets), (c) the indexer's IGNORE_DIRS already covers .st8/ which holds .json manifests. Replaced `**/*.json` + `**/*.toml` with `path.join(this.targetDir, 'connection-state.json')` + `path.join(this.targetDir, 'ai-signal.toml')` — root-only, exact-path. Now a user `package.json` / `tsconfig.json` / `pyproject.toml` / `Cargo.toml` change correctly flows through the watcher. The other ignores (.sqlite*, node_modules, .git, dist, build, .venv, venv, __pycache__, .st8/**, snapshots/**, .archive/**, .planning/st8_identity_system/**) were left intact — they are scoped to known non-source paths. Inline comment block added above the ignored: list explaining the audit decision and the downstream safety net (CODE_EXTENSIONS + SELF_WRITTEN_BASENAMES).",
+    "filesChanged": [
+      "src/features/watcher/file-watcher.js"
+    ],
+    "commitHash": "PENDING",
+    "residualConcerns": null
   },
   {
     "filepath": "src/features/watcher/file-watcher.js",

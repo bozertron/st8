@@ -60,6 +60,25 @@ class FileWatcher {
         console.log(`[st8:watcher] Starting watcher on: ${this.targetDir}`);
         
         this.watcher = chokidar.watch(this.targetDir, {
+            // ── IGNORE LIST AUDIT (ticket 13, wave 4A) ──────────────
+            // The previous broad `**/*.json` and `**/*.toml` globs
+            // existed to prevent st8's own manifest writes
+            // (connection-state.json + ai-signal.toml at targetDir
+            // root) from re-triggering the watcher. After Wave 2B
+            // decomposed the watcher callback into FILE_AFTER_CHANGE
+            // subscribers AND the indexer's SELF_WRITTEN_BASENAMES
+            // guard (src/features/indexing/indexer.js:166) already
+            // skips those exact basenames at index time, the broad
+            // globs were over-scoped — they silently swallowed
+            // legitimate user config edits (package.json,
+            // tsconfig.json, pyproject.toml, Cargo.toml, etc.) so
+            // a `package.json` change never triggered re-index.
+            //
+            // Scope tightened to the two known manifest basenames at
+            // the target root only. Anything deeper (e.g. user
+            // package.json in a subdir) now flows through the
+            // watcher and is filtered downstream by main.js
+            // CODE_EXTENSIONS + indexer SELF_WRITTEN_BASENAMES.
             ignored: [
                 '**/node_modules',
                 '**/.git',
@@ -71,8 +90,8 @@ class FileWatcher {
                 '**/*.sqlite',
                 '**/*.sqlite-wal',
                 '**/*.sqlite-shm',
-                '**/*.json',
-                '**/*.toml',
+                path.join(this.targetDir, 'connection-state.json'),
+                path.join(this.targetDir, 'ai-signal.toml'),
                 '**/.st8/**',
                 '**/.planning/st8_identity_system/**',
                 '**/.archive/**',
