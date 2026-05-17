@@ -287,6 +287,44 @@ function registerDefaultSubscribers(registry) {
     }
   }, { priority: 37, source: 'cycle-insight-emitter' });
 
+  // P=38 — gap-analyzer-insight-adapter (Batch 032 / QW-2).
+  //
+  // Re-emits gap-analyzer's D1–D6 output as canonical InsightRecords
+  // from the docs/Insight Store/insightStore.ts 13-value enum. One
+  // producer, four canonical categories in a single ticket:
+  //   D2 redFiles              → structural
+  //   D5 orphanImports         → dependency
+  //   D4 zero-export files     → api_surface
+  //   D6 missingEndpoints      → api_surface
+  //   D3 unauthored            → documentation
+  //   D1 canProgress           → documentation
+  //
+  // Runs AFTER insight-store-populator (P=35) so populator's
+  // clearProject(projectId) has already wiped the prior snapshot.
+  // Runs AFTER cycle-insight-emitter (P=37) so cycle records land
+  // first (cosmetic ordering — independent writes either way).
+  // Runs BEFORE intent-seeder (P=40).
+  //
+  // Re-runs analyzer.analyze() rather than threading the P=30
+  // gap-analyzer subscriber's report through ctx — keeps subscribers
+  // loosely coupled and avoids the ctx-contract regression risk.
+  registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
+    try {
+      const { runGapAnalysisInsightAdapter } = require('../../features/analysis/gap-analyzer-insight-adapter');
+      const result = runGapAnalysisInsightAdapter(ctx, { projectId: 'st8' });
+      if (!result.ran) return;
+      const by = result.byCategory || {};
+      console.log(
+        `[st8] Gap-analysis insights: ${result.inserted} canonical records emitted ` +
+        `(structural=${by.structural || 0}, dependency=${by.dependency || 0}, ` +
+        `api_surface=${by.api_surface || 0}, documentation=${by.documentation || 0}` +
+        (result.skipped > 0 ? `, skipped=${result.skipped}` : '') + ')'
+      );
+    } catch (err) {
+      console.error('[st8] gap-analyzer-insight-adapter failed:', err.message);
+    }
+  }, { priority: 38, source: 'gap-analyzer-insight-adapter' });
+
   // P=50 — file_mutation_log retention (ticket 10, Wave 1B).
   //
   // Policy:
