@@ -3327,3 +3327,191 @@ One research agent (persistence.js) timed out at the 30-minute harness cap. Its 
 
 - Research reports: `a5976d7`, `7a96dd8`, `9579cb5`, `145defa`, `3f365a5`, `0afecaf`, `7232dd3`, `06b2a0c`, `948f40b`
 - Auth-fetch fix that prefaced the research wave: `536c6aa`
+
+### Batch 031 — cycle-pipeline-wire + connection-resolver-fix
+
+The first batch where one of batch 030's findings ships as code. The "type-failure pattern" surfaced in batch 030 — TS `InsightCategory` enum stripped at JS compile, SQLite `category TEXT NOT NULL` accepts anything, populator's 5 ad-hoc categories (`orphan` / `red-status` / `under-connected` / `under-imported` / `high-impact`) coexisting silently with the canonical 13 — now has a working PRECEDENT for ONE canonical category landing alongside the ad-hoc set without re-orphaning anything. Three commits on branch `claude/explain-plan-AseSe`: the cycle emitter, the persistence-graph Tarjan adapter, and the connection-resolver replacement that finally feeds it accurate edges. Every future canonical-producer wave follows the same shape.
+
+**Headline outcome:**
+
+The pipeline is end-to-end LIVE for `circular_dependency`. Two independent cycle sources flow into one merge-and-dedup step into one canonical-shape `InsightRecord`. The substring resolver that was producing 6 wrong outgoing edges from `main.js` is gone; the replacement produces 16 correct ones. The cycle count for st8-on-itself is genuinely 0 (Tarjan and brute-force 2-cycle probe agree) — a TRUE NEGATIVE, not a wedge. The pipeline runs silently on 0; any future cycle in st8 or in another codebase st8 analyses surfaces immediately.
+
+**What's now flowing (the data-unblock state-change):**
+
+| Surface | Pre-batch | Post-batch |
+|---|---|---|
+| `main.js` outgoing connections | 6 — ALL WRONG (Node built-in substring matches + same-name collapse to `docs/particles.js-master/demo/js/app.js`) | 16 — ALL CORRECT (15 relative-resolved + `./app` sibling) |
+| Connections table total | 363 rows, mostly false-positive substring matches | 188 unique rows (238 fresh inserts → UNIQUE constraint collapses dupes; 363 cleared first) |
+| `buildGraph` cycles field | computed by `builder.js:detectCircularDependencies` then dropped on the floor at `indexer.js:269` ("CR-02 FIX") | threaded through as `ctx.result.cycles` for INDEX_COMPLETE subscribers |
+| `computeTarjanSCC` in `relationship-analyzer.js` | only callable from dormant integr8 CLI | live: invoked once per index pass against st8.sqlite |
+| Canonical-category producers in `src/` | 0 wired | 1 wired (`circular_dependency`) |
+
+End-to-end verified on a synthetic three-file fixture `alpha→beta→gamma→alpha`: emits one `InsightRecord` with `category='circular_dependency'`, `severity='high'`, `evidence='gamma.js → beta.js → alpha.js → gamma.js'`. Verified on st8-on-itself: `file_registry: 320 rows, connections: 363 → 188, resolved: 355`. 100 unresolved relative imports surfaced as a tracked residual (likely `.json` / `.vue` / `.toml` / `.css` / typos — audit pending, NOT in this batch).
+
+**The four proven recipes (carry forward as permanent reference):**
+
+**A. Canonical-category producer pattern** (`cycle-insight-emitter.js` is the template).
+
+- Module exports a pure `emitX(input, options)` function taking already-computed data + an injected store. Late-binds `getInsightStore()` so tests inject a fake.
+- Subscriber registers at the correct `P=<n>` priority in `default-subscribers.js`, late-requires the emitter, handles `ctx + persistence` safely (silent when input empty).
+- Mirrors the populator's API contract (`ensureFileSlot` + `addInsightsBatch`).
+- Tests use a `fakeStore` — no real SQLite.
+- Uses the canonical category name from `docs/Insight Store/insightStore.ts`'s `InsightCategory` enum. No invention.
+
+**B. Accurate resolver pattern** (`connection-resolver.js` is the template).
+
+- Skip Node built-ins via explicit `NODE_BUILTINS` allowlist + `node:` prefix check.
+- Skip npm packages — anything not starting with `./` or `../` is third-party.
+- Resolve relatives via `path.posix.normalize` from the importer's directory (not project root).
+- Try exact match → extensions (`.js/.jsx/.ts/.tsx/.mjs/.cjs`) → directory-index variants.
+- Same-name files no longer collapse — the resolved relative path disambiguates.
+- Returns `null` when not first-party; caller skips the row.
+
+**C. Persistence-derived analyzer pattern** (`persistence-cycle-detector.js` is the template).
+
+- Module exports `detectXFromPersistence(persistence)` that reads live SQLite tables, builds the input shape the existing engine expects (e.g. `{nodes, edges}` for Tarjan), calls the engine, maps results back to the same shape as the in-memory analyzer.
+- Skips self-loops + dangling edges (no crashes on partial data).
+- Pairs with a `mergeX(...sources)` dedup helper — dedup-by-sorted-fingerprint-set, rotation-invariant (`[A,B,C]` and `[C,A,B]` collapse), deterministic on collision (first source wins).
+
+**D. Clear-then-rebuild for write-only tables.**
+
+- For tables with a single writer (like `connections`), adding a `clearAllX()` method + calling it before the re-population loop prevents stale-row accumulation when the resolution algorithm changes.
+- `deleteConnectionsForFile`'s source-OR-target semantics interleave badly with concurrent inserts during a Pass-2 loop; a wholesale clear once before the loop is correct.
+
+**The corpus blind-spot rule (carried forward from batch 030 — now formalized):**
+
+Every future research agent MUST trace against `docs/Insight Store/`, `st8_json/schema-cards/`, `st8_bible.md` batches, AND the cluster review/roadmap docs — not just `src/` and `tests/`. The canonical-design corpus is where intent lives. Each executor prompt must include the explicit NO CHEATS bullet:
+
+> Before declaring any module "dead" or any data "missing", cross-reference the file's name + concept against `docs/<Tool>/`, `st8_json/schema-cards/<basename>.json`, and the cluster's `.for-review.json` prior verdicts.
+
+The cycle pipeline is exactly the kind of work this rule protects: `computeTarjanSCC` had been on the verge of being declared dead-code multiple times. The canonical TS design + the pre-refactor schema card together made the wire-up obvious, not invasive.
+
+**Files added in this batch:**
+
+```
+src/features/analysis/cycle-insight-emitter.js          (NEW, ~110 LOC)
+src/features/analysis/persistence-cycle-detector.js     (NEW, ~120 LOC)
+src/features/indexing/connection-resolver.js            (NEW, ~120 LOC)
+src/core/database/persistence.js                        (+clearAllConnections method)
+src/core/server/main.js                                 (Pass-2 rewrite — uses
+                                                         buildFileMap +
+                                                         resolveImportTarget +
+                                                         clearAllConnections)
+src/core/hooks/default-subscribers.js                   (+P=37 subscriber
+                                                         cycle-insight-emitter,
+                                                         merges integr8 +
+                                                         persistence sources)
+src/features/indexing/indexer.js                        (buildGraph contract:
+                                                         returns {classifications,
+                                                         cycles} not bare array;
+                                                         CR-02 fallbacks all
+                                                         return cycles:[])
+
+tests/features/analysis/cycle-insight-emitter.test.js   (NEW, 8 tests)
+tests/features/analysis/persistence-cycle-detector.test.js (NEW, 13 tests)
+tests/features/indexing/connection-resolver.test.js     (NEW, 17 tests)
+tests/core/hook-registry.test.js                        (+1 — INDEX_COMPLETE
+                                                         subscriber count 6 → 7
+                                                         in three sites)
+```
+
+Total: **+38 new tests, 466 → 504 passing.** The one remaining failure (`ogb-destroy.test.js`) pre-exists on master since OGB was removed in commit `6901a25` — unrelated.
+
+**What does NOT change in this batch (explicitly):**
+
+- The populator's 5 ad-hoc categories (`orphan` / `red-status` / `under-connected` / `under-imported` / `high-impact`) still coexist alongside the canonical `circular_dependency`. Future waves can add more canonical-category producers; whether to retire the ad-hoc taxonomy is a founder call.
+- `insight-store.js` itself is unchanged (TS-vendored — hand-editing prohibited per batch 030).
+- `graph-persister.js` unchanged.
+- `background-indexer.js` revival NOT touched (founder-deferred per `sonic-and-search.md` P1; the emitters at lines 527 + 580 remain dormant for now, extractable later as adapters using recipe A).
+
+**The path we are on:**
+
+Two adjacent moves are now de-risked + ready to execute:
+
+1. **Audit the 100 unresolved relative imports.** Likely a one-pass extension of `JS_EXTENSIONS` or addition of `.json` / `.vue` / `.toml` / `.css` to the resolver's try-list. Some may be genuine typos / dead references — both worth flagging.
+2. **Add more canonical-category producers following recipe A.** The 12 remaining canonical categories (`structural`, `dependency`, `complexity`, `pattern`, `security`, `performance`, `unused_export`, `anti_pattern`, `type_issue`, `api_surface`, `test_coverage`, `documentation`) each map to a pass that could be wired the same way. `background-indexer.js`'s lines 527 + 580 already have emitters for `unused_export` and `api_surface` — extractable as adapters once the founder gates the background-indexer revival, OR rewritable from scratch as canonical-producer modules without acquiring the missing maestro helpers.
+
+The cycle pipeline is the smallest possible proof that the type-failure pattern is correctable module-by-module, no big-bang refactor, no maestro-helper port required. The shape is now known.
+
+**Commits:**
+
+- `9c702d7` — cycle-insight-emitter (first slice of Layer 2 Pass-2; `buildGraph` contract change)
+- `6fa34a43` — persistence-cycle-detector (wires `computeTarjanSCC` over st8.sqlite; `mergeCycles` dedup)
+- `71ff908` — connection-resolver (replaces substring matcher in Pass-2; `clearAllConnections`)
+
+### Batch 032 — data-unblock execution wave (QW-0/1/2/3 + cleanup + sync)
+
+Single execution wave after the data-unblock-pass-2 research wave + the external pressure tests (Alex/Nick/Cindy reports). Seven commits, ~1500 LOC of new code + tests + docs, zero regressions. Backend → frontend data plumbing now produces canonical-category InsightRecords at index time; documented-but-404 routes are live; CLAUDE.md synced from `route-manifest.js`.
+
+**Headline state-change**:
+
+| Metric | Pre-Batch-032 | Post-Batch-032 |
+|---|---|---|
+| `/api/health.lastManifestUpdate` | `null` (always) | ISO timestamp, updates on every INDEX_COMPLETE |
+| `/api/state` | 404 | live envelope `{status, uptime, targetDir, lastManifestUpdate, totalFiles}` |
+| `/api/manifests` | 404 | live `{count, manifests[], summary: {healthScore, statusCounts, totalFiles}}` |
+| `/api/sonic/status` | route absent | live `{running, pid, port, since, restartCount, storePath, lastError}` |
+| `manifest.files[].importedBy` | 0 of 322 populated | 64 of 340 populated (filepaths) |
+| `manifest.files[].imports[].targetFilepath` | absent | 83 of 340 files have at least one resolved target |
+| `manifest.metadata.cycles` | field absent | `[]` (true negative — acyclic project) |
+| Canonical InsightCategory coverage | 1 of 13 (`circular_dependency` from Batch 031) | 5 of 13 (+structural, dependency, api_surface, documentation) |
+| `/api/insights` categories returned | 2 ad-hoc | 4 (2 canonical + 2 ad-hoc, coexisting) |
+| INDEX_COMPLETE default subscribers | 7 | 8 (added `gap-analyzer-insight-adapter` at P=38) |
+| `indexer.js` ST8_SCHEMA dead duplicate | 86 LOC of dead schema | removed |
+| `CLAUDE.md` API table accuracy | 11 of 36 routes, 2 entries 404-as-listed | all 36 routes, route-manifest.js as documented source of truth |
+
+**Commits**:
+
+| SHA | Title | LOC delta | Notes |
+|---|---|---|---|
+| `8c97fef` | QW-0 lastManifestUpdate setter | +176 (test included) | Hook subscriber P=15 + boot-time seed from manifest mtime |
+| `24994e4` | QW-1 manifest hydration | +298 / -10 | `importedBy[]` reverse-walk, `cycles` in metadata, `imports[].targetFilepath` |
+| `e1f949d` | QW-3 `/api/state` + `/api/manifests` | +346 | Two new handlers + route-manifest entries + 6 integration tests |
+| `591c799` | QW-2 gap-analyzer-insight-adapter | +553 / -10 | 4 canonical categories from one subscriber at P=38 |
+| `0de6dbc` | indexer.js ST8_SCHEMA dead-code delete | -87 | Verified-dead duplicate of persistence.js's live ST8_SCHEMA |
+| `235aa21` | `/api/sonic/status` | +116 | Closes sonic-and-search.md P2 — thin passthrough of `daemon.getStatus()` |
+| `e6c9f1a` | CLAUDE.md sync | +40 / -11 | Sub-T4a/b/c — LOC + test count + full 36-route API table from route-manifest |
+
+**Test count: 504 → 539 passing.** +35 new tests across this batch. One pre-existing failure (`ogb-destroy.test.js`) carries through unchanged — master-side, unrelated.
+
+**Pattern proven at scale**: every commit followed the same recipe established in batch 030 — read the canonical-design corpus first (route-manifest.js, docs/Insight Store/insightStore.ts, prior cluster reviews), make a single-concern change, add tests, run a live boot probe documented in the commit body, push. No regressions accumulated across seven commits.
+
+**External pressure-tests survived**:
+
+- **QW-1 "importedBy already shipped"** (external claim) → REJECTED by live probe (0 of 322 populated pre-fix). Field declaration ≠ data presence.
+- **`indexer.js:generateManifest` "should be deleted"** (my own framing) → REJECTED by external dead-code report (alive, exported, tested via P1.1 contract test). Bible 031 amended; only ST8_SCHEMA actually removed.
+- **QW-2 "140 LOC / 3h"** (synthesizer claim) → CALIBRATED UP per external (220+ LOC with tests, ~5h). Shipped at ~553 LOC including 14 tests; canonical-13 mapping verified against `docs/Insight Store/insightStore.ts`.
+- **QW-3 "80 LOC realistic"** (synthesizer claim) → CONFIRMED (~94 LOC for both handlers + 6 tests). Lastmanifest prereq was REAL (Cindy verified declared-but-never-assigned).
+
+**Canonical-category coverage trajectory**:
+
+```
+Batch 031:  1 of 13   ▓░░░░░░░░░░░░  (circular_dependency)
+Batch 032:  5 of 13   ▓▓▓▓▓░░░░░░░░  (+structural, dependency, api_surface, documentation)
+Remaining:  8 of 13   ░░░░░░░░░░░░░  (complexity, pattern, security, performance,
+                                       unused_export, anti_pattern, type_issue, test_coverage)
+```
+
+Each remaining canonical category maps to a future producer in the same Recipe-A pattern. `unused_export` and `api_surface` have producers already inline in `background-indexer.js:527,580` — extracting them as subscribers is the natural next slice.
+
+**Process discipline lessons (cumulative across the run)**:
+
+- The bible-updater agent in batch 031 wrongly tagged `indexer.js:generateManifest` as a delete candidate. External pressure-test caught it. **Lesson**: bible entries that propose deletions need a follow-up verification probe (`grep -rn` + an explicit "is this exported / tested" check) before they land.
+- The `files.map(f => ({...}))` expression-body in `manifest-generator.js` is LOAD-BEARING — tier-1-schema-contracts test P1.2's regex extractor parses that exact form. A block-bodied refactor broke the contract test transiently during QW-1 development. **Lesson**: any change to a `.map()` projection in code with contract-style tests should preserve the body shape; comment the constraint inline.
+- The "two batches of 8 + synthesizer" research-wave pattern from batch 030 produced sharper plans than ad-hoc single-agent reviews. Worth keeping as the default wave shape when scope is uncertain.
+- External pressure tests (the three reports from this session) caught two real issues my synthesizer missed (QW-1 framing-vs-data, QW-3 lastManifestUpdate prereq) AND identified one false-positive bug claim ("indexer.js:generateManifest is dead"). **Verdict**: the external/orchestrator pressure-test ping-pong is high-value; bake into future wave structure.
+
+**Foundation laid for next slice**:
+
+- The frontend can now consume canonical-category data via `/api/insights?category=<name>` for `structural / dependency / api_surface / documentation / circular_dependency`. The five frontend-services candidates (St8InsightsService, etc.) from the data-unblock-pass-2 research now have real backend data to wrap.
+- `/api/state` + `/api/manifests` give external monitors + UI status indicators a one-shot snapshot.
+- The 100 unresolved relative imports residual from Batch 031 surfaces today as `/api/insights?category=dependency` results (currently 0 for st8-on-itself — Batch 031's resolver fix eliminated all genuinely-broken imports; the 100 is non-`./` non-`../` patterns the resolver intentionally skips: `.json`/`.vue`/`.css`/etc.).
+
+**Roadmap items now actionable on real data**:
+
+- frontend-experience: dive-in panel can render `/api/signal-path` chains backed by accurate connections
+- frontend-experience: constellation can highlight `metadata.cycles` members + draw edges from `imports[].targetFilepath`
+- sonic-and-search P2: `/api/sonic/status` shipped; ticket-indexer + insight-to-Sonic bridge are the next two
+- identity-and-analysis P1.2: insight-store persistence is intentional cross-tool design (documented in batch 030); insight-store-populator + cycle-insight-emitter + gap-analyzer-insight-adapter all write through the same store
+
+**Commits**: `8c97fef`, `24994e4`, `e1f949d`, `591c799`, `0de6dbc`, `235aa21`, `e6c9f1a`

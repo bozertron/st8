@@ -80,7 +80,82 @@ function getTomlSerializer() {
 
 // ─── JSON MANIFEST ───────────────────────────────────────────
 
-function generateConnectionState(files, targetDir) {
+function generateConnectionState(files, targetDir, options = {}) {
+    // Batch 032 (QW-1) — hydrate the manifest with three pieces of
+    // already-computed data that previously hit a wall here:
+    //
+    //   1. `importedBy[]` — pre-fix the field was declared (the legacy
+    //      `importedBy: f.importedBy || []` projection) but the upstream
+    //      `f.importedBy` was never populated. Live probe pre-fix: 0 of
+    //      322 files had a non-empty array. We now reverse-walk the
+    //      connections table (when options.persistence is provided) so
+    //      each file gets the list of files that import it, rendered as
+    //      filepaths (graph-viewer joins on filepath, not fingerprint).
+    //
+    //   2. `cycles` — the SCC list from persistence-cycle-detector
+    //      (batch 031) was previously discarded at indexer.js:269 and
+    //      never reached the manifest. We surface it in
+    //      `manifest.metadata.cycles` so constellation / graph-viewer
+    //      can highlight cycle members without a separate /api/insights
+    //      round-trip.
+    //
+    //   3. `imports[].targetFilepath` — when persistence is available,
+    //      each parsed import gets its resolved target filepath added.
+    //      Graph-viewer can then draw edges by exact filepath lookup
+    //      instead of the current filename guess.
+    //
+    // Cost on st8-on-itself: O(N) extra prepared-statement reads per
+    // index pass. Per-file cost is microseconds; negligible vs. parse.
+    //
+    // Backward compatibility: callers that don't pass options
+    // (e.g. legacy tests) get the prior projection — empty importedBy,
+    // no targetFilepath, empty cycles array.
+    const persistence = options.persistence || null;
+    const cycles = Array.isArray(options.cycles) ? options.cycles : [];
+
+    // Pre-compute fingerprint→filepath so importedBy + targetFilepath
+    // render human-readable paths instead of raw `<path>||<ts>` blobs.
+    const fingerprintToPath = new Map();
+    for (const f of files) {
+        if (f && f.fingerprint && f.filepath) {
+            fingerprintToPath.set(f.fingerprint, f.filepath);
+        }
+    }
+
+    function importedByForFile(fingerprint) {
+        if (!persistence || !fingerprint) return [];
+        try {
+            const all = persistence.getConnectionsForFile(fingerprint);
+            return all
+                .filter(c => c.targetFingerprint === fingerprint)
+                .map(c => fingerprintToPath.get(c.sourceFingerprint) || c.sourceFingerprint);
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function resolveImports(rawImports, sourceFingerprint) {
+        if (!Array.isArray(rawImports)) return [];
+        if (!persistence || !sourceFingerprint) {
+            return rawImports.slice();
+        }
+        let specToTarget;
+        try {
+            const all = persistence.getConnectionsForFile(sourceFingerprint);
+            specToTarget = new Map(
+                all.filter(c => c.sourceFingerprint === sourceFingerprint)
+                   .map(c => [c.importSpecifier, c.targetFingerprint])
+            );
+        } catch (_) {
+            return rawImports.slice();
+        }
+        return rawImports.map(imp => {
+            const targetFp = specToTarget.get(imp.source);
+            const targetFilepath = targetFp ? fingerprintToPath.get(targetFp) || null : null;
+            return targetFilepath ? Object.assign({}, imp, { targetFilepath }) : imp;
+        });
+    }
+
     const manifest = {
         metadata: {
             timestamp: new Date().toISOString(),
@@ -90,8 +165,17 @@ function generateConnectionState(files, targetDir) {
                 GREEN: files.filter(f => f.status === 'GREEN').length,
                 YELLOW: files.filter(f => f.status === 'YELLOW').length,
                 RED: files.filter(f => f.status === 'RED').length
-            }
+            },
+            // Batch 032 (QW-1): rotation-invariant SCC participant sets.
+            // Empty for healthy / acyclic projects (the normal case).
+            cycles: cycles.map(c => ({
+                files: Array.isArray(c && c.files) ? c.files.slice() : []
+            }))
         },
+        // NB: expression-body arrow is load-bearing — the
+        // tier-1-schema-contracts.test.js extractor (P1.2) parses the
+        // `files.map(f => ({ ... }))` form to verify the projection's
+        // consumed-fields set. Block-bodied refactors break that contract test.
         files: files.map(f => ({
             fingerprint: f.fingerprint || f.sha256Hash,
             filepath: f.filepath,
@@ -100,8 +184,10 @@ function generateConnectionState(files, targetDir) {
             reachabilityScore: f.reachabilityScore || 0.0,
             impactRadius: f.impactRadius || 0,
             sha256Hash: f.sha256Hash,
-            imports: f.imports || [],
-            importedBy: f.importedBy || [],
+            imports: resolveImports(f.imports, f.fingerprint || f.sha256Hash),
+            importedBy: (Array.isArray(f.importedBy) && f.importedBy.length > 0)
+                ? f.importedBy.slice()
+                : importedByForFile(f.fingerprint || f.sha256Hash),
             intent: f.intent || {
                 purpose: '',
                 dependsOnBehavior: '',
@@ -109,7 +195,7 @@ function generateConnectionState(files, targetDir) {
             }
         }))
     };
-    
+
     return manifest;
 }
 
@@ -180,13 +266,15 @@ can_be_archived = ${file.status === 'RED' && (file.impactRadius || 0) === 0}
 
 // ─── WRITE MANIFESTS ─────────────────────────────────────────
 
-function writeManifests(files, targetDir) {
+function writeManifests(files, targetDir, options = {}) {
     const jsonPath = path.join(targetDir, 'connection-state.json');
     const tomlPath = path.join(targetDir, 'ai-signal.toml');
-    
+
     try {
-        // Write JSON manifest
-        const jsonManifest = generateConnectionState(files, targetDir);
+        // Write JSON manifest. options ({ persistence, cycles }) is
+        // passed through to generateConnectionState so the hydration
+        // (importedBy / targetFilepath / cycles) lands in the output.
+        const jsonManifest = generateConnectionState(files, targetDir, options);
         fs.writeFileSync(jsonPath, JSON.stringify(jsonManifest, null, 2));
         console.log(`[st8:manifest] JSON manifest written to: ${jsonPath}`);
         

@@ -382,12 +382,15 @@ test('registerDefaultSubscribers — ticket 12: idempotent (calling twice does n
 
   assert.deepEqual(firstSnapshot, secondSnapshot, 'subscriber counts must be identical after second register');
 
-  // Spot-check: INDEX_COMPLETE has exactly 6 default subscribers
+  // Spot-check: INDEX_COMPLETE has exactly 8 default subscribers
   // (manifest, schema-card-emitter, gap-analyzer, intent-seeder,
-  // insight-store-populator [Wave 3B ticket 7], mutation-log-retention).
+  // insight-store-populator [Wave 3B ticket 7],
+  // cycle-insight-emitter [Batch 031],
+  // gap-analyzer-insight-adapter [Batch 032 QW-2],
+  // mutation-log-retention).
   // force-checks is registered separately.
   const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
-  assert.equal(idxComplete.count, 6, 'INDEX_COMPLETE should have exactly 6 default subscribers, not 12');
+  assert.equal(idxComplete.count, 8, 'INDEX_COMPLETE should have exactly 8 default subscribers, not 12');
 
   // INDEX_START has exactly 2 default subscribers post-Wave-4B:
   //   sonic-daemon (P=10) and bruno-session-start (P=20).
@@ -411,7 +414,7 @@ test('registerDefaultSubscribers — ticket 12: _resetDefaultSubscribersFlag unb
   registerDefaultSubscribers(r);
 
   const idxComplete = r.listHooks().find((h) => h.name === HOOKS.INDEX_COMPLETE);
-  assert.equal(idxComplete.count, 6, 'after clear+reset, defaults re-register cleanly');
+  assert.equal(idxComplete.count, 8, 'after clear+reset, defaults re-register cleanly');
 });
 
 // ─── Ticket 14: sonic-daemon subscriber survives missing module ───
@@ -512,15 +515,16 @@ test('default-subscribers — ticket 13: every INDEX_COMPLETE subscriber survive
     threw = true;
   }
   assert.equal(threw, false, 'execute(INDEX_COMPLETE, {}) must not throw');
-  // All 6 default subscribers ran.
-  assert.equal(summary.ok + summary.fail, 6, 'all 6 subscribers must have been visited');
+  // All 8 default subscribers ran (Batch 031 added cycle-insight-emitter
+  // at P=37; Batch 032 QW-2 added gap-analyzer-insight-adapter at P=38).
+  assert.equal(summary.ok + summary.fail, 8, 'all 8 subscribers must have been visited');
 
   _resetDefaultSubscribersFlag(r);
 });
 
 test('default-subscribers — ticket 13: registry catch isolates a P=10 throw from later subscribers', async () => {
   // Most direct probe: register a thrower at P=5 (before manifest), and
-  // assert that the 6 default INDEX_COMPLETE subscribers AND a P=99
+  // assert that the 8 default INDEX_COMPLETE subscribers AND a P=99
   // observer both still run. Proves the convention isn't load-bearing
   // on the inner catches alone — the registry's outer catch is the
   // safety net.
@@ -536,8 +540,10 @@ test('default-subscribers — ticket 13: registry catch isolates a P=10 throw fr
   const summary = await r.execute(HOOKS.INDEX_COMPLETE, {});
 
   assert.equal(observerRan, true, 'P=99 observer must run even though P=5 threw');
-  // 6 defaults + 1 thrower + 1 observer = 8 subscribers visited.
-  assert.equal(summary.ok + summary.fail, 8);
+  // 8 defaults + 1 thrower + 1 observer = 10 subscribers visited
+  // (Batch 031 added cycle-insight-emitter; Batch 032 QW-2 added
+  // gap-analyzer-insight-adapter — defaults grew 6→7→8).
+  assert.equal(summary.ok + summary.fail, 10);
   // The thrower contributed at least 1 fail.
   assert.equal(summary.fail >= 1, true);
   assert.equal(

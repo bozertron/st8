@@ -956,7 +956,29 @@ class St8Persistence {
         );
         return stmt.all();
     }
-    
+
+    /**
+     * Delete every row in the connections table. Used by main.js Pass-2
+     * before re-wiring connections, so stale rows from prior runs (most
+     * notably the pre-Batch-030 substring-resolver false positives like
+     * `require('fs')` → `safe-fs.js`) do not persist alongside the new
+     * correctly-resolved edges.
+     *
+     * Pass-2 is the only insertion site for the connections table today;
+     * deleteConnectionsForFile (source OR target semantics) is used for
+     * deletion / prune cleanup but is unsuitable for clear-then-rebuild
+     * because the OR-direction interleaves with concurrent inserts during
+     * the Pass-2 loop. clearAllConnections runs once, atomically, before
+     * the loop starts.
+     *
+     * Returns the number of rows deleted (informational; main.js logs it).
+     */
+    clearAllConnections() {
+        const stmt = this.db.prepare('DELETE FROM connections');
+        const result = stmt.run();
+        return result.changes;
+    }
+
     // ─── FILE INTENT ────────────────────────────────────────
     
     upsertIntent(intent) {

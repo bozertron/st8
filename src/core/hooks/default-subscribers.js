@@ -142,7 +142,16 @@ function registerDefaultSubscribers(registry) {
   registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
     try {
       const { writeManifests } = require('../../features/schema-cards/manifest-generator');
-      writeManifests(ctx.result.files, ctx.targetDir);
+      // Batch 032 (QW-1): pass persistence + cycles so the manifest gets
+      // populated importedBy[], cycles[] (from persistence-cycle-detector
+      // landing earlier in batch 030/031), and resolved imports[].targetFilepath.
+      // Pre-fix, ctx.result.files had no importedBy data and ctx.result.cycles
+      // never reached the manifest. The frontend graph-viewer + constellation
+      // can now render edges + cycle highlights without secondary fetches.
+      writeManifests(ctx.result.files, ctx.targetDir, {
+        persistence: ctx.persistence,
+        cycles: Array.isArray(ctx.result && ctx.result.cycles) ? ctx.result.cycles : [],
+      });
       console.log('[st8] Manifests generated');
     } catch (err) {
       console.error('[st8] Manifest generation failed:', err.message);
@@ -222,6 +231,99 @@ function registerDefaultSubscribers(registry) {
       console.error('[st8] Insight store population failed:', err.message);
     }
   }, { priority: 35, source: 'insight-store-populator' });
+
+  // P=37 — cycle-insight-emitter (Batch 030).
+  //
+  // First slice of the sonic-and-search roadmap's P2 Layer 2 Pass-2
+  // ("Dependency Health"). Emits one canonical `circular_dependency`
+  // InsightRecord per detected cycle via the same insight-store path
+  // the populator uses, so GET /api/insights?category=circular_dependency
+  // returns real data.
+  //
+  // Cycles are sourced from TWO complementary inputs:
+  //
+  //   1. ctx.result.cycles — DFS-based cycle detection inside the
+  //      integr8 graph builder (src/features/graph/builder.js). For
+  //      Vue/Pinia/Tauri projects this is the primary source.
+  //
+  //   2. Live st8.sqlite (Batch 030 follow-up) — Tarjan SCC over
+  //      file_registry + connections via persistence-cycle-detector.
+  //      For generic JS projects (including st8 itself) where the
+  //      integr8 parsers find no JS-specific edges, this is the
+  //      primary source.
+  //
+  // Both sources emit the same `{cycle, files}` shape so they merge
+  // cleanly. Dedup by sorted-member fingerprint set: two cycles with
+  // the same participants (regardless of rotation/order) collapse to
+  // one InsightRecord.
+  //
+  // Runs AFTER insight-store-populator (P=35) so the InsightStore's
+  // FileInsightSlots already have rows for any cycle participant
+  // (ensureFileSlot is idempotent — belt-and-braces). Runs BEFORE
+  // intent-seeder (P=40).
+  registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
+    try {
+      const integr8Cycles = (ctx && ctx.result && Array.isArray(ctx.result.cycles)) ? ctx.result.cycles : [];
+
+      const { detectCyclesFromPersistence, mergeCycles } =
+        require('../../features/analysis/persistence-cycle-detector');
+      const persistenceCycles = ctx && ctx.persistence
+        ? detectCyclesFromPersistence(ctx.persistence)
+        : [];
+
+      const cycles = mergeCycles(integr8Cycles, persistenceCycles);
+      if (cycles.length === 0) {
+        // Silent: no cycles is the normal-and-good case.
+        return;
+      }
+      const { emitCycleInsights } = require('../../features/analysis/cycle-insight-emitter');
+      const result = emitCycleInsights(cycles, { projectId: 'st8' });
+      console.log(
+        `[st8] Cycle insights: ${result.inserted} circular_dependency records emitted ` +
+        `(${result.skipped} skipped, sources: integr8=${integr8Cycles.length} persistence=${persistenceCycles.length} merged=${cycles.length})`
+      );
+    } catch (err) {
+      console.error('[st8] cycle-insight-emitter failed:', err.message);
+    }
+  }, { priority: 37, source: 'cycle-insight-emitter' });
+
+  // P=38 — gap-analyzer-insight-adapter (Batch 032 / QW-2).
+  //
+  // Re-emits gap-analyzer's D1–D6 output as canonical InsightRecords
+  // from the docs/Insight Store/insightStore.ts 13-value enum. One
+  // producer, four canonical categories in a single ticket:
+  //   D2 redFiles              → structural
+  //   D5 orphanImports         → dependency
+  //   D4 zero-export files     → api_surface
+  //   D6 missingEndpoints      → api_surface
+  //   D3 unauthored            → documentation
+  //   D1 canProgress           → documentation
+  //
+  // Runs AFTER insight-store-populator (P=35) so populator's
+  // clearProject(projectId) has already wiped the prior snapshot.
+  // Runs AFTER cycle-insight-emitter (P=37) so cycle records land
+  // first (cosmetic ordering — independent writes either way).
+  // Runs BEFORE intent-seeder (P=40).
+  //
+  // Re-runs analyzer.analyze() rather than threading the P=30
+  // gap-analyzer subscriber's report through ctx — keeps subscribers
+  // loosely coupled and avoids the ctx-contract regression risk.
+  registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
+    try {
+      const { runGapAnalysisInsightAdapter } = require('../../features/analysis/gap-analyzer-insight-adapter');
+      const result = runGapAnalysisInsightAdapter(ctx, { projectId: 'st8' });
+      if (!result.ran) return;
+      const by = result.byCategory || {};
+      console.log(
+        `[st8] Gap-analysis insights: ${result.inserted} canonical records emitted ` +
+        `(structural=${by.structural || 0}, dependency=${by.dependency || 0}, ` +
+        `api_surface=${by.api_surface || 0}, documentation=${by.documentation || 0}` +
+        (result.skipped > 0 ? `, skipped=${result.skipped}` : '') + ')'
+      );
+    } catch (err) {
+      console.error('[st8] gap-analyzer-insight-adapter failed:', err.message);
+    }
+  }, { priority: 38, source: 'gap-analyzer-insight-adapter' });
 
   // P=50 — file_mutation_log retention (ticket 10, Wave 1B).
   //

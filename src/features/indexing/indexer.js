@@ -69,93 +69,6 @@ function getTomlSerializer() {
     return _tomlSerializer;
 }
 
-// ─── ST8 SCHEMA ──────────────────────────────────────────────
-// The st8 schema is simpler than maestro's. We only need:
-// - file_registry (fingerprint, filepath, filename, sha256Hash, status, etc.)
-// - connections (sourceFingerprint, targetFingerprint, connectionType, isResolved)
-// - file_intent (purpose, dependsOnBehavior, valueStatement)
-// - activity_log (timestamp, source, action, targetFingerprint, details)
-
-const ST8_SCHEMA = `
-CREATE TABLE IF NOT EXISTS file_registry (
-  fingerprint TEXT PRIMARY KEY,
-  filepath TEXT NOT NULL,
-  filename TEXT NOT NULL,
-  sha256Hash TEXT NOT NULL,
-  fileSizeBytes INTEGER,
-  status TEXT DEFAULT 'RED',
-  reachabilityScore REAL DEFAULT 0.0,
-  impactRadius INTEGER DEFAULT 0,
-  lifecyclePhase TEXT DEFAULT 'DEVELOPMENT',
-  birthTimestamp TEXT,
-  lastModified TEXT,
-  lastIndexed TEXT DEFAULT CURRENT_TIMESTAMP,
-  isEntryPoint INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS connections (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  sourceFingerprint TEXT NOT NULL,
-  targetFingerprint TEXT NOT NULL,
-  connectionType TEXT DEFAULT 'IMPORT',
-  importSpecifier TEXT,
-  isResolved INTEGER DEFAULT 1,
-  confidenceScore REAL DEFAULT 1.0,
-  lastVerified TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (sourceFingerprint) REFERENCES file_registry(fingerprint),
-  FOREIGN KEY (targetFingerprint) REFERENCES file_registry(fingerprint),
-  UNIQUE(sourceFingerprint, targetFingerprint, connectionType)
-);
-
-CREATE TABLE IF NOT EXISTS file_intent (
-  fingerprint TEXT PRIMARY KEY,
-  purpose TEXT,
-  dependsOnBehavior TEXT,
-  valueStatement TEXT,
-  authoredBy TEXT DEFAULT 'INFERRED',
-  lastUpdated TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
-);
-
-CREATE TABLE IF NOT EXISTS file_mutation_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  fingerprint TEXT NOT NULL,
-  sha256Hash TEXT NOT NULL,
-  mutationType TEXT NOT NULL,
-  changedFields TEXT,
-  actor TEXT DEFAULT 'DEVELOPER',
-  timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-  metadata TEXT,
-  FOREIGN KEY (fingerprint) REFERENCES file_registry(fingerprint)
-);
-
-CREATE TABLE IF NOT EXISTS activity_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-  source TEXT DEFAULT 'INDEXER',
-  action TEXT NOT NULL,
-  targetFingerprint TEXT,
-  details TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_file_registry_status ON file_registry(status);
-CREATE INDEX IF NOT EXISTS idx_file_registry_sha256Hash ON file_registry(sha256Hash);
-CREATE INDEX IF NOT EXISTS idx_file_registry_lifecycle ON file_registry(lifecyclePhase);
-CREATE INDEX IF NOT EXISTS idx_connections_source ON connections(sourceFingerprint);
-CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(targetFingerprint);
-CREATE INDEX IF NOT EXISTS idx_mutation_log_fingerprint ON file_mutation_log(fingerprint);
-CREATE INDEX IF NOT EXISTS idx_mutation_log_timestamp ON file_mutation_log(timestamp);
-CREATE INDEX IF NOT EXISTS idx_activity_log_timestamp ON activity_log(timestamp);
-
-CREATE TABLE IF NOT EXISTS st8_settings (
-  category TEXT NOT NULL,
-  key TEXT NOT NULL,
-  value TEXT,
-  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (category, key)
-);
-`;
-
 // ─── FILE DISCOVERY ──────────────────────────────────────────
 
 const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.go', '.md', '.txt', '.json']);
@@ -242,17 +155,24 @@ async function buildGraph(files, targetDir) {
     const graphBuilder = getGraphBuilder();
     if (!graphBuilder) {
         console.warn('[st8:indexer] Graph builder not available, using basic classification');
-        return classifyBasic(files, targetDir);
+        return { classifications: classifyBasic(files, targetDir), cycles: [] };
     }
-    
+
     try {
         // The maestro graphBuilder exports buildDependencyGraph (async)
         if (typeof graphBuilder.buildDependencyGraph === 'function') {
             const report = await graphBuilder.buildDependencyGraph(targetDir);
-            
+
             // CR-02 FIX: Transform from { nodes: [...], circularDeps: [...], ... }
-            // to array of { filepath, status, reachabilityScore, impactRadius }
-            // The merge logic in indexDirectory expects an array with .find()
+            // to array of { filepath, status, reachabilityScore, impactRadius }.
+            // The merge loop in indexDirectory expects an array with .find().
+            //
+            // Batch 030: ALSO surface report.circularDeps so the
+            // cycle-insight-emitter subscriber (INDEX_COMPLETE P=37) can write
+            // canonical `circular_dependency` InsightRecords. Without this the
+            // DFS-detected cycles get computed and dropped on every index pass.
+            // See bible batch 030 + docs/_pending-roadmap/sonic-and-search.md
+            // (P2 Layer 2 Pass-2 — "each pass be its own hook subscriber").
             if (report && Array.isArray(report.nodes)) {
                 const healthToStatus = {
                     'healthy': 'GREEN',
@@ -260,8 +180,8 @@ async function buildGraph(files, targetDir) {
                     'unused': 'YELLOW',
                     'partial': 'YELLOW'
                 };
-                
-                return report.nodes
+
+                const classifications = report.nodes
                     .filter(node => node.path) // Only nodes with file paths
                     .map(node => ({
                         filepath: node.path,
@@ -270,16 +190,20 @@ async function buildGraph(files, targetDir) {
                         reachabilityScore: node.health === 'healthy' ? 0.95 : (node.health === 'unused' ? 0.1 : 0.0),
                         impactRadius: node.impactRadius || 0
                     }));
+                return {
+                    classifications,
+                    cycles: Array.isArray(report.circularDeps) ? report.circularDeps : []
+                };
             }
-            
+
             // Fallback if unexpected shape
             console.warn('[st8:indexer] buildDependencyGraph returned unexpected shape, using basic classification');
-            return classifyBasic(files, targetDir);
+            return { classifications: classifyBasic(files, targetDir), cycles: [] };
         }
-        return classifyBasic(files, targetDir);
+        return { classifications: classifyBasic(files, targetDir), cycles: [] };
     } catch (err) {
         console.error('[st8:indexer] Error building graph:', err.message);
-        return classifyBasic(files, targetDir);
+        return { classifications: classifyBasic(files, targetDir), cycles: [] };
     }
 }
 
@@ -420,9 +344,12 @@ async function indexDirectory(targetDir, options = {}) {
         };
     });
     
-    // Build graph and classify (await: buildGraph is now async due to async graphBuilder)
-    const classifiedFiles = await buildGraph(parsedFiles, targetDir);
-    
+    // Build graph and classify (await: buildGraph is now async due to async graphBuilder).
+    // Batch 030: destructure into classifications + cycles so the cycle data
+    // (previously dropped by the CR-02 transformation) survives to indexDirectory's
+    // return value and reaches INDEX_COMPLETE subscribers via result.cycles.
+    const { classifications: classifiedFiles, cycles } = await buildGraph(parsedFiles, targetDir);
+
     // Merge classification with parsed data
     const finalFiles = parsedFiles.map(file => {
         const classification = classifiedFiles.find(c => c.filepath === file.filepath) || {};
@@ -481,7 +408,11 @@ async function indexDirectory(targetDir, options = {}) {
         }
     }
 
-    return { files: finalFiles, manifest, identityRisk: fbSummary };
+    // Batch 030: include `cycles` (empty array when the graph builder didn't
+    // produce any) so the INDEX_COMPLETE cycle-insight-emitter subscriber
+    // can emit canonical `circular_dependency` insights via the existing
+    // insight-store.addInsightsBatch() path.
+    return { files: finalFiles, manifest, identityRisk: fbSummary, cycles: cycles || [] };
 }
 
 // ─── CLI ENTRY POINT ─────────────────────────────────────────

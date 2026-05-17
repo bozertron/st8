@@ -333,27 +333,62 @@ async function main() {
             await hookRegistry.execute(HOOKS.FILE_INDEXED, { file, targetDir, persistence });
         }
 
-        // Pass 2: Wire connections (all files now exist in DB)
+        // Pass 2: Wire connections (all files now exist in DB).
+        //
+        // Batch 030 — substring-resolver replaced. The previous matcher
+        // (`f.filepath.endsWith` / `.includes` against `imp.source`)
+        // produced three classes of false positive:
+        //   - Node built-ins matched local files containing the substring
+        //     (`require('fs')` → `safe-fs.js`, `require('path')` →
+        //     `path-generator.js`, `require('crypto')` → `settings-crypto.js`).
+        //   - `../`-style relative imports never matched (the .replace
+        //     only stripped a single leading `./`), so 15 of main.js's
+        //     18 require()s went unresolved.
+        //   - Same-name files collapsed to whichever iterated first
+        //     (`require('./app')` from `src/core/server/main.js` matched
+        //     `docs/particles.js-master/demo/js/app.js` instead of the
+        //     sibling `src/core/server/app.js`).
+        //
+        // The new resolver (a) skips Node built-ins + npm packages,
+        // (b) does proper relative-path resolution from the importer's
+        // directory, and (c) tries common JS/TS extensions + directory-
+        // index variants. Edges are now correct and bidirectional where
+        // they exist — which is what lets persistence-cycle-detector's
+        // Tarjan SCC find real cycles via cycle-insight-emitter.
+        //
+        // Stale rows from prior runs of the buggy matcher are cleared
+        // first so post-rewire state is clean.
+        const { resolveImportTarget, buildFileMap } = require('../../features/indexing/connection-resolver');
+        const clearedCount = persistence.clearAllConnections();
+        const fileMap = buildFileMap(result.files);
+        let resolvedCount = 0;
+        let unresolvedRelative = 0;
         for (const file of result.files) {
-            if (file.imports && file.imports.length > 0) {
-                for (const imp of file.imports) {
-                    const targetFile = result.files.find(f =>
-                        f.filepath.endsWith(imp.source) ||
-                        f.filepath.includes(imp.source.replace(/^\.\//, ''))
-                    );
-                    if (targetFile) {
-                        persistence.insertConnection({
-                            sourceFingerprint: file.fingerprint,
-                            targetFingerprint: targetFile.fingerprint,
-                            connectionType: 'IMPORT',
-                            importSpecifier: imp.source,
-                            isResolved: true,
-                            confidenceScore: 1.0
-                        });
-                    }
+            if (!file.imports || file.imports.length === 0) continue;
+            for (const imp of file.imports) {
+                const targetFile = resolveImportTarget(file.filepath, imp.source, fileMap);
+                if (targetFile) {
+                    persistence.insertConnection({
+                        sourceFingerprint: file.fingerprint,
+                        targetFingerprint: targetFile.fingerprint,
+                        connectionType: 'IMPORT',
+                        importSpecifier: imp.source,
+                        isResolved: true,
+                        confidenceScore: 1.0,
+                    });
+                    resolvedCount++;
+                } else if (imp.source && (imp.source.startsWith('./') || imp.source.startsWith('../'))) {
+                    // Relative imports that fail to resolve are
+                    // noteworthy (potential typo, missing file, or an
+                    // extension we don't recognise). Non-relatives are
+                    // stdlib / packages and skip silently.
+                    unresolvedRelative++;
                 }
             }
         }
+        console.log(
+            `[st8:connections] Pass-2 wiring: cleared ${clearedCount} stale, inserted ${resolvedCount} resolved, skipped ${unresolvedRelative} unresolved relative imports`
+        );
         
         persistence.logActivity({
             source: ActorType.INDEXER,
