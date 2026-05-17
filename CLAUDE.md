@@ -43,7 +43,7 @@ src/core/server/main.js (453 LOC)    ← backend bootstrap: wires indexer + pers
    │                                    + manifest + watcher + St8Server + hookRegistry
    │   new St8Server(...).listen(...)
    ▼
-src/core/server/app.js (2264 LOC)    ← HTTP API surface (St8Server class)
+src/core/server/app.js (2891 LOC)    ← HTTP API surface (St8Server class)
                                        All /api/* routes live here.
                                        This is where most edits land.
 ```
@@ -54,7 +54,7 @@ src/core/server/app.js (2264 LOC)    ← HTTP API surface (St8Server class)
 
 Runner: `node --test` (Node 18+, zero dependencies).
 Layout: `tests/` mirrors `src/` (e.g. `tests/core/hook-registry.test.js`).
-Current count: **207 passing, 0 failing, 0 skipped, 0 todo**.
+Current count: **538 passing, 1 pre-existing failing (`ogb-destroy.test.js` — master-side, unrelated), 0 skipped, 0 todo**.
 Run: `npm test`.
 Conventions: `tests/README.md`.
 
@@ -99,23 +99,52 @@ All have at least one publisher. Subscribers register in `src/core/hooks/default
 - `.st8/identity-risk.json` written when reuse rescues an unreliable birthtime.
 - Multi-fingerprint card dedup in `emitter.js` — newer birthTimestamp wins deterministically.
 
-## API surface (post-Wave-3B + 3C)
+## API surface (post-Batch-032)
+
+**Source of truth: `src/core/server/route-manifest.js`** — hand-edited, 1:1 with `app.js`'s switch enforced by `tests/core/server/route-manifest-drift.test.js`. The table below is a snapshot synced from that manifest. Any new route MUST land in BOTH `app.js` and `route-manifest.js` or the drift test fails.
 
 | Route | Method | Purpose | Auth |
 |---|---|---|---|
-| `/api/state` | GET | Server state | none |
-| `/api/manifests` | GET | Schema-card index | none |
-| `/api/events` | GET | SSE event stream | none |
-| `/api/tickets` | GET / POST | Ticket CRUD | POST: X-St8-Secret |
-| `/api/tickets/count` | GET | Open ticket count | none |
-| `/api/record-commit` | POST | Git post-commit hook intake | X-St8-Secret |
-| `/api/auth-token` | GET | Auth secret (loopback only) | loopback |
+| `/api/connection-state.json` | GET | Live manifest JSON (in-process cached) | none |
+| `/api/ai-signal.toml` | GET | Live TOML manifest | none |
+| `/api/health` | GET | `{ status, uptime, targetDir, lastManifestUpdate }` | none |
+| `/api/state` | GET | Server-state envelope (Batch 032 QW-3) | none |
+| `/api/manifests` | GET | Schema-card index + project healthScore (Batch 032 QW-3) | none |
+| `/api/sonic/status` | GET | Sonic daemon lifecycle state (Batch 032) | none |
+| `/api/files` | GET | Directory entries at `?path=` | none |
+| `/api/index` | POST | Re-index a path | none |
+| `/api/verify` | POST | Recompute SHA-256 across registry | none |
+| `/api/file-intent` | POST | Upsert purpose/dependsOnBehavior/valueStatement | none |
+| `/api/settings` | GET / POST | Settings CRUD | none |
+| `/api/mutations` | GET | SSE event stream (mutation notifications) | none |
+| `/api/concept-file` | POST | Register CONCEPT-phase file | none |
+| `/api/mvp-lock` | POST | Bulk CONCEPT/DEVELOPMENT → LOCKED transition | none |
+| `/api/production-promote` | POST | Purge dev mutation history for a fingerprint | none |
+| `/api/prd` | GET | Generate PRD markdown | none |
+| `/api/prd-projects` | GET / POST | PRD project records | none |
+| `/api/prd-projects/:name` | GET | Fetch single PRD project | none |
+| `/api/gap-analysis` | GET | GapAnalyzer report (JSON or text/markdown) | none |
+| `/api/bruno-call` | POST | Lifecycle alarm pass | none |
+| `/api/oscar-house` | POST | Lifecycle reaper pass | none |
+| `/api/needs-ai-review` | GET | Files flagged for AI review | none |
+| `/api/mark-reviewed` | POST | Mark a file as reviewed | none |
+| `/api/templates` | GET / POST | PRD template management | none |
 | `/api/signal-path` | GET / POST | Path-generator (FOUNDER P1) | none |
 | `/api/generate-report` | POST | Report-generator (Markdown / JSON) | none |
 | `/api/insights` | GET | Insight-store consumer | none |
 | `/api/identity-risk` | GET | Identity-risk consumer (Wave 3C) | none |
+| `/api/auth-token` | GET | Auth secret (loopback only) | loopback |
+| `/api/record-commit` | POST | Git post-commit hook intake | X-St8-Secret |
+| `/api/tickets` | GET / POST | Ticket CRUD (POST requires secret) | GET: none / POST: X-St8-Secret |
+| `/api/tickets/count` | GET | Open ticket count | none |
+| `/api/tickets/:id/claim` | POST | Claim a ticket | X-St8-Secret |
+| `/api/tickets/:id/resolve` | POST | Resolve a ticket | X-St8-Secret |
+| `/api/llm-call` | POST | Dispatch chat-completion to provider | X-St8-Secret |
+| `/api/exec` | POST | Deliberately deferred — returns 501 | X-St8-Secret |
 
-POST routes require `X-St8-Secret` header. Secret stored at `.st8/server.secret` (mode 0600). Frontend reads via `GET /api/auth-token` (loopback-gated) and uses `window.st8AuthFetch` wrapper.
+POST routes annotated `X-St8-Secret` require the header. Secret stored at `.st8/server.secret` (mode 0600). Frontend reads via `GET /api/auth-token` (loopback-gated) and uses `window.st8AuthFetch` wrapper.
+
+Pre-Batch-032 drift corrected: this table previously listed `/api/state`, `/api/manifests`, `/api/events` (the last as 404; SSE actually lives at `/api/mutations`) along with 11 of the 36 actual routes. Batch 032 QW-3 implemented the first two and renamed the third to match implementation.
 
 ## Active sprint protocol
 
