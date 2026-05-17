@@ -142,7 +142,16 @@ function registerDefaultSubscribers(registry) {
   registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
     try {
       const { writeManifests } = require('../../features/schema-cards/manifest-generator');
-      writeManifests(ctx.result.files, ctx.targetDir);
+      // Batch 032 (QW-1): pass persistence + cycles so the manifest gets
+      // populated importedBy[], cycles[] (from persistence-cycle-detector
+      // landing earlier in batch 030/031), and resolved imports[].targetFilepath.
+      // Pre-fix, ctx.result.files had no importedBy data and ctx.result.cycles
+      // never reached the manifest. The frontend graph-viewer + constellation
+      // can now render edges + cycle highlights without secondary fetches.
+      writeManifests(ctx.result.files, ctx.targetDir, {
+        persistence: ctx.persistence,
+        cycles: Array.isArray(ctx.result && ctx.result.cycles) ? ctx.result.cycles : [],
+      });
       console.log('[st8] Manifests generated');
     } catch (err) {
       console.error('[st8] Manifest generation failed:', err.message);
