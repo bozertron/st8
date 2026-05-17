@@ -108,7 +108,16 @@ function resolveImportTarget(importerFilepath, importSource, fileMap) {
     // Strip any redundant leading `./` from the normalised path so
     // it can be looked up directly in the fileMap (which is keyed
     // on `path.relative(targetDir, ...)`, never prefixed with `./`).
-    const lookupKey = resolved.startsWith('./') ? resolved.slice(2) : resolved;
+    // Then strip a single trailing slash — path.posix.normalize
+    // preserves it (e.g. `./utils/` → `src/utils/`), and without
+    // this strip the subsequent extension + directory-index probes
+    // produce junk candidates (`src/utils/.js`, `src/utils//index.js`)
+    // that never match anything in the fileMap. Both `./utils` and
+    // `./utils/` now resolve identically to the directory's index file.
+    let lookupKey = resolved.startsWith('./') ? resolved.slice(2) : resolved;
+    if (lookupKey.length > 1 && lookupKey.endsWith('/')) {
+        lookupKey = lookupKey.slice(0, -1);
+    }
 
     // (4) Exact match first. Cheapest case: import already names the
     //     full file with extension.

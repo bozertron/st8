@@ -142,6 +142,35 @@ test('directory imports resolve to index.js / index.ts inside the dir', () => {
     assert.equal(r2.filepath, 'src/types/index.ts');
 });
 
+test('trailing-slash directory imports resolve identically to the no-slash form', () => {
+    // CodeRabbit regression — pre-fix, `./utils/` returned null because
+    // path.posix.normalize preserves the trailing slash, and the
+    // subsequent extension + directory-index probes produced junk
+    // candidates (`src/utils/.js`, `src/utils//index.js`).
+    const m = makeFileMap([
+        'src/main.js',
+        'src/utils/index.js',
+        'src/utils/foo.js',
+        'src/types/index.ts',
+    ]);
+    // `./utils/` should resolve like `./utils` — both name the directory
+    assert.equal(
+        resolveImportTarget('src/main.js', './utils/', m).filepath,
+        'src/utils/index.js'
+    );
+    assert.equal(
+        resolveImportTarget('src/main.js', './types/', m).filepath,
+        'src/types/index.ts'
+    );
+    // Trailing slash on a subpath that resolves to a file (not a dir).
+    // The normalize+strip yields 'src/utils/foo'; extension probe finds
+    // 'src/utils/foo.js'. Matches the no-slash form.
+    assert.equal(
+        resolveImportTarget('src/main.js', './utils/foo/', m).filepath,
+        'src/utils/foo.js'
+    );
+});
+
 test('relative import to a file that does NOT exist → null', () => {
     const m = makeFileMap(['src/main.js']);
     assert.equal(resolveImportTarget('src/main.js', './nonexistent', m), null);
