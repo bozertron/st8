@@ -226,21 +226,43 @@ function registerDefaultSubscribers(registry) {
   // P=37 — cycle-insight-emitter (Batch 030).
   //
   // First slice of the sonic-and-search roadmap's P2 Layer 2 Pass-2
-  // ("Dependency Health"). Reads ctx.result.cycles — the circular-
-  // dependency data computed by src/features/graph/builder.js and
-  // surfaced through indexer.js as of Batch 030 (previously dropped by
-  // the CR-02 transformation). Emits one canonical `circular_dependency`
-  // InsightRecord per detected cycle via the same insight-store path the
-  // populator uses, so a future GET /api/insights?category=circular_dependency
-  // query returns real data.
+  // ("Dependency Health"). Emits one canonical `circular_dependency`
+  // InsightRecord per detected cycle via the same insight-store path
+  // the populator uses, so GET /api/insights?category=circular_dependency
+  // returns real data.
+  //
+  // Cycles are sourced from TWO complementary inputs:
+  //
+  //   1. ctx.result.cycles — DFS-based cycle detection inside the
+  //      integr8 graph builder (src/features/graph/builder.js). For
+  //      Vue/Pinia/Tauri projects this is the primary source.
+  //
+  //   2. Live st8.sqlite (Batch 030 follow-up) — Tarjan SCC over
+  //      file_registry + connections via persistence-cycle-detector.
+  //      For generic JS projects (including st8 itself) where the
+  //      integr8 parsers find no JS-specific edges, this is the
+  //      primary source.
+  //
+  // Both sources emit the same `{cycle, files}` shape so they merge
+  // cleanly. Dedup by sorted-member fingerprint set: two cycles with
+  // the same participants (regardless of rotation/order) collapse to
+  // one InsightRecord.
   //
   // Runs AFTER insight-store-populator (P=35) so the InsightStore's
-  // FileInsightSlots already have rows for any cycle participant —
-  // ensureFileSlot is idempotent so this is belt-and-braces rather
-  // than required ordering. Runs BEFORE intent-seeder (P=40).
+  // FileInsightSlots already have rows for any cycle participant
+  // (ensureFileSlot is idempotent — belt-and-braces). Runs BEFORE
+  // intent-seeder (P=40).
   registry.register(HOOKS.INDEX_COMPLETE, async (ctx) => {
     try {
-      const cycles = (ctx && ctx.result && Array.isArray(ctx.result.cycles)) ? ctx.result.cycles : [];
+      const integr8Cycles = (ctx && ctx.result && Array.isArray(ctx.result.cycles)) ? ctx.result.cycles : [];
+
+      const { detectCyclesFromPersistence, mergeCycles } =
+        require('../../features/analysis/persistence-cycle-detector');
+      const persistenceCycles = ctx && ctx.persistence
+        ? detectCyclesFromPersistence(ctx.persistence)
+        : [];
+
+      const cycles = mergeCycles(integr8Cycles, persistenceCycles);
       if (cycles.length === 0) {
         // Silent: no cycles is the normal-and-good case.
         return;
@@ -248,7 +270,8 @@ function registerDefaultSubscribers(registry) {
       const { emitCycleInsights } = require('../../features/analysis/cycle-insight-emitter');
       const result = emitCycleInsights(cycles, { projectId: 'st8' });
       console.log(
-        `[st8] Cycle insights: ${result.inserted} circular_dependency records emitted (${result.skipped} skipped — no file data)`
+        `[st8] Cycle insights: ${result.inserted} circular_dependency records emitted ` +
+        `(${result.skipped} skipped, sources: integr8=${integr8Cycles.length} persistence=${persistenceCycles.length} merged=${cycles.length})`
       );
     } catch (err) {
       console.error('[st8] cycle-insight-emitter failed:', err.message);
