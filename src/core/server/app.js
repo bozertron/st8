@@ -275,6 +275,14 @@ class St8Server {
         // INDEX_COMPLETE returns sees fresh data (test enforces this).
         this._manifestCacheEntry = null; // { path, content, mtimeMs }
         this._manifestHookUnregister = null;
+        // Batch 032 — `this.lastManifestUpdate` is the ISO-8601 timestamp
+        // of the most recent INDEX_COMPLETE manifest write. Exposed via
+        // /api/health (line 634); used by /api/state and external monitors
+        // to detect indexer activity. Set by the P=15 INDEX_COMPLETE
+        // subscriber registered in start() below — pre-Batch-032 this field
+        // was declared but never assigned (always null), surfacing as
+        // `lastManifestUpdate: null` even immediately after a fresh index.
+        this._lastManifestUpdateUnregister = null;
     }
 
     start() {
@@ -305,6 +313,42 @@ class St8Server {
         } catch (err) {
             console.warn('[st8:server] Could not register manifest-cache invalidator:', err.message);
         }
+
+        // Batch 032 (QW-0): set this.lastManifestUpdate on INDEX_COMPLETE.
+        // Priority 15 — runs AFTER the manifest-generator subscriber (P=10)
+        // so the timestamp reflects the on-disk manifest, not a stale write
+        // attempt. Pre-fix this field was declared in the constructor but
+        // never assigned, so /api/health always returned
+        // `"lastManifestUpdate": null` even immediately after a fresh
+        // index. Unblocks /api/state (QW-3) which depends on this signal.
+        try {
+            const { hookRegistry, HOOKS } = require('../hook-registry');
+            this._lastManifestUpdateUnregister = hookRegistry.register(
+                HOOKS.INDEX_COMPLETE,
+                () => { this.lastManifestUpdate = new Date().toISOString(); },
+                { priority: 15, source: 'st8-server-last-manifest-update' }
+            );
+        } catch (err) {
+            console.warn('[st8:server] Could not register lastManifestUpdate setter:', err.message);
+        }
+
+        // Boot-time seed: main.js's order is
+        //   indexer.indexDirectory() (writes manifest)
+        //     → hookRegistry.execute(INDEX_COMPLETE) (subscribers run)
+        //     → new St8Server(...).start() (THIS function)
+        // The very first INDEX_COMPLETE has therefore already fired BEFORE
+        // the P=15 setter registered above could observe it. To avoid an
+        // initially-null /api/health response, seed the field from the
+        // on-disk manifest's mtime. Subsequent INDEX_COMPLETE fires from
+        // file-watcher / re-indexer hits the hook subscriber normally.
+        try {
+            if (this.targetDir) {
+                const manifestPath = path.join(this.targetDir, 'connection-state.json');
+                if (fs.existsSync(manifestPath)) {
+                    this.lastManifestUpdate = fs.statSync(manifestPath).mtime.toISOString();
+                }
+            }
+        } catch (_) { /* best-effort; field stays null on read failure */ }
 
         return true;
     }
@@ -2624,6 +2668,12 @@ class St8Server {
         if (this._manifestHookUnregister) {
             try { this._manifestHookUnregister(); } catch (_) { /* best-effort */ }
             this._manifestHookUnregister = null;
+        }
+        // Batch 032 (QW-0): symmetric unregister for the lastManifestUpdate
+        // setter. Same leak-prevention reasoning as the manifest-cache hook.
+        if (this._lastManifestUpdateUnregister) {
+            try { this._lastManifestUpdateUnregister(); } catch (_) { /* best-effort */ }
+            this._lastManifestUpdateUnregister = null;
         }
         this._manifestCacheEntry = null;
         // Remove the port file so stale readers don't keep hitting a dead
