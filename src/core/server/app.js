@@ -490,6 +490,9 @@ class St8Server {
             case '/api/manifests':
                 this._handleManifestsList(req, res);
                 break;
+            case '/api/sonic/status':
+                this._handleSonicStatus(req, res);
+                break;
             case '/api/prd-projects':
                 this._handlePrdProjects(req, res, url);
                 break;
@@ -1608,6 +1611,34 @@ class St8Server {
      * downstream consumers to average / sort by. Project-level
      * healthScore = (GREEN_count / total).
      */
+    /**
+     * GET /api/sonic/status — Sonic search daemon lifecycle state.
+     *
+     * Batch 032 (closing wins after QW-3). Sonic daemon already
+     * exposes `getStatus()` returning a stable shape; this handler is
+     * a one-line passthrough. Backs the UI status indicator + ops/
+     * monitoring use case named in sonic-and-search.md roadmap P2.
+     *
+     * Returns the shape sonic-daemon.getStatus() emits:
+     *   { running, pid, port, host, since, restartCount, storePath, lastError }
+     */
+    _handleSonicStatus(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+        try {
+            const daemon = require('../../features/search/sonic-daemon');
+            const status = daemon.getStatus();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(status, null, 2));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
     _handleManifestsList(req, res) {
         if (req.method !== 'GET') {
             res.writeHead(405, { 'Content-Type': 'application/json' });
