@@ -484,6 +484,12 @@ class St8Server {
             case '/api/gap-analysis':
                 this._handleGapAnalysis(req, res);
                 break;
+            case '/api/state':
+                this._handleServerState(req, res);
+                break;
+            case '/api/manifests':
+                this._handleManifestsList(req, res);
+                break;
             case '/api/prd-projects':
                 this._handlePrdProjects(req, res, url);
                 break;
@@ -1473,18 +1479,18 @@ class St8Server {
             res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
             return;
         }
-        
+
         let persistence;
         try {
             const { GapAnalyzer } = require('../../features/analysis/gap-analyzer');
             const { St8Persistence } = require('../database/persistence');
-            
+
             persistence = new St8Persistence();
             persistence.initialize().then(() => {
                 const schemaCardsDir = require('path').join(this.targetDir, '.st8', 'schema-cards');
                 const analyzer = new GapAnalyzer(schemaCardsDir, persistence);
                 const report = analyzer.analyze();
-                
+
                 // Content negotiation
                 const accept = req.headers.accept || '';
                 if (accept.includes('text/markdown')) {
@@ -1503,6 +1509,156 @@ class St8Server {
             });
         } catch (err) {
             if (persistence) persistence.close();
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    /**
+     * GET /api/state — server-state envelope.
+     *
+     * Batch 032 (QW-3). Closes CLAUDE.md documentation drift — the
+     * route was listed in CLAUDE.md's API surface table but returned
+     * 404 (meta-dogfood batch 028 finding). Now backed by a real handler.
+     *
+     * Combines the in-process counters (this.lastManifestUpdate, set by
+     * QW-0's INDEX_COMPLETE subscriber) with a quick file_registry count
+     * to give external monitors / dashboards a one-shot snapshot of
+     * "what does the server think the world looks like right now."
+     *
+     * Returns:
+     *   { status, uptime, targetDir, lastManifestUpdate, totalFiles }
+     *
+     * status is 'ok' when targetDir is set and the persistence layer
+     * loads. Returns 'degraded' if persistence cannot be initialised.
+     */
+    _handleServerState(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+
+        const baseEnvelope = {
+            status: 'ok',
+            uptime: process.uptime(),
+            targetDir: this.targetDir || null,
+            lastManifestUpdate: this.lastManifestUpdate,
+        };
+
+        let persistence;
+        try {
+            const { St8Persistence } = require('../database/persistence');
+            persistence = new St8Persistence();
+            persistence.initialize().then(() => {
+                let totalFiles = 0;
+                try {
+                    const files = persistence.getAllFiles();
+                    totalFiles = Array.isArray(files) ? files.length : 0;
+                } catch (_) {
+                    // file_registry read failure is degraded, not fatal
+                    baseEnvelope.status = 'degraded';
+                }
+                const envelope = Object.assign({}, baseEnvelope, { totalFiles });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(envelope, null, 2));
+            }).catch(_ => {
+                // Persistence init failure — return degraded envelope rather
+                // than 500, so monitors can tell "server is up but DB is sad".
+                const envelope = Object.assign({}, baseEnvelope, {
+                    status: 'degraded',
+                    totalFiles: 0,
+                });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(envelope, null, 2));
+            }).finally(() => {
+                if (persistence) persistence.close();
+            });
+        } catch (err) {
+            if (persistence) try { persistence.close(); } catch (_) {}
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    /**
+     * GET /api/manifests — schema-card index + aggregate health.
+     *
+     * Batch 032 (QW-3). Companion to /api/state. Closes the second
+     * CLAUDE.md documented-but-404 endpoint.
+     *
+     * Aggregates file_registry directly — does NOT call buildGraph()
+     * (avoids the event-loop hazard external QW-3 verification flagged
+     * on /api/generate-report). healthScore is derived from the
+     * stored status enum: GREEN_count / total. That's a simple,
+     * fast, on-demand metric that matches what the constellation
+     * already renders, and what gap-analyzer's D2 dimension publishes.
+     *
+     * Returns:
+     *   {
+     *     count,
+     *     manifests: [{ fingerprint, filepath, filename, status,
+     *                   reachabilityScore, impactRadius, lifecyclePhase,
+     *                   healthScore }, ...],
+     *     summary: { healthScore, statusCounts, totalFiles }
+     *   }
+     *
+     * Per-file healthScore = 1.0 for GREEN, 0.5 for YELLOW, 0.0 for
+     * RED — a numeric coercion of the status enum that's easier for
+     * downstream consumers to average / sort by. Project-level
+     * healthScore = (GREEN_count / total).
+     */
+    _handleManifestsList(req, res) {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed. Use GET.' }));
+            return;
+        }
+
+        const STATUS_HEALTH = { GREEN: 1.0, YELLOW: 0.5, RED: 0.0 };
+
+        let persistence;
+        try {
+            const { St8Persistence } = require('../database/persistence');
+            persistence = new St8Persistence();
+            persistence.initialize().then(() => {
+                const files = persistence.getAllFiles() || [];
+                const manifests = files.map(f => ({
+                    fingerprint: f.fingerprint,
+                    filepath: f.filepath,
+                    filename: f.filename,
+                    status: f.status || 'RED',
+                    reachabilityScore: typeof f.reachabilityScore === 'number' ? f.reachabilityScore : 0,
+                    impactRadius: typeof f.impactRadius === 'number' ? f.impactRadius : 0,
+                    lifecyclePhase: f.lifecyclePhase || 'DEVELOPMENT',
+                    healthScore: STATUS_HEALTH[f.status] !== undefined ? STATUS_HEALTH[f.status] : 0,
+                }));
+                const statusCounts = {
+                    GREEN: 0, YELLOW: 0, RED: 0,
+                };
+                for (const m of manifests) {
+                    if (statusCounts[m.status] !== undefined) statusCounts[m.status]++;
+                }
+                const total = manifests.length;
+                const projectHealthScore = total > 0 ? statusCounts.GREEN / total : 1.0;
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    count: total,
+                    manifests,
+                    summary: {
+                        healthScore: projectHealthScore,
+                        statusCounts,
+                        totalFiles: total,
+                    },
+                }, null, 2));
+            }).catch(err => {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }).finally(() => {
+                if (persistence) persistence.close();
+            });
+        } catch (err) {
+            if (persistence) try { persistence.close(); } catch (_) {}
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
         }
